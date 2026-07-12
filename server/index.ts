@@ -2,11 +2,14 @@ import 'dotenv/config'
 
 import { createApp } from './app'
 import type { AppLogger } from './logger'
+import { apiSecurityConfig, assertSafeBindConfiguration } from './security'
 
 const port = Number(process.env.PORT ?? 5174)
 const host = process.env.HOST ?? '127.0.0.1'
+const security = apiSecurityConfig(host)
+assertSafeBindConfiguration(security)
 
-const app = createApp()
+const app = createApp({ security })
 const logger = app.locals.logger as AppLogger
 
 process.on('uncaughtException', (error) => {

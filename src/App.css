@@ -298,9 +298,43 @@
   cursor: wait;
 }
 
+.topbar-actions button:disabled {
+  color: #98a1aa;
+  background: #f5f7f9;
+  cursor: not-allowed;
+}
+
 .icon-button {
   width: 34px;
   padding: 0;
+}
+
+.mode-switch {
+  height: 32px;
+  border: 1px solid #d9dee5;
+  border-radius: 5px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.mode-switch button {
+  height: 30px;
+  border: 0;
+  border-radius: 0;
+  min-width: 104px;
+  background: #ffffff;
+  color: #56616c;
+}
+
+.mode-switch button + button {
+  border-left: 1px solid #d9dee5;
+}
+
+.mode-switch button.selected {
+  background: #eef3f8;
+  color: #111318;
 }
 
 .status-chip {
@@ -320,6 +354,96 @@
   color: #8e1025;
 }
 
+.provider-banner {
+  min-height: 48px;
+  border-bottom: 1px solid #dfe3e8;
+  background: #fbfcfd;
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+}
+
+.provider-banner__status {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #245aa2;
+}
+
+.provider-banner--external .provider-banner__status {
+  color: #8e1025;
+}
+
+.provider-banner__status div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.provider-banner__status strong {
+  color: #1f2328;
+  font-size: 13px;
+}
+
+.provider-banner__status span {
+  overflow: hidden;
+  color: #66717d;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.provider-banner__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.provider-banner__meta span {
+  min-height: 22px;
+  border: 1px solid #d7dde4;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #4d5762;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.provider-banner__meta .safe {
+  border-color: #b9d9c5;
+  color: #2b6f46;
+}
+
+.provider-banner__meta .risk {
+  border-color: #edc1c8;
+  color: #8e1025;
+}
+
+.provider-banner button,
+.modal-footer button,
+.preview-header button {
+  height: 30px;
+  border: 1px solid #d7dde4;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #2d333b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 11px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .error-banner {
   margin: 10px 16px 0;
   padding: 10px 12px;
@@ -335,6 +459,742 @@
   display: grid;
   grid-template-columns: 284px minmax(460px, 1fr) 390px;
   border-bottom: 1px solid #dfe3e8;
+}
+
+.trialforge-workspace {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  border-bottom: 1px solid #dfe3e8;
+}
+
+.trialforge-workspace .intake-panel {
+  border-right: 1px solid #dfe3e8;
+}
+
+.trialforge-console {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: #ffffff;
+}
+
+.trialforge-setup {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 0;
+}
+
+.trialforge-panel {
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid #dfe3e8;
+  background: #ffffff;
+}
+
+.trialforge-setup__main,
+.trialforge-panel {
+  padding: 14px;
+}
+
+.trialforge-panel__header,
+.trialforge-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+  color: #27313b;
+}
+
+.trialforge-panel__header > div,
+.trialforge-toolbar > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.trialforge-panel__header strong,
+.trialforge-toolbar strong {
+  color: #111318;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.trialforge-toolbar {
+  border-bottom: 1px solid #dfe3e8;
+  padding: 8px 14px;
+}
+
+.trialforge-toolbar small,
+.allowed-move-form small {
+  color: #68727d;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.trialforge-toolbar button,
+.trialforge-primary,
+.allowed-move-form button {
+  height: 32px;
+  border: 1px solid #7a0f1e;
+  border-radius: 5px;
+  background: #7a0f1e;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.trialforge-toolbar button {
+  border-color: #d7dde4;
+  background: #ffffff;
+  color: #2d333b;
+}
+
+.trialforge-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trialforge-toolbar button:disabled,
+.trialforge-primary:disabled,
+.allowed-move-form button:disabled {
+  border-color: #c6cdd5;
+  background: #eef1f4;
+  color: #89939d;
+  cursor: not-allowed;
+}
+
+.trialforge-setup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.trialforge-setup-grid label,
+.trialforge-field {
+  display: grid;
+  gap: 7px;
+  color: #25303a;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.trialforge-setup-grid input,
+.trialforge-field textarea {
+  width: 100%;
+  border: 1px solid #d7dde4;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #2d333b;
+  font: 13px/1.45 Inter, "Segoe UI", Arial, sans-serif;
+}
+
+.trialforge-setup-grid input {
+  height: 32px;
+  padding: 0 10px;
+}
+
+.trialforge-field {
+  margin-top: 12px;
+}
+
+.trialforge-field textarea {
+  min-height: 108px;
+  resize: vertical;
+  padding: 10px;
+}
+
+.trialforge-segmented {
+  width: min(320px, 100%);
+  height: 30px;
+  border: 1px solid #d7dde4;
+  border-radius: 5px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.trialforge-segmented button {
+  border: 0;
+  background: #ffffff;
+  color: #66717d;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.trialforge-segmented button + button {
+  border-left: 1px solid #d7dde4;
+}
+
+.trialforge-segmented button.selected {
+  background: #eef3f8;
+  color: #111318;
+}
+
+.trialforge-persona-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.trialforge-persona-grid label {
+  display: grid;
+  gap: 7px;
+  color: #25303a;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.trialforge-persona-grid select {
+  height: 32px;
+  border: 1px solid #d7dde4;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #2d333b;
+  padding: 0 9px;
+  font: 12px Inter, "Segoe UI", Arial, sans-serif;
+}
+
+.trialforge-courtroom {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 220px minmax(420px, 1fr) 300px;
+}
+
+.trialforge-phase-panel,
+.trialforge-side-panel {
+  overflow: auto;
+}
+
+.phase-rail {
+  list-style: none;
+  display: grid;
+  gap: 7px;
+  padding: 10px 0 14px;
+  margin: 0;
+}
+
+.phase-rail li {
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #78838e;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.phase-rail li span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #cbd3db;
+  flex: 0 0 auto;
+}
+
+.phase-rail li.seen {
+  color: #315c93;
+}
+
+.phase-rail li.seen span {
+  background: #8eb5dd;
+}
+
+.phase-rail li.active {
+  color: #7a0f1e;
+}
+
+.phase-rail li.active span {
+  background: #7a0f1e;
+}
+
+.trialforge-evidence-compact {
+  border-top: 1px solid #e6e9ed;
+  padding-top: 13px;
+}
+
+.trialforge-evidence-list {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.trialforge-evidence-list button {
+  min-height: 36px;
+  border: 1px solid #e1e6eb;
+  border-radius: 5px;
+  background: #ffffff;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trialforge-evidence-list button:hover,
+.trialforge-evidence-list button.selected {
+  border-color: #aeb9c4;
+  background: #f7f9fb;
+}
+
+.trialforge-evidence-list.compact button {
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+.trialforge-evidence-list strong {
+  color: #315c93;
+  font-size: 11px;
+}
+
+.trialforge-evidence-list span {
+  min-width: 0;
+  overflow: hidden;
+  color: #39434d;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trialforge-history {
+  margin-top: 16px;
+  border-top: 1px solid #e6e9ed;
+  padding-top: 13px;
+}
+
+.trialforge-history__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #56616c;
+}
+
+.trialforge-history__list {
+  margin-top: 9px;
+  display: grid;
+  gap: 7px;
+}
+
+.trialforge-history__list button {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #e1e6eb;
+  border-radius: 5px;
+  background: #ffffff;
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trialforge-history__list button:hover:not(:disabled) {
+  border-color: #aeb9c4;
+  background: #f7f9fb;
+}
+
+.trialforge-history__list button.selected {
+  border-color: #aab8c7;
+  background: #eef3f8;
+}
+
+.trialforge-history__list button:disabled {
+  cursor: default;
+}
+
+.trialforge-history__list strong,
+.trialforge-history__list span,
+.trialforge-history__list small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trialforge-history__list strong {
+  color: #20262d;
+  font-size: 11px;
+  text-transform: none;
+}
+
+.trialforge-history__list span,
+.trialforge-history__list small {
+  color: #68727d;
+  font-size: 10px;
+}
+
+.trialforge-muted,
+.citation-panel p,
+.coach-panel p {
+  margin: 8px 0 0;
+  color: #5d6873;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.trialforge-transcript-panel {
+  display: grid;
+  grid-template-rows: 44px minmax(0, 1fr) auto;
+  padding: 0;
+  overflow: hidden;
+}
+
+.trialforge-transcript-panel .trialforge-panel__header {
+  padding: 0 14px;
+  border-bottom: 1px solid #e6e9ed;
+}
+
+.trialforge-transcript {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 14px;
+}
+
+.court-event {
+  border: 1px solid #e1e6eb;
+  border-left: 4px solid #a7b3bd;
+  border-radius: 5px;
+  padding: 10px 11px;
+  background: #ffffff;
+}
+
+.court-event--crown {
+  border-left-color: #7a0f1e;
+}
+
+.court-event--judge {
+  border-left-color: #315c93;
+}
+
+.court-event--coach {
+  border-left-color: #2f7d54;
+}
+
+.court-event--accused {
+  border-left-color: #c49a2c;
+}
+
+.court-event__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #6f7a85;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.court-event h3 {
+  margin: 7px 0 0;
+  color: #111318;
+  font-size: 14px;
+}
+
+.court-event p {
+  margin: 7px 0 0;
+  color: #39434d;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.court-event__citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.court-event__citations button {
+  min-height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: #eef3fb;
+  color: #315c93;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 7px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.court-event__citations button {
+  cursor: pointer;
+}
+
+.court-event__citations button:hover {
+  background: #dfeaf6;
+}
+
+.court-event__citations button.selected {
+  outline: 2px solid #315c93;
+  outline-offset: 1px;
+  background: #dfeaf6;
+}
+
+.court-event__citations button.authority {
+  background: #f5f0e5;
+  color: #765619;
+}
+
+.court-event__citations button.authority:hover,
+.court-event__citations button.authority.selected {
+  background: #eadfca;
+  outline-color: #8a651f;
+}
+
+.allowed-move-form {
+  border-top: 1px solid #dfe3e8;
+  background: #fbfcfd;
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.allowed-move-form > div {
+  display: grid;
+  gap: 3px;
+}
+
+.allowed-move-form strong {
+  color: #111318;
+  font-size: 14px;
+}
+
+.allowed-move-form label {
+  display: grid;
+  gap: 6px;
+  color: #25303a;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.allowed-move-form textarea {
+  width: 100%;
+  min-height: 92px;
+  resize: vertical;
+  border: 1px solid #d7dde4;
+  border-radius: 5px;
+  color: #2d333b;
+  padding: 9px;
+  font: 13px/1.45 Inter, "Segoe UI", Arial, sans-serif;
+}
+
+.trialforge-side-panel {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.citation-panel {
+  display: grid;
+  gap: 9px;
+}
+
+.citation-panel div,
+.authority-detail-panel,
+.evidence-anchor-panel,
+.coach-panel {
+  border: 1px solid #e1e6eb;
+  border-radius: 5px;
+  padding: 9px;
+}
+
+.citation-panel div.selected {
+  border-color: #8ea6bf;
+  background: #f4f8fc;
+}
+
+.citation-panel__select {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  display: grid;
+  gap: 3px;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.citation-panel__select strong {
+  color: #20262d;
+  font-size: 11px;
+}
+
+.citation-panel span {
+  color: #315c93;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.citation-panel a,
+.authority-detail-panel a {
+  display: inline-flex;
+  margin-top: 6px;
+  color: #315c93;
+  font-size: 11px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.authority-detail-panel,
+.evidence-anchor-panel {
+  display: grid;
+  gap: 7px;
+}
+
+.authority-detail-panel:focus,
+.evidence-anchor-panel:focus {
+  outline: 2px solid #315c93;
+  outline-offset: 2px;
+}
+
+.authority-detail-panel strong,
+.evidence-anchor-panel strong {
+  color: #20262d;
+  font-size: 12px;
+}
+
+.authority-detail-panel p,
+.evidence-anchor-panel p {
+  margin: 0;
+  color: #4f5a65;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.authority-detail-panel dl,
+.evidence-anchor-panel dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.authority-detail-panel dl div,
+.evidence-anchor-panel dl div {
+  min-width: 0;
+  border: 1px solid #e6e9ed;
+  border-radius: 4px;
+  padding: 6px;
+}
+
+.authority-detail-panel dt,
+.evidence-anchor-panel dt {
+  color: #7a8590;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.authority-detail-panel dd,
+.evidence-anchor-panel dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  color: #313a44;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.authority-detail-panel > small {
+  color: #68727d;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.authority-detail-panel a {
+  align-items: center;
+  gap: 5px;
+}
+
+.evidence-anchor-panel__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.evidence-anchor-panel__tags span {
+  border-radius: 999px;
+  background: #edf2f7;
+  color: #506070;
+  padding: 3px 7px;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.evidence-anchor-panel pre {
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid #e1e6eb;
+  border-radius: 5px;
+  background: #f8fafc;
+  color: #39434d;
+  padding: 8px;
+  white-space: pre-wrap;
+  font: 11px/1.45 "Cascadia Mono", Consolas, monospace;
+}
+
+.citation-provenance {
+  display: grid;
+  gap: 6px;
+}
+
+.citation-provenance > strong {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.citation-provenance a {
+  border: 1px solid #e1e6eb;
+  border-radius: 4px;
+  display: grid;
+  gap: 2px;
+  color: #315c93;
+  padding: 6px;
+  text-decoration: none;
+}
+
+.citation-provenance a:hover {
+  background: #f4f8fc;
+}
+
+.citation-provenance a span {
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.citation-provenance a small,
+.citation-provenance > small {
+  color: #68727d;
+  font-size: 9px;
+}
+
+.citation-panel .citation-warning {
+  border-color: #edc1c8;
+  background: #fff7f8;
+}
+
+.citation-panel .citation-warning span {
+  color: #8e1025;
 }
 
 .intake-panel,
@@ -973,6 +1833,12 @@
   font-size: 18px;
 }
 
+.liability-card small {
+  color: #66717d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .confidence-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 42px;
@@ -1030,6 +1896,140 @@
   color: #1f2328;
 }
 
+.jury-persona-panel {
+  grid-column: 1 / -1;
+}
+
+.jury-persona-panel ul {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.jury-persona-panel li {
+  min-width: 0;
+  border-left: 3px solid #9b1027;
+  padding: 2px 8px;
+  display: grid;
+  gap: 2px;
+}
+
+.jury-persona-panel strong,
+.jury-persona-panel span,
+.jury-persona-panel small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.jury-persona-panel strong {
+  color: #1f2328;
+  font-size: 12px;
+}
+
+.jury-persona-panel span {
+  color: #39424e;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.jury-persona-panel small {
+  color: #6d7782;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.juror-profile-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 8px;
+  margin: 4px 0 0;
+}
+
+.juror-profile-facts div {
+  min-width: 0;
+}
+
+.juror-profile-facts dt {
+  color: #7a838d;
+  font-size: 9px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.juror-profile-facts dd {
+  margin: 2px 0 0;
+  color: #39424e;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.juror-mind-trail {
+  border-top: 1px solid #e6e9ed;
+  margin-top: 5px;
+  padding-top: 5px;
+}
+
+.juror-mind-trail summary {
+  color: #245aa2;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.juror-mind-trail p {
+  margin: 6px 0 0;
+  color: #4b5560;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.juror-mind-trail ol {
+  display: grid;
+  gap: 6px;
+  margin: 7px 0 0;
+  padding-left: 18px;
+}
+
+.juror-mind-trail ol li {
+  border-left: 0;
+  padding: 0;
+  display: list-item;
+  color: #4b5560;
+  font-size: 11px;
+}
+
+.juror-mind-trail ol b,
+.juror-mind-trail ol span,
+.juror-mind-trail ol small {
+  display: block;
+}
+
+.juror-rounds {
+  display: grid;
+  gap: 4px;
+  margin-top: 7px;
+}
+
+.juror-warnings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.juror-warnings span {
+  border: 1px solid #edc1c8;
+  border-radius: 4px;
+  background: #fff7f8;
+  color: #8e1025;
+  padding: 3px 5px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .summary-disclaimer {
   grid-column: 1 / -1;
   margin: -2px 2px 0;
@@ -1078,6 +2078,345 @@
   cursor: pointer;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgba(17, 19, 24, 0.42);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.run-settings-modal {
+  width: min(1080px, 100%);
+  max-height: min(840px, calc(100vh - 40px));
+  border: 1px solid #cfd6de;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 24px 58px rgba(17, 24, 39, 0.22);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.modal-header {
+  min-height: 58px;
+  border-bottom: 1px solid #dfe3e8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 16px;
+}
+
+.modal-header div,
+.preview-header div {
+  display: grid;
+  gap: 3px;
+}
+
+.modal-header span,
+.preview-header span {
+  color: #8e1025;
+  text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.modal-header strong,
+.preview-header strong {
+  color: #1f2328;
+  font-size: 15px;
+}
+
+.modal-header button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 5px;
+  background: #f5f7f9;
+  color: #66717d;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.settings-grid {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(330px, 0.92fr) minmax(420px, 1.08fr);
+  overflow: hidden;
+}
+
+.settings-column {
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.settings-column + .settings-column {
+  border-left: 1px solid #dfe3e8;
+}
+
+.settings-block {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.settings-block label {
+  color: #25303a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.settings-block select,
+.settings-block input[type="number"] {
+  height: 34px;
+  border: 1px solid #d7dde4;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #2d333b;
+  padding: 0 10px;
+  font: 13px Inter, "Segoe UI", Arial, sans-serif;
+}
+
+.settings-block p,
+.settings-block small {
+  margin: 0;
+  color: #66717d;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.settings-block small {
+  font-size: 11px;
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.panel-rule-hint {
+  display: block;
+  margin: -6px 0 0;
+  color: #8e1025;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.provider-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.provider-mode-grid button {
+  min-height: 56px;
+  border: 1px solid #d7dde4;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #4d5762;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.provider-mode-grid button.selected {
+  border-color: #8e1025;
+  background: #fff7f8;
+  color: #8e1025;
+}
+
+.provider-mode-grid button:disabled {
+  color: #a0a8b0;
+  background: #f5f7f9;
+  cursor: not-allowed;
+}
+
+.disclosure-check {
+  border: 1px solid #edc1c8;
+  border-radius: 5px;
+  background: #fff7f8;
+  color: #7a0f1e;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 8px;
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.stage-checklist {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.stage-checklist label {
+  min-height: 32px;
+  border: 1px solid #d7dde4;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 9px;
+  color: #4d5762;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.preview-column {
+  background: #fbfcfd;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.preview-header button:disabled {
+  color: #98a1aa;
+  cursor: wait;
+}
+
+.preview-warnings {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.preview-warnings span {
+  border: 1px solid #edc1c8;
+  border-radius: 5px;
+  background: #fff7f8;
+  color: #7a0f1e;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  font-size: 12px;
+}
+
+.packet-preview {
+  min-height: 420px;
+  border: 1px solid #d7dde4;
+  border-radius: 5px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.packet-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.packet-stats span {
+  border-radius: 5px;
+  background: #eef3fb;
+  color: #245aa2;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.chunk-list {
+  display: grid;
+  gap: 9px;
+  max-height: 296px;
+  overflow: auto;
+}
+
+.chunk-list article {
+  border: 1px solid #e1e6eb;
+  border-radius: 5px;
+  padding: 9px;
+}
+
+.chunk-list strong {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #25303a;
+  font-size: 12px;
+}
+
+.chunk-list strong span {
+  overflow: hidden;
+  color: #66717d;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chunk-list p,
+.empty-preview {
+  margin: 6px 0 0;
+  color: #58636e;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.packet-preview details {
+  margin-top: 12px;
+}
+
+.packet-preview summary {
+  color: #245aa2;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.packet-preview pre {
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid #dfe3e8;
+  border-radius: 5px;
+  background: #f8fafc;
+  color: #2d333b;
+  padding: 10px;
+  white-space: pre-wrap;
+  font: 11px/1.45 "Cascadia Mono", Consolas, monospace;
+}
+
+.empty-preview {
+  min-height: 360px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.modal-footer {
+  min-height: 54px;
+  border-top: 1px solid #dfe3e8;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px 16px;
+}
+
+.modal-footer .primary {
+  border-color: #7a0f1e;
+  background: #7a0f1e;
+  color: #ffffff;
+}
+
 .spin {
   animation: spin 1s linear infinite;
   color: #7a0f1e;
@@ -1107,6 +2446,27 @@
     grid-template-columns: 280px minmax(420px, 1fr);
   }
 
+  .trialforge-workspace {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+
+  .trialforge-setup,
+  .trialforge-courtroom {
+    grid-template-columns: 1fr;
+  }
+
+  .trialforge-panel,
+  .trialforge-workspace .intake-panel {
+    border-right: 0;
+    border-bottom: 1px solid #dfe3e8;
+  }
+
+  .trialforge-phase-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 240px;
+    gap: 14px;
+  }
+
   .evidence-inspector {
     grid-column: 1 / -1;
     border-top: 1px solid #dfe3e8;
@@ -1114,6 +2474,33 @@
 
   .decision-summary {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .jury-persona-panel ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .provider-banner {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .provider-banner__meta {
+    justify-content: flex-start;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+
+  .settings-column {
+    overflow: visible;
+  }
+
+  .settings-column + .settings-column {
+    border-left: 0;
+    border-top: 1px solid #dfe3e8;
   }
 }
 
@@ -1159,11 +2546,86 @@
   }
 
   .workspace-grid,
+  .trialforge-workspace,
   .decision-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .trialforge-setup-grid,
+  .trialforge-phase-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .mode-switch {
+    width: 100%;
+  }
+
+  .mode-switch button {
+    min-width: 0;
+  }
+
+  .jury-persona-panel ul {
     grid-template-columns: 1fr;
   }
 
   .timeline-panel {
     min-height: 540px;
   }
+
+  .modal-backdrop {
+    padding: 8px;
+  }
+
+  .run-settings-modal {
+    max-height: calc(100vh - 16px);
+  }
+
+  .provider-mode-grid,
+  .settings-row,
+  .stage-checklist {
+    grid-template-columns: 1fr;
+  }
+}
+.evidence-source-actions {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.evidence-source-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.evidence-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--warning, #c88a2d) 55%, transparent);
+  border-radius: 0.6rem;
+  color: var(--warning, #c88a2d);
+}
+
+.authority-provenance {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.authority-provenance div {
+  min-width: 0;
+}
+
+.authority-provenance dt {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.authority-provenance dd {
+  margin: 0.15rem 0 0;
+  overflow-wrap: anywhere;
 }

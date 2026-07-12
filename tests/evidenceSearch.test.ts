@@ -63,6 +63,11 @@ function evidenceItem(text: string): EvidenceItem {
     summary: text.slice(0, 120),
     tags: ['Evidence'],
     uploadedAt: new Date().toISOString(),
+    sha256: null,
+    sourceAvailable: false,
+    ingestionStatus: 'metadata_only',
+    extractionWarning: null,
+    archivedAt: null,
   }
 }
 
@@ -77,4 +82,3 @@ function chunk(text: string, chunkIndex: number): EvidenceChunk {
     createdAt: new Date().toISOString(),
   }
 }
-

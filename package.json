@@ -2,6 +2,11 @@
   "name": "judgeandjurry-codex",
   "private": true,
   "version": "0.0.0",
+  "packageManager": "npm@11.12.1",
+  "engines": {
+    "node": ">=24.15.0 <25",
+    "npm": ">=11.12.1 <12"
+  },
   "type": "module",
   "scripts": {
     "dev": "run-p dev:api dev:client",
@@ -13,6 +18,8 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:ui": "tsx e2e/smoke.ts",
+    "test:sim": "tsx e2e/simulation.ts",
+    "check:authorities": "tsx scripts/check-authority-links.ts",
     "preview": "vite preview"
   },
   "dependencies": {

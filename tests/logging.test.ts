@@ -56,7 +56,7 @@ describe('local logging', () => {
     logDir = mkdtempSync(join(tmpdir(), 'judge-jury-api-logs-'))
     const logger = createLogger({ logDir })
     store = new CaseStore(':memory:', logger.child({ component: 'db' }))
-    const app = createApp({ store, seed: false, logger })
+    const app = createApp({ store, logger })
 
     await request(app).get('/api/health').expect(200)
     await request(app)
@@ -87,7 +87,13 @@ describe('local logging', () => {
     logDir = mkdtempSync(join(tmpdir(), 'judge-jury-lifecycle-logs-'))
     const logger = createLogger({ logDir })
     store = new CaseStore(':memory:', logger.child({ component: 'db' }))
-    const app = createApp({ store, seed: false, logger })
+    const service = new SimulationService(
+      store,
+      new LoggingDeterministicModelClient(),
+      undefined,
+      logger.child({ component: 'simulation' }),
+    )
+    const app = createApp({ store, service, logger })
 
     await request(app).get('/api/health').expect(200)
     const created = await request(app)
@@ -132,7 +138,6 @@ describe('local logging', () => {
     expect(appLog).toContain('simulation.start.sync')
     expect(appLog).toContain('simulation.stage.start')
     expect(appLog).toContain('simulation.stage.finish')
-    expect(appLog).toContain('model.stage.mock_start')
     expect(appLog).toContain('simulation.finish.sync')
     expect(appLog).toContain('session.fetch')
     expect(appLog).toContain('matter.delete')
@@ -150,7 +155,6 @@ describe('local logging', () => {
         apiKey: 'ollama',
         baseUrl: 'http://127.0.0.1:11434/v1',
         model: 'qwen2.5:7b',
-        mock: false,
         timeoutMs: 2_000,
         maxRetries: 1,
       },
@@ -203,7 +207,6 @@ describe('local logging', () => {
         apiKey: 'bad-key',
         baseUrl: 'https://api.minimax.io/v1',
         model: 'MiniMax-M3',
-        mock: false,
         timeoutMs: 2_000,
         maxRetries: 2,
       },
@@ -245,7 +248,7 @@ describe('local logging', () => {
       undefined,
       logger.child({ component: 'simulation' }),
     )
-    const app = createApp({ store, service, seed: false, logger })
+    const app = createApp({ store, service, logger })
 
     const created = await request(app)
       .post('/api/matters')
@@ -284,7 +287,7 @@ describe('local logging', () => {
     logDir = mkdtempSync(join(tmpdir(), 'judge-jury-failure-logs-'))
     const logger = createLogger({ logDir })
     store = new CaseStore(':memory:', logger.child({ component: 'db' }))
-    const app = createApp({ store, seed: false, logger })
+    const app = createApp({ store, logger })
 
     const created = await request(app)
       .post('/api/matters')
@@ -315,7 +318,7 @@ describe('local logging', () => {
       narrative: 'Streaming status should be observable.',
     })
     const session = store.createSession(matter.id)
-    const app = createApp({ store, seed: false, logger })
+    const app = createApp({ store, logger })
     const server = await listenOnEphemeralPort(app)
 
     try {
@@ -398,6 +401,11 @@ function evidenceItem(): EvidenceItem {
     summary: 'Confidential summary',
     tags: ['Evidence'],
     uploadedAt: new Date().toISOString(),
+    sha256: null,
+    sourceAvailable: false,
+    ingestionStatus: 'metadata_only',
+    extractionWarning: null,
+    archivedAt: null,
   }
 }
 
@@ -410,6 +418,40 @@ class LoggingFlakyModelClient {
       throw new Error('logged temporary failure')
     }
 
+    const exhibitId = request.evidence[0]?.exhibitId ?? 'E-001'
+    return {
+      title: request.stage,
+      content: `${request.stage} cites ${exhibitId}.`,
+      citations: [exhibitId],
+      jurors:
+        request.stage === 'jury_deliberation'
+          ? [
+              {
+                juror: 'Juror 1',
+                leaning: 'mixed' as const,
+                confidence: 60,
+                rationale: `Profile-aware rationale citing ${exhibitId}.`,
+                citations: [exhibitId],
+              },
+            ]
+          : undefined,
+      verdict:
+        request.stage === 'judge_ruling'
+          ? {
+              outcome: 'Further Review Needed',
+              confidence: 60,
+              keyFactors: [`Key factor from ${exhibitId}`],
+              unresolvedIssues: [],
+              recommendedNextSteps: ['Review with counsel.'],
+              citationWarnings: [],
+            }
+          : undefined,
+    }
+  }
+}
+
+class LoggingDeterministicModelClient {
+  async generateStage(request: { stage: string; evidence: Array<{ exhibitId: string }> }) {
     const exhibitId = request.evidence[0]?.exhibitId ?? 'E-001'
     return {
       title: request.stage,

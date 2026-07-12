@@ -21,6 +21,11 @@ const evidence: EvidenceItem[] = [
     summary: 'Incident report',
     tags: ['Timeline'],
     uploadedAt: '2026-06-23T00:00:00.000Z',
+    sha256: null,
+    sourceAvailable: false,
+    ingestionStatus: 'metadata_only',
+    extractionWarning: null,
+    archivedAt: null,
   },
 ]
 

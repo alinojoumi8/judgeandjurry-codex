@@ -7,7 +7,18 @@ import { performance } from 'node:perf_hooks'
 import type { AppLogger } from './logger'
 import { noopLogger } from './logger'
 import { formatJurorProfilesForPrompt } from './jurors'
-import type { EvidenceChunk, EvidenceItem, JurorProfile, StageResult } from './types'
+import { isLocalBaseUrl, panelRulesFor } from './runConfig'
+import { jurorBallotStage } from './stages'
+import type {
+  EvidenceChunk,
+  EvidenceItem,
+  JuryBallot,
+  JurorProfile,
+  LegalTemplate,
+  ProviderMode,
+  RunConfig,
+  StageResult,
+} from './types'
 
 export type ModelProviderName = 'minimax' | 'openai-compatible'
 
@@ -16,7 +27,6 @@ export interface ModelProviderConfig {
   apiKey?: string
   baseUrl: string
   model: string
-  mock: boolean
   timeoutMs: number
   maxRetries: number
 }
@@ -28,6 +38,9 @@ export interface StageRequest {
   previousTurns: string
   retrievedChunks?: EvidenceChunk[]
   jurorProfiles?: JurorProfile[]
+  juryBallots?: JuryBallot[]
+  runConfig?: RunConfig
+  legalTemplate?: LegalTemplate
 }
 
 export interface ModelClient {
@@ -52,7 +65,6 @@ export class MiniMaxClient implements ModelClient {
   private readonly config: ModelProviderConfig
   private readonly logger: AppLogger
   private readonly fetcher: FetchLike
-  private readonly injectedMockFailures = new Set<string>()
 
   constructor(
     config: ModelProviderConfig,
@@ -66,43 +78,13 @@ export class MiniMaxClient implements ModelClient {
 
   async generateStage(request: StageRequest): Promise<StageResult> {
     const startedAt = performance.now()
-    const mock = this.config.mock || !this.isConfigured()
+    this.assertRequestedProviderMode(request.runConfig?.providerMode)
+    this.assertConfigured()
     const stageLogger = this.logger.child({
       stage: request.stage,
       provider: this.config.provider,
       model: this.config.model,
-      mock,
     })
-
-    if (mock) {
-      const failStage = process.env.MOCK_FAIL_STAGE_ONCE
-      if (
-        failStage &&
-        failStage === request.stage &&
-        !this.injectedMockFailures.has(failStage)
-      ) {
-        this.injectedMockFailures.add(failStage)
-        stageLogger.warn('model.stage.mock_failure_injected', { failStage })
-        throw new Error(`Mock provider failure at ${failStage}.`)
-      }
-
-      stageLogger.info('model.stage.mock_start', {
-        evidenceCount: request.evidence.length,
-        retrievedChunkCount: request.retrievedChunks?.length ?? 0,
-      })
-      const result = mockStageResult(
-        request.stage,
-        request.evidence,
-        request.jurorProfiles,
-      )
-      stageLogger.info('model.stage.mock_finish', {
-        durationMs: Math.round(performance.now() - startedAt),
-        citationCount: result.citations.length,
-        hasVerdict: Boolean(result.verdict),
-        jurorCount: result.jurors?.length ?? 0,
-      })
-      return result
-    }
 
     let attempt = 0
     let lastError: unknown
@@ -221,40 +203,132 @@ export class MiniMaxClient implements ModelClient {
       'Return only valid JSON.',
       'Do not include reasoning, analysis, markdown, code fences, or <think> tags.',
       'Keep prose concise and use short strings so the JSON object is complete.',
+      'The uploaded case packet is relevant evidence. Never return empty content, placeholder text, or "No relevant content".',
+      'Replace every example value with a stage-specific legal assessment.',
       'Every factual claim must cite uploaded exhibit IDs such as E-001.',
       'Do not present output as legal advice or as a binding court decision.',
+      'Use the party labels supplied for the selected template.',
+      'Avoid civil litigation labels such as plaintiff, liability, damages, notice, or inspection unless the selected template calls for them.',
+      'Courtroom communication rule: every advocate or decision-maker must respond to the strongest prior opposing point instead of repeating a standalone summary.',
     ].join(' ')
 
     const retrieved = formatRetrievedChunks(request.retrievedChunks ?? [])
     const jurors = formatJurorProfilesForPrompt(request.jurorProfiles ?? [])
     const jurorCount = request.jurorProfiles?.length || 6
+    const template = request.legalTemplate
     const isJuryStage = request.stage === 'jury_deliberation'
     const isJudgeStage = request.stage === 'judge_ruling'
+    const isBallotStage = request.stage === jurorBallotStage
+    const isChargeStage = request.stage === 'jury_instructions'
+    const ballotJuror = isBallotStage ? request.jurorProfiles?.[0] : undefined
+    const panelRules =
+      template && request.runConfig
+        ? panelRulesFor(template.id, request.runConfig.jurorCount)
+        : undefined
+    const ballots = formatJuryBallots(request.juryBallots ?? [])
+    const roleInstruction = roleInstructionForStage(request.stage, template)
     const user = [
       `Stage: ${request.stage}`,
+      template ? `Template: ${template.label}` : '',
+      template ? `Burden / standard: ${template.burdenLabel}` : '',
+      template
+        ? `Party labels: ${template.defenceLabel} vs ${template.crownLabel}; ${template.juryLabel}; ${template.judgeLabel}`
+        : '',
+      panelRules && (isJuryStage || isJudgeStage || isChargeStage || isBallotStage)
+        ? `Panel decision rule: ${panelRules.ruleLabel}.`
+        : '',
+      `Agent role instruction: ${roleInstruction}`,
+      template?.stagePrompts[request.stage]
+        ? `Stage focus: ${template.stagePrompts[request.stage]}`
+        : '',
       '',
       request.packet,
       '',
       'Retrieved evidence chunks for this stage:',
       retrieved || 'No targeted chunks were retrieved.',
       '',
-      'Stable jury profiles:',
+      isBallotStage ? 'Your juror profile:' : 'Fresh session jury profiles:',
       jurors,
       '',
-      'Previous turns:',
+      'Prior courtroom record:',
       request.previousTurns || 'No previous turns.',
       '',
+      isJuryStage && ballots
+        ? [
+            'Independent secret ballots cast before deliberation (one per juror):',
+            ballots,
+            'Deliberation rules: start every juror at their secret-ballot position. A juror may move only in response to a specific argument, exhibit, or pressure point raised in deliberation, and mindChangedBecause must name it. Do not force consensus; if the ballots split and deliberation does not close the gap, return a divided panel.',
+            '',
+          ].join('\n')
+        : '',
       isJuryStage
-        ? `For this jury_deliberation stage, include exactly ${jurorCount} juror objects using the stable jury profiles.`
-        : 'For this non-jury stage, return "jurors":[] only.',
+        ? `For this jury_deliberation stage, include exactly ${jurorCount} juror objects using the fresh session jury profiles.`
+        : '',
+      isBallotStage && ballotJuror
+        ? `For this juror_ballot stage, return a jurors array with exactly ONE object for ${ballotJuror.juror}. This is that juror's independent secret ballot cast before any deliberation: apply only this juror's profile and the courtroom record, never other jurors. beliefTrail and deliberationRounds must be [].`
+        : '',
+      !isJuryStage && !isBallotStage ? 'For this non-jury stage, return "jurors":[] only.' : '',
       isJudgeStage
-        ? 'For this judge_ruling stage, include a verdict object.'
+        ? 'For this judge_ruling stage, include a verdict object and explicitly account for the jury split, the decision rule, and the verdict status in the prior courtroom record.'
         : 'For this non-judge stage, omit verdict or set it to null.',
-      'Keep content under 160 words. Keep each juror rationale under 45 words.',
+      isBallotStage
+        ? 'The content field is a one-sentence ballot summary.'
+        : 'The content field must be substantive, stage-specific, and 80 to 160 words unless this is the jury stage.',
+      'Cite at least one uploaded exhibit ID in content when making factual claims; if only one exhibit is available, cite E-001.',
+      isChargeStage
+        ? 'Charge requirements: explain the elements to be decided, who bears the burden and to what standard, how to assess credibility and circumstantial evidence, what the panel must not consider, and the decision rule. Remain strictly neutral; do not signal a preferred outcome.'
+        : '',
+      isJuryStage
+        ? 'For every juror object, use the exact juror name from Fresh session jury profiles and make the rationale visibly distinct from the others.'
+        : '',
+      isJuryStage
+        ? 'Each juror rationale must reflect that juror role, skepticism level, burden sensitivity, default leaning, and evidence focus applied to the case facts.'
+        : '',
+      isJuryStage
+        ? 'Each juror must also reflect reasoning style, doubt triggers, trust anchors, emotional posture, evidence hierarchy, and what would change that juror mind.'
+        : '',
+      isJuryStage
+        ? 'Jurors must apply the judge\'s charge from the prior courtroom record: the elements, the standard of proof, and the decision rule.'
+        : '',
+      isJuryStage
+        ? 'For every juror include beliefTrail with four snapshots: after_crown_opening, after_defence_opening, after_rebuttals, and final_deliberation. Each snapshot needs stage, leaning, confidence, belief, why, and exhibit citations.'
+        : '',
+      isJuryStage
+        ? 'For every juror include deliberationRounds with 2 or 3 rounds. Each round must show the juror responding to another juror or pressure point, updating or preserving leaning and confidence.'
+        : '',
+      isJuryStage
+        ? 'For every juror include mindChangedBecause. If the juror did not change position, explain what kept the position stable.'
+        : '',
+      isJuryStage
+        ? 'For every juror include consistencyWarnings as [] unless the final vote departs from the stored profile without a case-specific explanation.'
+        : '',
+      isJuryStage
+        ? 'Do not force consensus. If the evidence is genuinely close, return a divided panel with realistic confidence levels.'
+        : '',
+      isJudgeStage
+        ? 'Calibrate verdict.confidence as decision-support confidence: 88-92 only when citations are clean, proof gaps are limited, and the jury record shows the decision rule was met; use lower confidence for close splits or unresolved element-level issues.'
+        : '',
+      isJudgeStage
+        ? 'If the jury record shows the panel did not reach the required agreement, the outcome must be the hung/no-verdict option, not a win for either side.'
+        : '',
+      isJudgeStage
+        ? 'For criminal or OSC matters, distinguish regulatory concerns from proof beyond a reasonable doubt and avoid treating loss alone as fraudulent intent.'
+        : '',
+      isJuryStage || isBallotStage
+        ? 'Keep each juror rationale under 45 words and make it address the case facts plus that juror profile.'
+        : '',
+      isJudgeStage && template
+        ? `For verdict.outcome use exactly one of: ${template.outcomeLabels.map((label) => `"${label}"`).join(', ')}.`
+        : 'For verdict.outcome use a concrete result such as "crown", "defence", or "mixed"; never use "...".',
+      'Do not copy placeholder strings from the JSON shape.',
       '',
       'Return this JSON shape:',
-      '{"title":"short title","content":"agent argument with citations","citations":["E-001"],"jurors":[{"juror":"Juror 1","leaning":"defence|crown|mixed","confidence":65,"rationale":"short rationale that references the juror profile and cited evidence","citations":["E-001"]}],"verdict":{"outcome":"...","confidence":70,"keyFactors":["..."],"unresolvedIssues":["..."],"recommendedNextSteps":["..."],"citationWarnings":["..."]}}',
-    ].join('\n')
+      isBallotStage
+        ? '{"title":"Secret Ballot","content":"one-sentence ballot summary citing an exhibit such as E-001","citations":["E-001"],"jurors":[{"juror":"Juror 1","leaning":"defence|crown|mixed","confidence":62,"rationale":"case-specific independent vote rationale","citations":["E-001"],"beliefTrail":[],"deliberationRounds":[],"mindChangedBecause":"not applicable - independent ballot","consistencyWarnings":[]}]}'
+        : '{"title":"stage-specific title","content":"substantive agent argument with exhibit citations such as E-001","citations":["E-001"],"jurors":[{"juror":"Juror 1","leaning":"defence|crown|mixed","confidence":65,"rationale":"case-specific rationale using profile and evidence","citations":["E-001"],"beliefTrail":[{"stage":"after_crown_opening","leaning":"defence|crown|mixed","confidence":58,"belief":"what this juror believed then","why":"case-specific reason","citations":["E-001"]}],"deliberationRounds":[{"round":1,"focus":"proof issue debated","exchange":"what this juror said or conceded","responseTo":"Juror 4 or pressure point","leaning":"defence|crown|mixed","confidence":65}],"mindChangedBecause":"what changed, or why the view stayed stable","consistencyWarnings":[]}],"verdict":{"outcome":"see outcome instruction","confidence":70,"keyFactors":["specific factor"],"unresolvedIssues":["specific issue"],"recommendedNextSteps":["specific next step"],"citationWarnings":[]}}',
+    ]
+      .filter((line) => line !== '')
+      .join('\n')
 
     const body: Record<string, unknown> = {
       model: this.config.model,
@@ -262,10 +336,13 @@ export class MiniMaxClient implements ModelClient {
         { role: 'system', content: system },
         { role: 'user', content: user },
       ],
-      temperature: 0.2,
+      temperature: temperatureForStage(request.stage),
     }
 
-    const maxOutputTokens = envNumber('MODEL_MAX_OUTPUT_TOKENS', 6_000)
+    const configuredBudget = envNumber('MODEL_MAX_OUTPUT_TOKENS', 6_000)
+    const maxOutputTokens = isBallotStage
+      ? Math.min(configuredBudget, 1_500)
+      : configuredBudget
     if (this.config.provider === 'minimax') {
       body.max_completion_tokens = maxOutputTokens
     } else {
@@ -277,21 +354,73 @@ export class MiniMaxClient implements ModelClient {
 
   private isConfigured(): boolean {
     if (this.config.provider === 'openai-compatible') {
-      return Boolean(this.config.baseUrl && this.config.model)
+      return Boolean(
+        this.config.baseUrl &&
+          this.config.model &&
+          (isLocalBaseUrl(this.config.baseUrl) || this.config.apiKey),
+      )
     }
     return Boolean(this.config.apiKey)
+  }
+
+  private assertConfigured(): void {
+    if (this.isConfigured()) {
+      return
+    }
+
+    if (this.config.provider === 'minimax') {
+      throw new ModelProviderError(
+        'MiniMax provider requires MINIMAX_API_KEY before simulations can run.',
+        { retryable: false },
+      )
+    }
+
+    throw new ModelProviderError(
+      'OpenAI-compatible provider requires a base URL, model, and API key for non-local endpoints.',
+      { retryable: false },
+    )
+  }
+
+  private assertRequestedProviderMode(mode: ProviderMode | undefined): void {
+    if (!mode) {
+      return
+    }
+
+    if (mode === 'local') {
+      if (
+        this.config.provider !== 'openai-compatible' ||
+        !isLocalBaseUrl(this.config.baseUrl)
+      ) {
+        throw new ModelProviderError(
+          'Local provider mode requires an OpenAI-compatible localhost base URL.',
+          { retryable: false },
+        )
+      }
+      return
+    }
+
+    if (mode === 'external') {
+      const configuredForExternal =
+        this.isConfigured() &&
+        !(
+          this.config.provider === 'openai-compatible' &&
+          isLocalBaseUrl(this.config.baseUrl)
+        )
+      if (!configuredForExternal) {
+        throw new ModelProviderError(
+          'External provider mode is not configured on this server.',
+          { retryable: false },
+        )
+      }
+    }
   }
 }
 
 export function createMiniMaxConfig(): ModelProviderConfig {
   const provider =
-    process.env.MODEL_PROVIDER === 'openai-compatible'
-      ? 'openai-compatible'
-      : 'minimax'
-  const mock =
-    process.env.MINIMAX_MOCK === '1' ||
-    process.env.MODEL_PROVIDER === 'mock' ||
-    process.env.NODE_ENV === 'test'
+    process.env.MODEL_PROVIDER === 'minimax'
+      ? 'minimax'
+      : 'openai-compatible'
 
   if (provider === 'openai-compatible') {
     return {
@@ -300,7 +429,6 @@ export function createMiniMaxConfig(): ModelProviderConfig {
       baseUrl:
         process.env.OPENAI_COMPATIBLE_BASE_URL || 'http://localhost:11434/v1',
       model: process.env.OPENAI_COMPATIBLE_MODEL || 'qwen2.5:14b',
-      mock,
       timeoutMs: envNumber('MODEL_TIMEOUT_MS', 60_000),
       maxRetries: envNumber('MODEL_MAX_RETRIES', 2),
     }
@@ -311,7 +439,6 @@ export function createMiniMaxConfig(): ModelProviderConfig {
     apiKey: process.env.MINIMAX_API_KEY || process.env.MINIMAX_TOKEN,
     baseUrl: process.env.MINIMAX_BASE_URL || 'https://api.minimax.io/v1',
     model: process.env.MINIMAX_MODEL || 'MiniMax-M3',
-    mock,
     timeoutMs: envNumber('MODEL_TIMEOUT_MS', 60_000),
     maxRetries: envNumber('MODEL_MAX_RETRIES', 2),
   }
@@ -346,7 +473,10 @@ export function normalizeStageResult(
     title: String(parsed.title ?? titleForStage(stage)),
     content,
     citations: supported,
-    jurors: stage === 'jury_deliberation' ? normalizeJurors(parsed.jurors, evidence) : undefined,
+    jurors:
+      stage === 'jury_deliberation' || stage === jurorBallotStage
+        ? normalizeJurors(parsed.jurors, evidence)
+        : undefined,
     verdict: stage === 'judge_ruling' && parsed.verdict
       ? {
           outcome: String(parsed.verdict.outcome ?? 'Further Review Needed'),
@@ -404,124 +534,6 @@ function stripThinkingText(value: string): string {
   return withoutClosedThinking.slice(0, unclosedThinkIndex)
 }
 
-function mockStageResult(
-  stage: string,
-  evidence: EvidenceItem[],
-  jurorProfiles: JurorProfile[] = [],
-): StageResult {
-  const citations = evidence.slice(0, Math.max(1, Math.min(3, evidence.length)))
-  const ids = citations.map((item) => item.exhibitId)
-  const first = ids[0] ?? 'E-001'
-  const second = ids[1] ?? first
-  const third = ids[2] ?? second
-
-  const map: Record<string, StageResult> = {
-    intake_normalization: {
-      title: 'Case Intake Normalized',
-      content:
-        `The case packet identifies the core dispute, available exhibits, and unresolved factual gaps. Current evidence anchors the simulation to ${first}.`,
-      citations: [first],
-    },
-    issue_spotting: {
-      title: 'Issues for Simulation',
-      content:
-        `Primary issues are liability, notice, credibility of the evidence trail, causation, damages, and litigation risk. The evidence most directly bearing on notice is ${first} and ${second}.`,
-      citations: [first, second],
-    },
-    defence_opening: {
-      title: 'Opening Argument',
-      content:
-        `The defence position is that liability is not established on the current record. The exhibit set leaves gaps around notice, inspection timing, and whether reasonable care would have avoided the loss. ${third} is important to that argument.`,
-      citations: [third],
-    },
-    crown_opening: {
-      title: 'Response',
-      content:
-        `The Crown or plaintiff-side position is that the record supports a foreseeable hazard and a failure to respond with reasonable care. ${first} and ${second} create the strongest factual foundation.`,
-      citations: [first, second],
-    },
-    defence_rebuttal: {
-      title: 'Rebuttal',
-      content:
-        `The defence stresses that the simulation should not infer missing facts. If ${third} does not prove actual or constructive notice, liability remains contested.`,
-      citations: [third],
-    },
-    crown_rebuttal: {
-      title: 'Surrebuttal',
-      content:
-        `The opposing response is that the available record can support constructive notice when ${first} is read with ${second}. The missing details should be targeted in follow-up disclosure.`,
-      citations: [first, second],
-    },
-    jury_deliberation: {
-      title: 'Jury Deliberation',
-      content:
-        `The jury panel is split but leans toward the plaintiff-side theory because ${first} supports the hazard narrative while ${third} leaves inspection completeness unresolved.`,
-      citations: [first, third],
-      jurors: mockJurors(jurorProfiles, first, third),
-    },
-    judge_ruling: {
-      title: 'Analysis & Decision Support',
-      content:
-        `The judge synthesis gives the plaintiff-side position the current edge, while flagging that attorney review should focus on notice, inspection records, and damages proof. ${first}, ${second}, and ${third} are the key exhibits.`,
-      citations: [first, second, third],
-      verdict: {
-        outcome: 'Plaintiff-Side Position Favoured',
-        confidence: 72,
-        keyFactors: [
-          'Available exhibits support the hazard narrative',
-          'Inspection and notice remain contested',
-          'Damages evidence appears plausible but incomplete',
-        ],
-        unresolvedIssues: [
-          'How long the hazard existed',
-          'Completeness of inspection and repair records',
-          'Whether the claimant exercised reasonable care',
-        ],
-        recommendedNextSteps: [
-          'Collect full inspection logs and repair tickets',
-          'Prepare witness chronology',
-          'Ask counsel to review negligence and damages assumptions',
-        ],
-        citationWarnings: [],
-      },
-    },
-  }
-
-  return map[stage] ?? map.issue_spotting
-}
-
-function mockJurors(
-  jurorProfiles: JurorProfile[],
-  firstCitation: string,
-  defenceCitation: string,
-): NonNullable<StageResult['jurors']> {
-  const count = jurorProfiles.length || 6
-  return Array.from({ length: count }, (_, index) => {
-    const profile = jurorProfiles[index]
-    const leaning =
-      profile?.bias === 'crown'
-        ? 'crown'
-        : profile?.bias === 'defence'
-          ? 'defence'
-          : index % 3 === 0
-            ? 'mixed'
-            : index % 3 === 1
-              ? 'crown'
-              : 'defence'
-    const citation = leaning === 'crown' ? firstCitation : defenceCitation
-    return {
-      juror: profile?.juror ?? `Juror ${index + 1}`,
-      leaning,
-      confidence: 56 + ((index * 7) % 31),
-      rationale:
-        leaning === 'crown'
-          ? `My ${profile?.evidenceFocus ?? 'evidence'} focus gives weight to ${firstCitation}.`
-          : `My ${profile?.evidenceFocus ?? 'burden'} focus keeps pressure on gaps around ${defenceCitation}.`,
-      citations: [citation],
-    }
-  })
-}
-
 function normalizeJurors(
   jurors: StageResult['jurors'],
   evidence: EvidenceItem[],
@@ -532,17 +544,103 @@ function normalizeJurors(
 
   return jurors.slice(0, 12).map((juror, index) => {
     const citations = Array.isArray(juror.citations) ? juror.citations : []
+    const leaning = normalizeLeaning(juror.leaning)
+    const confidence = clampConfidence(juror.confidence)
     return {
       juror: String(juror.juror ?? `Juror ${index + 1}`),
-      leaning:
-        juror.leaning === 'defence' || juror.leaning === 'crown'
-          ? juror.leaning
-          : 'mixed',
-      confidence: clampConfidence(juror.confidence),
+      leaning,
+      confidence,
       rationale: String(juror.rationale ?? 'No rationale returned.'),
       citations: validateCitationIds(citations, evidence).supported,
+      beliefTrail: normalizeBeliefTrail(
+        juror.beliefTrail,
+        evidence,
+        leaning,
+        confidence,
+      ),
+      deliberationRounds: normalizeDeliberationRounds(
+        juror.deliberationRounds,
+        leaning,
+        confidence,
+      ),
+      mindChangedBecause: compactText(
+        juror.mindChangedBecause,
+        'No explicit mind-change explanation returned.',
+        260,
+      ),
+      consistencyWarnings: normalizeList(juror.consistencyWarnings).slice(0, 6),
     }
   })
+}
+
+function normalizeBeliefTrail(
+  value: unknown,
+  evidence: EvidenceItem[],
+  fallbackLeaning: 'defence' | 'crown' | 'mixed',
+  fallbackConfidence: number,
+): NonNullable<StageResult['jurors']>[number]['beliefTrail'] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  const fallbackStages = [
+    'after_crown_opening',
+    'after_defence_opening',
+    'after_rebuttals',
+    'final_deliberation',
+  ]
+
+  return value.slice(0, 6).map((item, index) => {
+    const record = asRecord(item)
+    return {
+      stage: compactText(record.stage, fallbackStages[index] ?? `stage_${index + 1}`, 80),
+      leaning: normalizeLeaning(record.leaning ?? fallbackLeaning),
+      confidence: clampConfidence(record.confidence ?? fallbackConfidence),
+      belief: compactText(record.belief, 'No belief snapshot returned.', 220),
+      why: compactText(record.why, 'No reason for this belief snapshot returned.', 220),
+      citations: validateCitationIds(normalizeRawCitations(record.citations), evidence)
+        .supported,
+    }
+  })
+}
+
+function normalizeDeliberationRounds(
+  value: unknown,
+  fallbackLeaning: 'defence' | 'crown' | 'mixed',
+  fallbackConfidence: number,
+): NonNullable<StageResult['jurors']>[number]['deliberationRounds'] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.slice(0, 3).map((item, index) => {
+    const record = asRecord(item)
+    return {
+      round: Math.max(1, Math.round(Number(record.round ?? index + 1))),
+      focus: compactText(record.focus, 'Key proof issue', 120),
+      exchange: compactText(record.exchange, 'No deliberation exchange returned.', 260),
+      responseTo: compactText(record.responseTo, 'panel', 120),
+      leaning: normalizeLeaning(record.leaning ?? fallbackLeaning),
+      confidence: clampConfidence(record.confidence ?? fallbackConfidence),
+    }
+  })
+}
+
+function normalizeLeaning(value: unknown): 'defence' | 'crown' | 'mixed' {
+  return value === 'defence' || value === 'crown' ? value : 'mixed'
+}
+
+function compactText(value: unknown, fallback: string, maxLength: number): string {
+  const text = String(value ?? fallback).replace(/\s+/g, ' ').trim()
+  return (text || fallback).slice(0, maxLength)
+}
+
+function normalizeRawCitations(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((item) => String(item)) : []
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
 }
 
 function normalizeList(value: unknown): string[] {
@@ -564,6 +662,72 @@ function titleForStage(stage: string): string {
     .split('_')
     .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
     .join(' ')
+}
+
+function roleInstructionForStage(stage: string, template?: LegalTemplate): string {
+  const defence = template?.defenceLabel ?? 'Defence'
+  const crown = template?.crownLabel ?? 'Crown'
+  const judge = template?.judgeLabel ?? 'Judge'
+  const jury = template?.juryLabel ?? 'Jury Panel'
+
+  const instructions: Record<string, string> = {
+    intake_normalization:
+      'Act as a neutral intake analyst. Normalize parties, allegations, exhibits, chronology, disputed facts, and missing proof without advocating.',
+    issue_spotting:
+      `${judge} issue-spotting role. Identify elements, burden, admissibility or disclosure gaps, credibility conflicts, and proof risks without deciding the case.`,
+    crown_opening:
+      `${crown} opening role. You bear the burden and present first. Set out the strongest pleaded allegations, corroborating exhibits, chronology, reliance or loss theory, and reasonable inferences while acknowledging proof gaps.`,
+    defence_opening:
+      `${defence} response role. Answer the ${crown} opening directly: press burden, missing records, alternate innocent or non-liability explanations, credibility problems, and unsupported inferences.`,
+    crown_rebuttal:
+      `${crown} reply role. Answer the strongest ${defence} points with the best available corroboration, explain why competing inferences may still satisfy the burden, and avoid overstating missing proof.`,
+    defence_rebuttal:
+      `${defence} closing role. This is the final address before the charge: answer the strongest ${crown} reply points, isolate assumptions, attack weak causal links, consolidate the doubt or liability gaps, and cite the exact exhibit gaps.`,
+    jury_instructions:
+      `${judge} charge role. Instruct the ${jury} before deliberation: the elements to be decided, who bears the burden and to what standard, how to assess credibility and circumstantial evidence, what must not be considered, and the decision rule for this panel. Do not decide the case or hint at a preferred outcome.`,
+    [jurorBallotStage]:
+      'Single-juror secret ballot role. You are exactly one juror voting independently before deliberation begins. Apply only your own profile, the judge\'s charge, and the courtroom record; never reference other jurors or any ballots.',
+    jury_deliberation:
+      'Jury role. Give each juror an independent vote, confidence, exhibit-cited rationale, and burden-aware reason for defence, crown, or mixed leaning, then simulate the jury-room exchange between them.',
+    judge_ruling:
+      `${judge} synthesis role. Produce decision-support only: outcome, confidence, proof factors, unresolved issues, next steps, and any citation concerns. Respect the panel decision rule when stating the outcome.`,
+  }
+
+  return instructions[stage] ?? 'Apply the selected legal template, cite exhibits, and flag uncertainty.'
+}
+
+function temperatureForStage(stage: string): number {
+  const override = Number(process.env.MODEL_TEMPERATURE)
+  if (Number.isFinite(override) && override >= 0 && override <= 2) {
+    return override
+  }
+
+  // Human jurors vary; advocates argue with some latitude; the analyst,
+  // charge, and synthesis stages stay near-deterministic for rigor.
+  if (stage === 'jury_deliberation' || stage === jurorBallotStage) {
+    return 0.7
+  }
+  if (
+    stage === 'crown_opening' ||
+    stage === 'defence_opening' ||
+    stage === 'crown_rebuttal' ||
+    stage === 'defence_rebuttal'
+  ) {
+    return 0.5
+  }
+  if (stage === 'issue_spotting') {
+    return 0.3
+  }
+  return 0.2
+}
+
+function formatJuryBallots(ballots: JuryBallot[]): string {
+  return ballots
+    .map((ballot) => {
+      const citations = ballot.citations.join(', ') || 'none'
+      return `${ballot.juror} voted ${ballot.leaning} at ${ballot.confidence}%: ${ballot.rationale} (citations: ${citations})`
+    })
+    .join('\n')
 }
 
 function formatRetrievedChunks(chunks: EvidenceChunk[]): string {

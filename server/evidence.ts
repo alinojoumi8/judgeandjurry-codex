@@ -8,6 +8,7 @@ export interface UploadedEvidenceText {
   text: string
   summary: string
   tags: string[]
+  extractionWarning?: string
 }
 
 interface MinimalUpload {
@@ -69,6 +70,7 @@ export async function extractUploadedEvidence(
         text: '',
         summary: 'PDF uploaded. Text extraction failed, so review the source file manually.',
         tags: ['PDF', 'Needs review'],
+        extractionWarning: 'PDF text extraction failed; the original source was preserved.',
       }
     }
   }

@@ -13,17 +13,68 @@ import { performance } from 'node:perf_hooks'
 import multer from 'multer'
 import { z } from 'zod'
 
+import { buildCasePacket } from './casePacket'
 import { CaseStore } from './db'
 import { extractUploadedEvidence } from './evidence'
+import {
+  persistEvidenceSource,
+  removeEvidenceSource,
+} from './evidenceStorage'
 import { createLogger, type AppLogger } from './logger'
-import { createMiniMaxConfig, MiniMaxClient } from './minimax'
+import { createMiniMaxConfig, type ModelClient, MiniMaxClient } from './minimax'
 import { SimulationEvents, SimulationService } from './orchestrator'
-import { seedDemoData } from './seed'
+import { buildSessionReport } from './report'
+import {
+  assertRunConfigAllowed,
+  getLegalTemplate,
+  inferTemplateId,
+  legalTemplates,
+  normalizeRunConfig,
+  providerStatusFromConfig,
+} from './runConfig'
+import { simulationStages } from './stages'
+import { createHardeningRouter } from './routes/hardening'
+import {
+  apiAuthentication,
+  apiSecurityConfig,
+  assertSafeBindConfiguration,
+  corsConfiguration,
+  requestRateLimit,
+  type ApiSecurityConfig,
+} from './security'
+import { TrialForgeService } from './trialforge'
+import type { PacketPreview, RunConfig } from './types'
 
 const matterSchema = z.object({
   title: z.string().optional(),
   narrative: z.string().optional(),
   jurisdiction: z.string().optional(),
+})
+
+const trialForgeCreateSchema = z.object({
+  matterId: z.string().min(1),
+  proceedingType: z.enum(['ocj_bail_hearing', 'ocj_resolution_conference']).optional(),
+  difficulty: z.enum(['standard', 'strict']).optional(),
+  agentMode: z.enum(['procedural', 'model']).optional(),
+  crownPersona: z.enum(['balanced', 'firm', 'skeptical', 'supportive']).optional(),
+  judgePersona: z.enum(['balanced', 'firm', 'skeptical', 'supportive']).optional(),
+  coachPersona: z.enum(['balanced', 'firm', 'skeptical', 'supportive']).optional(),
+  chargeSummary: z.string().optional(),
+  releasePlan: z.string().optional(),
+  runConfig: z.unknown().optional(),
+})
+
+const trialForgeMoveSchema = z.object({
+  type: z.enum([
+    'start_hearing',
+    'start_conference',
+    'submit_release_plan',
+    'answer_judge',
+    'submit_resolution_position',
+    'answer_resolution_questions',
+    'request_debrief',
+  ]),
+  content: z.string().optional(),
 })
 
 const clientLogSchema = z.object({
@@ -33,6 +84,7 @@ const clientLogSchema = z.object({
 })
 
 const maxUploadBytes = parseUploadLimit()
+const maxArchiveBytes = Number(process.env.JUDGE_JURY_MAX_ARCHIVE_BYTES ?? 350 * 1024 * 1024)
 const uploadTempDir = resolve(process.env.UPLOAD_TMP_DIR ?? 'uploads/tmp')
 mkdirSync(uploadTempDir, { recursive: true })
 
@@ -51,8 +103,9 @@ const upload = multer({
 export interface CreateAppOptions {
   store?: CaseStore
   service?: SimulationService
+  trialForgeModelClient?: ModelClient
   logger?: AppLogger
-  seed?: boolean
+  security?: ApiSecurityConfig
 }
 
 interface LoggedRequest extends Request {
@@ -65,36 +118,42 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   const store = options.store ?? new CaseStore(undefined, logger.child({ component: 'db' }))
   const events = new SimulationEvents()
   const config = createMiniMaxConfig()
+  const modelClient =
+    options.trialForgeModelClient ??
+    new MiniMaxClient(config, logger.child({ component: 'minimax' }))
   const service =
     options.service ??
     new SimulationService(
       store,
-      new MiniMaxClient(config, logger.child({ component: 'minimax' })),
+      modelClient,
       events,
       logger.child({ component: 'simulation' }),
     )
+  const trialForge = new TrialForgeService(store, modelClient)
   const app = express()
-
-  if (options.seed !== false) {
-    seedDemoData(store)
-  }
+  const security = options.security ?? apiSecurityConfig()
+  assertSafeBindConfiguration(security)
 
   logger.info('app.create', {
     provider: config.provider,
     model: config.model,
-    mock: config.mock || (config.provider === 'minimax' && !config.apiKey),
     hasModelKey: Boolean(config.apiKey),
     maxUploadBytes,
     uploadTempDir,
-    seededDemoData: options.seed !== false,
+    remoteAccess: security.remote,
+    allowedOriginCount: security.allowedOrigins.length,
   })
 
   app.locals.store = store
   app.locals.service = service
+  app.locals.trialForge = trialForge
   app.locals.logger = logger
 
-  app.use(cors())
+  app.use(cors(corsConfiguration(security)))
+  app.use(requestRateLimit())
+  app.use(apiAuthentication(security))
   app.use(requestLogMiddleware(logger))
+  app.use('/api', createHardeningRouter(store, logger, maxArchiveBytes))
   app.use(express.json({ limit: '4mb' }))
 
   app.get(
@@ -105,25 +164,19 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
       const db = store.healthCheck()
       const uploadTemp = await pathStatus(uploadTempDir)
       const logDir = await pathStatus(resolve(process.env.LOG_DIR ?? 'logs'))
-      const effectiveMock =
-        config.mock || (config.provider === 'minimax' && !config.apiKey)
+      const providerStatus = providerStatusFromConfig(config)
       const provider = {
         ok:
-          effectiveMock ||
-          Boolean(
-            config.model &&
-              config.baseUrl &&
-              (config.provider === 'openai-compatible' || config.apiKey),
-          ),
+          providerStatus.availableModes.includes(providerStatus.mode),
         name: config.provider,
         model: config.model,
         baseUrl: config.baseUrl,
-        mock: effectiveMock,
         hasKey: Boolean(config.apiKey),
+        mode: providerStatus.mode,
         reachable: null as boolean | null,
       }
 
-      if (deep && provider.ok && !provider.mock && config.provider === 'openai-compatible') {
+      if (deep && provider.ok && provider.mode === 'local') {
         provider.reachable = await checkProviderReachable(config.baseUrl)
       }
 
@@ -143,7 +196,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
         logDirOk: logDir.ok,
         providerOk: provider.ok,
         providerName: provider.name,
-        providerMock: provider.mock,
+        providerMode: provider.mode,
         providerReachable: provider.reachable,
       })
 
@@ -173,6 +226,82 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     response.json(workspace)
   })
 
+  app.get('/api/run-options', (request, response) => {
+    const matterId = String(request.query.matterId ?? '') || undefined
+    const matter = matterId ? store.getMatter(matterId) : undefined
+    const provider = providerStatusFromConfig(config)
+    const defaults = normalizeRunConfig(
+      {},
+      {
+        defaultTemplateId: matter ? inferTemplateId(matter) : 'civil_dispute',
+        defaultProviderMode: defaultProviderMode(provider),
+      },
+    )
+    getRequestLogger(request, logger).info('run_options.fetch', {
+      matterId,
+      providerMode: provider.mode,
+      defaultTemplateId: defaults.templateId,
+    })
+    response.json({
+      provider,
+      templates: legalTemplates,
+      stages: simulationStages,
+      defaults,
+    })
+  })
+
+  app.post(
+    '/api/matters/:matterId/packet-preview',
+    asyncHandler(async (request, response) => {
+      const matterId = routeParam(request, 'matterId')
+      const matter = store.getMatter(matterId)
+      const provider = providerStatusFromConfig(config)
+      const runConfig = requestRunConfig(request.body, matter, defaultProviderMode(provider))
+      const template = getLegalTemplate(runConfig.templateId)
+      const evidence = store.listEvidence(matterId)
+      const chunks = store.searchEvidenceChunks(
+        matterId,
+        [
+          matter.title,
+          matter.narrative,
+          template.label,
+          ...Object.values(template.stagePrompts),
+        ].join('\n'),
+        runConfig.retrievalDepth,
+      )
+      const evidenceById = new Map(evidence.map((item) => [item.id, item]))
+      const packet = buildCasePacket(matter, evidence, chunks, template)
+      const preview: PacketPreview = {
+        matterId,
+        template,
+        runConfig,
+        provider,
+        packet,
+        evidenceCount: evidence.length,
+        chunkCount: chunks.length,
+        chunks: chunks.map((chunk) => ({
+          exhibitId: chunk.exhibitId,
+          evidenceId: chunk.evidenceId,
+          label: evidenceById.get(chunk.evidenceId)?.name ?? chunk.exhibitId,
+          chunkIndex: chunk.chunkIndex,
+          text: chunk.text,
+          score: chunk.score,
+        })),
+        warnings: previewWarnings(runConfig, provider, evidence.length),
+      }
+
+      getRequestLogger(request, logger).info('packet_preview.fetch', {
+        matterId,
+        templateId: runConfig.templateId,
+        providerMode: runConfig.providerMode,
+        retrievalDepth: runConfig.retrievalDepth,
+        evidenceCount: evidence.length,
+        chunkCount: chunks.length,
+      })
+      response.json(preview)
+    }),
+  )
+
   app.post(
     '/api/client-logs',
     asyncHandler(async (request, response) => {
@@ -184,6 +313,88 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
       response.status(202).json({ ok: true })
     }),
   )
+
+  app.post(
+    '/api/trialforge/sessions',
+    asyncHandler(async (request, response) => {
+      const input = trialForgeCreateSchema.parse(request.body)
+      const matter = store.getMatter(input.matterId)
+      const provider = providerStatusFromConfig(config)
+      const runConfig =
+        input.agentMode === 'model'
+          ? requestRunConfig(
+              { runConfig: input.runConfig },
+              matter,
+              defaultProviderMode(provider),
+            )
+          : undefined
+      if (runConfig) {
+        assertRunConfigAllowed(runConfig, provider)
+      }
+      const session = trialForge.create({ ...input, runConfig })
+      getRequestLogger(request, logger).info('trialforge.session.create', {
+        sessionId: session.id,
+        matterId: session.matterId,
+        proceedingType: session.proceedingType,
+        phase: session.phase,
+        difficulty: session.difficulty,
+        agentMode: session.setup.agentMode,
+      })
+      response.status(201).json(session)
+    }),
+  )
+
+  app.get('/api/trialforge/sessions/:sessionId', (request, response) => {
+    const sessionId = routeParam(request, 'sessionId')
+    const session = store.getTrialForgeSession(sessionId)
+    getRequestLogger(request, logger).info('trialforge.session.fetch', {
+      sessionId,
+      matterId: session.matterId,
+      phase: session.phase,
+      status: session.status,
+      eventCount: session.events.length,
+      allowedMoveCount: session.allowedMoves.length,
+    })
+    response.json(session)
+  })
+
+  app.get('/api/matters/:matterId/trialforge/sessions', (request, response) => {
+    const matterId = routeParam(request, 'matterId')
+    const sessions = store.listTrialForgeSessions(matterId)
+    getRequestLogger(request, logger).info('trialforge.session.list', {
+      matterId,
+      sessionCount: sessions.length,
+    })
+    response.json(sessions)
+  })
+
+  app.post(
+    '/api/trialforge/sessions/:sessionId/moves',
+    asyncHandler(async (request, response) => {
+      const sessionId = routeParam(request, 'sessionId')
+      const input = trialForgeMoveSchema.parse(request.body)
+      const session = await trialForge.applyMove(sessionId, input)
+      getRequestLogger(request, logger).info('trialforge.move.apply', {
+        sessionId,
+        matterId: session.matterId,
+        moveType: input.type,
+        phase: session.phase,
+        status: session.status,
+        eventCount: session.events.length,
+      })
+      response.json(session)
+    }),
+  )
+
+  app.get('/api/trialforge/sessions/:sessionId/export', (request, response) => {
+    const sessionId = routeParam(request, 'sessionId')
+    const report = trialForge.export(sessionId)
+    getRequestLogger(request, logger).info('trialforge.session.export', {
+      sessionId,
+      markdownCharacters: report.markdown.length,
+    })
+    response.json(report)
+  })
 
   app.post(
     '/api/matters',
@@ -220,7 +431,9 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     '/api/matters/:matterId',
     asyncHandler(async (request, response) => {
       const matterId = routeParam(request, 'matterId')
+      const sourcePaths = store.listEvidenceSources(matterId).map((source) => source.path)
       store.deleteMatter(matterId)
+      await Promise.all(sourcePaths.map((path) => removeEvidenceSource(path)))
       const preferredMatterId = String(request.query.activeMatterId ?? '') || undefined
       const workspace = store.getWorkspace(
         preferredMatterId === matterId ? undefined : preferredMatterId,
@@ -256,8 +469,33 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
         size: request.file.size,
         tempPath: request.file.path,
       })
+      let persistedSource: Awaited<ReturnType<typeof persistEvidenceSource>> | null = null
       try {
-        const extracted = await extractUploadedEvidence(request.file, requestLogger)
+        persistedSource = await persistEvidenceSource(
+          request.file.path,
+          matterId,
+          request.file.originalname,
+        )
+        let extracted: Awaited<ReturnType<typeof extractUploadedEvidence>>
+        let extractionWarning: string | null = null
+        try {
+          extracted = await extractUploadedEvidence(request.file, requestLogger)
+        } catch (error) {
+          extractionWarning =
+            error instanceof Error ? error.message : 'Evidence extraction failed.'
+          requestLogger.warn('evidence.extraction.failed_source_preserved', {
+            matterId,
+            fileName: request.file.originalname,
+            error: extractionWarning,
+          })
+          extracted = {
+            type: 'other',
+            text: '',
+            summary: 'Original source preserved, but text extraction failed.',
+            tags: ['extraction-failed'],
+          }
+        }
+        extractionWarning ??= extracted.extractionWarning ?? null
         const evidence = store.addEvidence(matterId, {
           name: request.file.originalname,
           type: extracted.type,
@@ -266,6 +504,10 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
           text: extracted.text,
           summary: extracted.summary,
           tags: extracted.tags,
+          sha256: persistedSource.sha256,
+          sourcePath: persistedSource.path,
+          ingestionStatus: extractionWarning ? 'extraction_failed' : 'stored',
+          extractionWarning,
         })
 
         requestLogger.info('evidence.upload.stored', {
@@ -275,8 +517,13 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
           type: evidence.type,
           extractedCharacters: evidence.text.length,
           tagCount: evidence.tags.length,
+          sha256: evidence.sha256,
+          ingestionStatus: evidence.ingestionStatus,
         })
         response.status(201).json({ evidence, state: store.getWorkspace(matterId) })
+      } catch (error) {
+        await removeEvidenceSource(persistedSource?.path)
+        throw error
       } finally {
         await removeTempUpload(request.file.path, requestLogger)
       }
@@ -287,10 +534,20 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     '/api/matters/:matterId/simulations',
     asyncHandler(async (request, response) => {
       const matterId = routeParam(request, 'matterId')
+      const matter = store.getMatter(matterId)
       const requestLogger = getRequestLogger(request, logger)
+      const provider = providerStatusFromConfig(config)
+      const runConfig = requestRunConfig(request.body, matter, defaultProviderMode(provider))
+      assertRunConfigAllowed(runConfig, provider)
+
       if (request.body?.mode === 'sync') {
-        requestLogger.info('simulation.start.sync', { matterId })
-        const session = await service.runToCompletion(matterId)
+        requestLogger.info('simulation.start.sync', {
+          matterId,
+          providerMode: runConfig.providerMode,
+          templateId: runConfig.templateId,
+          jurorCount: runConfig.jurorCount,
+        })
+        const session = await service.runToCompletion(matterId, runConfig)
         requestLogger.info('simulation.finish.sync', {
           matterId,
           sessionId: session.id,
@@ -302,10 +559,13 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
         return
       }
 
-      const session = service.start(matterId)
+      const session = service.start(matterId, runConfig)
       requestLogger.info('simulation.start.async', {
         matterId,
         sessionId: session.id,
+        providerMode: runConfig.providerMode,
+        templateId: runConfig.templateId,
+        jurorCount: runConfig.jurorCount,
       })
       response.status(202).json(session)
     }),
@@ -316,6 +576,8 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     asyncHandler(async (request, response) => {
       const sessionId = routeParam(request, 'sessionId')
       const requestLogger = getRequestLogger(request, logger)
+      const existingSession = store.getSessionDetails(sessionId)
+      assertRunConfigAllowed(existingSession.runConfig, providerStatusFromConfig(config))
       if (request.body?.mode === 'sync') {
         requestLogger.info('simulation.resume.sync', { sessionId })
         const session = await service.resumeToCompletion(sessionId)
@@ -353,6 +615,23 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
       progressTotal: session.progress.total,
     })
     response.json(session)
+  })
+
+  app.get('/api/sessions/:sessionId/export', (request, response) => {
+    const sessionId = routeParam(request, 'sessionId')
+    const session = store.getSessionDetails(sessionId)
+    const matter = store.getMatter(session.matterId)
+    const evidence = store.listEvidence(matter.id)
+    const report = buildSessionReport({ matter, evidence, session })
+    getRequestLogger(request, logger).info('session.export', {
+      sessionId,
+      matterId: matter.id,
+      status: session.status,
+      turnCount: session.turns.length,
+      juryOpinionCount: session.juryOpinions.length,
+      markdownCharacters: report.markdown.length,
+    })
+    response.json(report)
   })
 
   app.get('/api/sessions/:sessionId/events', (request, response) => {
@@ -513,6 +792,53 @@ function configureSse(response: Response): void {
 
 function getRequestLogger(request: Request, fallback: AppLogger): AppLogger {
   return (request as LoggedRequest).logger ?? fallback
+}
+
+function defaultProviderMode(provider: ReturnType<typeof providerStatusFromConfig>): RunConfig['providerMode'] {
+  if (provider.availableModes.includes('local')) {
+    return 'local'
+  }
+  if (provider.availableModes.includes('external')) {
+    return 'external'
+  }
+  return provider.mode
+}
+
+function requestRunConfig(
+  body: unknown,
+  matter: { title: string; narrative: string },
+  defaultProviderMode: RunConfig['providerMode'],
+): RunConfig {
+  const source =
+    typeof body === 'object' &&
+    body !== null &&
+    'runConfig' in body &&
+    typeof (body as { runConfig?: unknown }).runConfig === 'object'
+      ? (body as { runConfig: unknown }).runConfig
+      : body
+
+  return normalizeRunConfig(source, {
+    defaultTemplateId: inferTemplateId(matter),
+    defaultProviderMode,
+  })
+}
+
+function previewWarnings(
+  runConfig: RunConfig,
+  provider: ReturnType<typeof providerStatusFromConfig>,
+  evidenceCount: number,
+): string[] {
+  const warnings: string[] = []
+  if (evidenceCount === 0) {
+    warnings.push('No uploaded evidence will be sent; the run will rely on the case narrative only.')
+  }
+  if (runConfig.providerMode === 'external' && !runConfig.externalDisclosureConfirmed) {
+    warnings.push('External provider mode requires disclosure confirmation before a run can start.')
+  }
+  if (!provider.availableModes.includes(runConfig.providerMode)) {
+    warnings.push(`Provider mode "${runConfig.providerMode}" is not available on this server.`)
+  }
+  return warnings
 }
 
 function errorHandler(rootLogger: AppLogger): ErrorRequestHandler {

@@ -1,5 +1,15 @@
-import { ChevronLeft, ChevronRight, FileText, StickyNote, X } from 'lucide-react'
+import {
+  Archive,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  FileText,
+  StickyNote,
+  TriangleAlert,
+  X,
+} from 'lucide-react'
 
+import { downloadEvidenceSource } from '../api'
 import type { AgentTurn, EvidenceItem } from '../types'
 
 interface EvidenceInspectorProps {
@@ -7,6 +17,7 @@ interface EvidenceInspectorProps {
   selectedEvidence: EvidenceItem | null
   turns: AgentTurn[]
   onSelectEvidence: (evidenceId: string) => void
+  onArchiveEvidence: (evidenceId: string) => Promise<void>
 }
 
 export function EvidenceInspector({
@@ -14,6 +25,7 @@ export function EvidenceInspector({
   selectedEvidence,
   turns,
   onSelectEvidence,
+  onArchiveEvidence,
 }: EvidenceInspectorProps) {
   const selected = selectedEvidence ?? evidence[0] ?? null
   const selectedIndex = selected
@@ -96,7 +108,37 @@ export function EvidenceInspector({
               <dt>Size</dt>
               <dd>{formatBytes(selected.size)}</dd>
             </div>
+            <div>
+              <dt>Source integrity</dt>
+              <dd>{selected.sha256 ? `SHA-256 ${selected.sha256.slice(0, 12)}...` : 'Legacy metadata only'}</dd>
+            </div>
+            <div>
+              <dt>Ingestion</dt>
+              <dd>{selected.ingestionStatus.replaceAll('_', ' ')}</dd>
+            </div>
           </dl>
+
+          {selected.extractionWarning && (
+            <div className="evidence-warning" role="alert">
+              <TriangleAlert size={16} />
+              <span>{selected.extractionWarning}</span>
+            </div>
+          )}
+
+          <div className="evidence-source-actions">
+            <button
+              type="button"
+              disabled={!selected.sourceAvailable}
+              onClick={() => void downloadEvidenceSource(selected.id, selected.name)}
+            >
+              <Download size={15} />
+              Download original
+            </button>
+            <button type="button" onClick={() => void onArchiveEvidence(selected.id)}>
+              <Archive size={15} />
+              Archive exhibit
+            </button>
+          </div>
 
           <div className="tag-list">
             {selected.tags.map((tag) => (

@@ -1,10 +1,16 @@
-import type { EvidenceChunk, EvidenceItem, Matter } from './types'
+import { getLegalTemplate } from './runConfig'
+import type { EvidenceChunk, EvidenceItem, LegalTemplate, Matter, RunConfig } from './types'
 
 export function buildCasePacket(
   matter: Matter,
   evidence: EvidenceItem[],
   retrievedChunks: EvidenceChunk[] = [],
+  templateOrRunConfig?: LegalTemplate | RunConfig,
 ): string {
+  const template =
+    templateOrRunConfig && 'packetGuidance' in templateOrRunConfig
+      ? templateOrRunConfig
+      : getLegalTemplate(templateOrRunConfig?.templateId ?? 'civil_dispute')
   const exhibits = evidence
     .map((item) => {
       const text = item.text.trim() || item.summary
@@ -21,6 +27,9 @@ export function buildCasePacket(
   return [
     `Matter: ${matter.title}`,
     `Jurisdiction: ${matter.jurisdiction}`,
+    `Legal workflow template: ${template.label}`,
+    `Burden / standard: ${template.burdenLabel}`,
+    `Party labels: ${template.defenceLabel} vs ${template.crownLabel}; ${template.juryLabel}; ${template.judgeLabel}`,
     '',
     'Case narrative:',
     matter.narrative.trim() || 'No narrative has been provided yet.',
@@ -30,6 +39,9 @@ export function buildCasePacket(
     '',
     'Most relevant extracted evidence chunks:',
     formatRetrievedChunks(retrievedChunks),
+    '',
+    'Template-specific guidance:',
+    ...template.packetGuidance.map((guidance) => `- ${guidance}`),
     '',
     'Rules for every agent:',
     '- Treat this as decision-support simulation, not legal advice.',
