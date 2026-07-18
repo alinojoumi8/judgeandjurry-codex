@@ -30,6 +30,7 @@ export interface ProcedureAdapter {
   burdens: string[]
   permittedRelief: MotionRelief[]
   legalSources: ProcedureSource[]
+  instructionSections: Array<{ id: string; title: string; text: string; sourceUrl: string }>
   defaultIssue(kind?: DecisionIssue['kind']): Omit<DecisionIssue, 'id' | 'respondingPartyIds' | 'sourceRefs'>
   validateRun(model: CaseModelV1, config: TrialRunConfig): string[]
   decide(model: CaseModelV1, ballots: IssueBallot[], config: TrialRunConfig): IssueDecision[]
@@ -50,6 +51,12 @@ export const procedureAdapters: Record<ProcedureAdapterId, ProcedureAdapter> = {
     legalSources: [
       source('National Judicial Institute model jury instructions', 'https://www.nji-inm.ca/index.cfm/publications/model-jury-instructions/?langSwitch=en', '2026-07-18', 'Tailored instructions must be selected from the curated registry; the model must not invent the governing charge.'),
       source('NJI Requirements for a Verdict', 'https://www.nji-inm.ca/index.cfm/publications/model-jury-instructions/final-instructions/deliberations/requirements-for-a-verdict/?langSwitch=en', '2026-07-18', 'Used for the per-item unanimity rule.'),
+    ],
+    instructionSections: [
+      instruction('criminal-presumption', 'Presumption and burden', 'Begin with the accused presumed innocent. The Crown bears the burden throughout and must prove every essential element beyond a reasonable doubt; the accused has no burden to prove innocence.', 'https://www.nji-inm.ca/index.cfm/publications/model-jury-instructions/?langSwitch=en'),
+      instruction('criminal-evidence', 'Evidence and permitted use', 'Decide from admitted evidence and the law in the charge. Do not use excluded, struck, jury-out, private-strategy, or limited-purpose material for any other purpose.', 'https://www.nji-inm.ca/index.cfm/publications/model-jury-instructions/?langSwitch=en'),
+      instruction('criminal-separate-items', 'Separate accused and counts', 'Consider each accused and each count separately. Evidence admitted against one accused or for one count must not be transferred to another verdict-sheet item unless the admission ledger permits that use.', 'https://www.nji-inm.ca/index.cfm/publications/model-jury-instructions/?langSwitch=en'),
+      instruction('criminal-unanimity', 'Unanimous verdicts', 'A verdict on each accused/count item must be unanimous. Jurors must decide individually after fair discussion and must not surrender an honestly held view merely to reach agreement.', 'https://www.nji-inm.ca/index.cfm/publications/model-jury-instructions/final-instructions/deliberations/requirements-for-a-verdict/?langSwitch=en'),
     ],
     defaultIssue: () => ({
       kind: 'criminal_count', label: 'Criminal count requiring definition', claimantPartyId: 'crown',
@@ -75,6 +82,10 @@ export const procedureAdapters: Record<ProcedureAdapterId, ProcedureAdapter> = {
     legalSources: [
       source('Capital Markets Tribunal Rules of Procedure', 'https://www.capitalmarketstribunal.ca/en/resources/capital-markets-tribunal-rules-of-procedure', '2026-07-18', 'Rules are curated and link-checked; counsel must confirm current application and authorities.'),
     ],
+    instructionSections: [
+      instruction('osc-record', 'Merits record', 'Determine each allegation separately from the admitted merits record, the approved elements, and the standard recorded in the case model.', 'https://www.capitalmarketstribunal.ca/en/resources/capital-markets-tribunal-rules-of-procedure'),
+      instruction('osc-sanctions-gate', 'Merits before sanctions', 'Do not open or determine sanctions and costs until a complete merits finding exists for the applicable allegations.', 'https://www.capitalmarketstribunal.ca/en/resources/capital-markets-tribunal-rules-of-procedure'),
+    ],
     defaultIssue: () => ({
       kind: 'osc_allegation', label: 'Capital-markets allegation requiring definition', claimantPartyId: 'staff',
       elements: [{ id: 'element-1', label: 'Elements require user/legal review', burden: 'As approved in the case model', sourceRefs: [{ attribution: 'unresolved' }] }],
@@ -96,6 +107,11 @@ export const procedureAdapters: Record<ProcedureAdapterId, ProcedureAdapter> = {
     legalSources: [
       source('Ontario Rules of Civil Procedure, Rules 47, 52, and 53', 'https://www.ontario.ca/laws/regulation/900194', '2026-07-18', 'The adapter stores the source and revision checkpoint; legal review remains required.'),
       source('Ontario Superior Court civil jury guidance', 'https://www.ontariocourts.ca/scj/guides-and-service-resources/representing-yourself-guides-to-help-you/', '2026-07-18', 'Procedural orientation only; not a substitute for the Rules or legal advice.'),
+    ],
+    instructionSections: [
+      instruction('civil-burden', 'Issue-specific burden', 'Apply the burden and standard assigned to each approved civil issue. Decide only from admitted evidence and the tailored issue questions.', 'https://www.ontario.ca/laws/regulation/900194'),
+      instruction('civil-separate-questions', 'Separate questions and parties', 'Answer each claim, defence, damages issue, or special question separately for the parties identified on the decision sheet.', 'https://www.ontario.ca/laws/regulation/900194'),
+      instruction('civil-jury-rule', 'Civil jury decision rule', 'In six-person jury mode, a decision on an issue requires five valid jurors to agree. A missing or invalid ballot leaves that issue incomplete rather than being inferred from the group.', 'https://www.ontario.ca/laws/regulation/900194'),
     ],
     defaultIssue: (kind = 'civil_claim') => ({
       kind, label: 'Civil issue requiring definition', claimantPartyId: 'plaintiff',
@@ -180,4 +196,8 @@ function source(title: string, sourceUrl: string, revisionDate: string, note: st
     title, sourceKind: 'official', sourceUrl, jurisdiction: 'Ontario, Canada',
     revisionDate, checkedAt, legalReviewStatus: 'requires-lawyer-review', note,
   }
+}
+
+function instruction(id: string, title: string, text: string, sourceUrl: string): ProcedureAdapter['instructionSections'][number] {
+  return { id, title, text, sourceUrl }
 }

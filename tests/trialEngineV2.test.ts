@@ -136,6 +136,8 @@ describe('trial engine v2', () => {
     for (const id of ['ontario_criminal_jury_v1', 'ontario_capital_markets_v1', 'ontario_civil_v1'] as ProcedureAdapterId[]) {
       const adapter = getProcedureAdapter(id)
       expect(adapter.legalSources.length).toBeGreaterThan(0)
+      expect(adapter.instructionSections.length).toBeGreaterThan(0)
+      expect(adapter.instructionSections.every((section) => section.sourceUrl.startsWith('https://'))).toBe(true)
       expect(adapter.legalSources.every((source) => source.legalReviewStatus === 'requires-lawyer-review')).toBe(true)
       expect(JSON.stringify(adapter).toLowerCase()).not.toContain('live-verified')
     }

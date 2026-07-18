@@ -350,8 +350,9 @@ export class TrialEngineService {
           trialRunId: run.id, phase: run.phase, type: 'judicial_instruction', actorId: 'judge-1',
           visibleTo: ['public'], payload: {
             text: adapter.decisionRule,
+            curatedSections: adapter.instructionSections,
             issueInstructions: model.decisionIssues.map((issue) => ({ issueId: issue.id, elements: issue.elements, outcomes: issue.permittedOutcomes })),
-            sourceNotice: 'Instructions are assembled from the approved case model and curated adapter registry; legal review remains required.',
+            sourceNotice: 'Instructions are deterministically assembled from source-linked adapter sections and the approved case model; they are not model-written law and still require lawyer review.',
           }, sourceRefs: model.decisionIssues.flatMap((issue) => issue.sourceRefs),
         })
       }
