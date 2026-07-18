@@ -6,6 +6,133 @@
   color: #1f2328;
 }
 
+.full-workflow {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  min-height: calc(100vh - 132px);
+  background: var(--surface, #fff);
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+
+.workflow-steps {
+  padding: 20px 12px;
+  border-right: 1px solid var(--border, #e5e7eb);
+  background: #f8fafc;
+}
+
+.workflow-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px 18px;
+}
+
+.workflow-title div { display: grid; gap: 2px; }
+.workflow-title span { color: #64748b; font-size: 11px; }
+
+.workflow-steps > button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 24px 1fr 14px;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 8px;
+  color: #475569;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  text-align: left;
+  font-size: 12px;
+}
+
+.workflow-steps > button > span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.workflow-steps > button.active { color: #0f172a; background: #e8eefc; font-weight: 700; }
+.workflow-steps > button.active > span { color: #fff; background: #3158d3; }
+
+.workflow-panel {
+  min-width: 0;
+  padding: 28px clamp(24px, 4vw, 56px) 48px;
+  overflow: auto;
+}
+
+.workflow-panel > header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+.workflow-panel h2 { margin: 3px 0 0; font-size: 24px; }
+.workflow-panel .eyebrow { color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.workflow-stack { display: grid; gap: 16px; max-width: 1050px; }
+.workflow-stack > p { margin: 0; max-width: 780px; color: #475569; line-height: 1.55; }
+.workflow-stack label:not(.file-action):not(.workflow-check) { display: grid; gap: 6px; color: #334155; font-size: 12px; font-weight: 650; }
+.workflow-stack input, .workflow-stack select, .workflow-stack textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; }
+.workflow-stack textarea { min-height: 100px; resize: vertical; }
+.workflow-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.workflow-row > input { flex: 1 1 360px; }
+.workflow-stack button, .file-action { width: fit-content; display: inline-flex; align-items: center; gap: 7px; padding: 9px 13px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #1e293b; font-weight: 650; cursor: pointer; }
+.workflow-stack button:disabled { cursor: not-allowed; opacity: .5; }
+.workflow-stack .primary-action { color: #fff; background: #3158d3; border-color: #3158d3; }
+.file-action input { display: none; }
+.workflow-check { display: flex; align-items: flex-start; gap: 9px; max-width: 760px; color: #334155; font-size: 12px; line-height: 1.45; }
+.workflow-check input { width: auto; margin-top: 2px; }
+
+.summary-grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 10px; }
+.summary-grid > div { display: grid; gap: 5px; padding: 13px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; }
+.summary-grid span { color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+.summary-grid strong { color: #0f172a; font-size: 15px; }
+
+.preview-card, .case-model-card, .theory-editor, .finding-card, .motion-card, .decision-card, .run-status, .notice-card {
+  display: grid;
+  gap: 10px;
+  padding: 15px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.case-model-card > div:first-child, .finding-card > div:first-child, .motion-card > div:first-child, .run-status > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.case-model-card p, .finding-card p, .motion-card p, .decision-card p { margin: 0; color: #475569; }
+.case-model-card small, .decision-card small { display: block; color: #64748b; }
+.notice-card span { color: #64748b; font-size: 12px; }
+.manifest-list { display: grid; gap: 7px; max-height: 430px; overflow: auto; }
+.manifest-list article { display: grid; grid-template-columns: 1fr auto; gap: 5px 12px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; }
+.manifest-list article div { display: grid; gap: 2px; min-width: 0; }
+.manifest-list article strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.manifest-list article span, .manifest-list article p { color: #64748b; font-size: 11px; }
+.manifest-list article p { grid-column: 1 / -1; margin: 0; }
+.status-pill { width: fit-content; height: fit-content; padding: 3px 7px; border-radius: 999px; background: #e2e8f0; color: #334155; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+.status-extracted, .status-completed { background: #dcfce7; color: #166534; }
+.status-failed, .status-locked { background: #fee2e2; color: #991b1b; }
+.status-needs_review, .status-unsupported { background: #fef3c7; color: #92400e; }
+.severity { padding: 3px 6px; border-radius: 5px; background: #e2e8f0; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.severity-high, .severity-critical { color: #991b1b; background: #fee2e2; }
+.severity-medium { color: #92400e; background: #fef3c7; }
+.disclaimer { padding: 12px 14px; border-left: 3px solid #f59e0b; background: #fffbeb; color: #78350f !important; font-size: 12px; }
+.run-status progress { width: 100%; height: 8px; }
+.event-audit { display: grid; gap: 5px; max-height: 480px; overflow: auto; }
+.event-audit > div { display: grid; grid-template-columns: 45px 1fr auto; gap: 10px; padding: 8px 10px; border-bottom: 1px solid #f1f5f9; }
+.event-audit span, .event-audit small { color: #64748b; font-size: 11px; }
+
+@media (max-width: 1050px) {
+  .full-workflow { grid-template-columns: 1fr; }
+  .workflow-steps { display: flex; gap: 5px; overflow-x: auto; border-right: 0; border-bottom: 1px solid #e2e8f0; }
+  .workflow-title { min-width: 180px; padding: 5px 10px; }
+  .workflow-steps > button { min-width: 155px; }
+  .summary-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+}
+
 .sidebar {
   min-height: 100vh;
   background:

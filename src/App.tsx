@@ -39,6 +39,7 @@ import { BrandMark } from './components/BrandMark'
 import { CaseIntake } from './components/CaseIntake'
 import { DecisionSummary } from './components/DecisionSummary'
 import { EvidenceInspector } from './components/EvidenceInspector'
+import { FullWorkflowWorkspace } from './components/FullWorkflowWorkspace'
 import { ProviderBanner } from './components/ProviderBanner'
 import { RunSettingsModal } from './components/RunSettingsModal'
 import { Sidebar } from './components/Sidebar'
@@ -81,7 +82,7 @@ const fallbackRunConfig: RunConfig = {
 
 function App() {
   const [state, setState] = useState<WorkspaceState | null>(null)
-  const [workspaceMode, setWorkspaceMode] = useState<'decision' | 'trialforge'>(
+  const [workspaceMode, setWorkspaceMode] = useState<'decision' | 'trialforge' | 'workflow'>(
     'decision',
   )
   const [selectedMatterId, setSelectedMatterId] = useState<string | undefined>()
@@ -823,6 +824,14 @@ function App() {
                 <Gavel size={15} />
                 TrialForge
               </button>
+              <button
+                type="button"
+                className={workspaceMode === 'workflow' ? 'selected' : ''}
+                onClick={() => setWorkspaceMode('workflow')}
+              >
+                <Scale size={15} />
+                Full Proceeding
+              </button>
             </div>
 
             {workspaceMode === 'decision' && activeSession?.status === 'running' && (
@@ -937,7 +946,7 @@ function App() {
               session={activeSession}
             />
           </>
-        ) : (
+        ) : workspaceMode === 'trialforge' ? (
           <div className="trialforge-workspace">
             <CaseIntake
               matter={activeMatter}
@@ -960,6 +969,12 @@ function App() {
               onExport={() => void handleExportTrialForge()}
             />
           </div>
+        ) : (
+          <FullWorkflowWorkspace
+            matterId={activeMatter.id}
+            matterTitle={activeMatter.title}
+            onEvidenceImported={() => refreshState(activeMatter.id)}
+          />
         )}
       </main>
 
