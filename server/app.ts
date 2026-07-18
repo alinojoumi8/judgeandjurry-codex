@@ -14,7 +14,9 @@ import multer from 'multer'
 import { z } from 'zod'
 
 import { buildCasePacket } from './casePacket'
+import { CaseWorkflowService } from './caseWorkflow'
 import { CaseStore } from './db'
+import { CorpusService, isCorpusBlobPath } from './corpus'
 import { extractUploadedEvidence } from './evidence'
 import {
   persistEvidenceSource,
@@ -34,6 +36,8 @@ import {
 } from './runConfig'
 import { simulationStages } from './stages'
 import { createHardeningRouter } from './routes/hardening'
+import { createCorpusRouter } from './routes/corpus'
+import { createWorkflowRouter } from './routes/workflow'
 import {
   apiAuthentication,
   apiSecurityConfig,
@@ -43,6 +47,7 @@ import {
   type ApiSecurityConfig,
 } from './security'
 import { TrialForgeService } from './trialforge'
+import { TrialEngineService } from './trialEngine'
 import type { PacketPreview, RunConfig } from './types'
 
 const matterSchema = z.object({
@@ -104,6 +109,7 @@ export interface CreateAppOptions {
   store?: CaseStore
   service?: SimulationService
   trialForgeModelClient?: ModelClient
+  corpusService?: CorpusService
   logger?: AppLogger
   security?: ApiSecurityConfig
 }
@@ -133,6 +139,9 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   const app = express()
   const security = options.security ?? apiSecurityConfig()
   assertSafeBindConfiguration(security)
+  const corpus = options.corpusService ?? new CorpusService(store, logger.child({ component: 'corpus' }))
+  const caseWorkflow = new CaseWorkflowService(store)
+  const trialEngine = new TrialEngineService(store, modelClient, logger.child({ component: 'trial-engine' }))
 
   logger.info('app.create', {
     provider: config.provider,
@@ -147,6 +156,9 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.locals.store = store
   app.locals.service = service
   app.locals.trialForge = trialForge
+  app.locals.corpus = corpus
+  app.locals.caseWorkflow = caseWorkflow
+  app.locals.trialEngine = trialEngine
   app.locals.logger = logger
 
   app.use(cors(corsConfiguration(security)))
@@ -155,6 +167,10 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.use(requestLogMiddleware(logger))
   app.use('/api', createHardeningRouter(store, logger, maxArchiveBytes))
   app.use(express.json({ limit: '4mb' }))
+  app.use('/api', createCorpusRouter(corpus, logger.child({ component: 'corpus.routes' }), {
+    remote: security.remote,
+  }))
+  app.use('/api', createWorkflowRouter(caseWorkflow, trialEngine))
 
   app.get(
     '/api/health',
@@ -431,7 +447,9 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     '/api/matters/:matterId',
     asyncHandler(async (request, response) => {
       const matterId = routeParam(request, 'matterId')
-      const sourcePaths = store.listEvidenceSources(matterId).map((source) => source.path)
+      const sourcePaths = store.listEvidenceSources(matterId)
+        .map((source) => source.path)
+        .filter((path) => !isCorpusBlobPath(path))
       store.deleteMatter(matterId)
       await Promise.all(sourcePaths.map((path) => removeEvidenceSource(path)))
       const preferredMatterId = String(request.query.activeMatterId ?? '') || undefined

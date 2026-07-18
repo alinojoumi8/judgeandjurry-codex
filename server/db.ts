@@ -15,6 +15,7 @@ import { buildEvidenceChunks, rankEvidenceChunksFallback, toFtsQuery } from './e
 import { defaultJurorProfiles } from './jurors'
 import { defaultRunConfig, normalizeRunConfig } from './runConfig'
 import { simulationStages } from './stages'
+import { WorkflowRepository } from './workflowRepository'
 import type {
   AgentRole,
   AgentTurn,
@@ -216,6 +217,7 @@ export class CaseStore {
   private readonly db: DatabaseSync
   private readonly logger: AppLogger
   private readonly matterArchiveRepository: MatterArchiveRepository
+  readonly workflow: WorkflowRepository
   private ftsAvailable = false
 
   constructor(dbPath = defaultDbPath(), logger: AppLogger = noopLogger()) {
@@ -226,6 +228,7 @@ export class CaseStore {
 
     this.db = new DatabaseSync(dbPath)
     this.matterArchiveRepository = new MatterArchiveRepository(this.db)
+    this.workflow = new WorkflowRepository(this.db)
     this.db.exec('PRAGMA foreign_keys = ON')
     this.migrate()
     this.backfillDurableRows()
@@ -249,8 +252,9 @@ export class CaseStore {
     snapshot: MatterDatabaseSnapshot,
     newMatterId: string,
     sourcePaths: ReadonlyMap<string, string>,
+    blobPaths: ReadonlyMap<string, string> = new Map(),
   ): Matter {
-    this.matterArchiveRepository.importMatter(snapshot, newMatterId, sourcePaths)
+    this.matterArchiveRepository.importMatter(snapshot, newMatterId, sourcePaths, blobPaths)
     this.backfillDurableRows()
     return this.getMatter(newMatterId)
   }
