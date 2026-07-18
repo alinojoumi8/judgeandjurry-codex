@@ -166,8 +166,23 @@ describe('release hardening', () => {
     const counter = check
       .prepare('SELECT next_exhibit_number FROM matter_counters WHERE matter_id = ?')
       .get('m1') as { next_exhibit_number: number }
-    expect(version.user_version).toBe(2)
+    expect(version.user_version).toBe(5)
     expect(counter.next_exhibit_number).toBe(5)
+    for (const table of [
+      'corpus_jobs',
+      'case_model_versions',
+      'motions',
+      'admission_ledger_versions',
+      'trial_runs',
+      'trial_events',
+      'issue_ballots',
+      'decision_sheets',
+    ]) {
+      const migrated = check
+        .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`)
+        .get(table) as { name?: string } | undefined
+      expect(migrated?.name).toBe(table)
+    }
     check.close()
   })
 

@@ -13,6 +13,7 @@ Local AI courtroom simulation and legal decision-support workspace.
 - Searches locally extracted evidence chunks so agents receive targeted exhibit context before each stage.
 - Stores matters, evidence provenance and extracted text, turns, jury opinions, and verdict reports in local SQLite, with versioned migrations and consistent backups.
 - Uses a real local OpenAI-compatible provider by default, such as Ollama, and can be explicitly configured for external MiniMax calls.
+- Adds a Trial Engine v2 guided workflow: recursive folder/ZIP intake, neutral case-model approval, private competing theories, disclosure review, approved motions, versioned admission rulings, full proceedings, per-issue decisions, and scenario robustness runs.
 
 This is decision-support software only. It is not legal advice and does not produce binding court outcomes.
 
@@ -40,6 +41,12 @@ For external MiniMax calls, set `MODEL_PROVIDER=minimax` and provide `MINIMAX_AP
 Model calls use `MODEL_TIMEOUT_MS` and `MODEL_MAX_RETRIES` for timeout and retry/backoff control, `MODEL_MAX_OUTPUT_TOKENS` for the output budget, and `MODEL_TEMPERATURE` to override the per-stage sampling defaults.
 
 ## Courtroom Realism
+
+The **Full Proceeding** workspace uses three separate procedure adapters: Ontario criminal jury, Ontario Capital Markets Tribunal, and Ontario civil (judge-alone or six-person jury). Procedure order and permitted moves are deterministic. Criminal guilt is decided only from twelve independent per-count ballots; OSC proceedings create no juror records; civil jury mode requires a valid jury notice and applies the five-of-six rule. Synthetic panels are not statistically representative and are not verdict predictions.
+
+Full-proceeding jurors are seeded from continuous cognitive traits (comprehension, numeracy, memory, ambiguity tolerance, confidence calibration, narrative susceptibility, burden sensitivity, assertiveness, patience, and social influence). They are not assigned Crown/defence outcome quotas and no outcome is inferred from demographic stereotypes. Initial and final ballots are isolated per issue; invalid calls remain explicit no-verdict/incomplete records and cannot be filled in by a group response.
+
+The paragraphs below describe the preserved **legacy fast simulation** workflow and its saved sessions.
 
 Every simulation creates a fresh, session-stable jury pool from varied persona archetypes. Saved sessions keep their original jurors, but new runs sample a different balanced panel with distinct roles, skepticism levels, burden sensitivity, default leanings, and evidence focuses.
 
@@ -71,13 +78,13 @@ The default upload limit is 250MB. Change it with `JUDGE_JURY_MAX_UPLOAD_BYTES` 
 
 ## Archives, Recovery, and Database Upgrades
 
-Matter archives use the versioned `judge-jury-matter` JSON format. They include matter metadata, original evidence bytes and hashes, simulations, juror state, TrialForge transcripts, and reports. Import verifies the archive checksum and each source hash, creates collision-safe IDs, and rewrites internal citation references. Version 1 archives remain the compatibility baseline; unsupported future versions fail closed.
+Matter archives use the versioned `judge-jury-matter` JSON format. Format version 2 deduplicates preserved source blobs by SHA-256 and includes corpus manifests, derived OCR/transcripts, approved case models, theories, disclosure findings, motions/rulings, admission ledgers, trial events, actor snapshots, ballots, decision sheets, and provider audit metadata. Import verifies the archive checksum and every blob hash, creates collision-safe IDs, and rewrites internal references. Version 1 imports remain supported and receive empty v2 workflow collections; unsupported future versions fail closed.
 
 - `GET /api/matters/:matterId/archive` exports a matter archive.
 - `POST /api/matters/import` imports a matter archive.
 - `POST /api/system/backup` creates a consistent SQLite backup under `data/backups/` using SQLite's online backup API.
 
-Database changes are applied transactionally and tracked with SQLite `PRAGMA user_version`. Keep both `data/judge-jury.sqlite` and `data/evidence/` when performing manual recovery.
+Database changes are applied transactionally and tracked with SQLite `PRAGMA user_version` (v3 corpus, v4 case/motion/admission workflow, v5 event engine). Keep `data/judge-jury.sqlite`, `data/evidence/`, and `data/corpus/blobs/` together during manual recovery. See [Recovery and archive compatibility](docs/recovery-and-archives.md).
 
 ## Local and Remote API Safety
 
