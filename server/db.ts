@@ -320,9 +320,30 @@ export class CaseStore {
     return this.getMatter(matterId)
   }
 
-  deleteMatter(matterId: string): void {
+  // Deletes the matter and returns the source-file paths that no longer have
+  // any reference - originals owned only by this matter, plus content-addressed
+  // corpus blobs whose last alias lived here - so the caller can unlink them.
+  deleteMatter(matterId: string): string[] {
     this.getMatter(matterId)
-    this.db.prepare('DELETE FROM matters WHERE id = ?').run(matterId)
+    const ownedSources = this.listEvidenceSources(matterId)
+    this.db.exec('BEGIN IMMEDIATE')
+    try {
+      this.workflow.releaseMatterBlobReferences(matterId)
+      this.db.prepare('DELETE FROM matters WHERE id = ?').run(matterId)
+      const released = new Set(this.workflow.sweepUnreferencedBlobs())
+      for (const source of ownedSources) {
+        if (this.workflow.sourceBlob(source.sha256)) continue
+        const stillReferenced = this.db
+          .prepare('SELECT 1 FROM evidence WHERE source_path = ? LIMIT 1')
+          .get(source.path)
+        if (!stillReferenced) released.add(source.path)
+      }
+      this.db.exec('COMMIT')
+      return [...released]
+    } catch (error) {
+      this.db.exec('ROLLBACK')
+      throw error
+    }
   }
 
   listMatters(): Matter[] {

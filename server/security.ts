@@ -75,6 +75,19 @@ export function apiAuthentication(config: ApiSecurityConfig): RequestHandler {
   }
 }
 
+// Express "trust proxy" setting from TRUST_PROXY: "true"/"false", a hop count
+// such as "1", or a named/CIDR value such as "loopback". Needed behind a reverse
+// proxy so request.ip (and therefore rate limiting) sees the real client.
+export function trustProxySetting(
+  value = process.env.TRUST_PROXY,
+): boolean | number | string | undefined {
+  const trimmed = value?.trim()
+  if (!trimmed) return undefined
+  if (trimmed === 'true') return true
+  if (trimmed === 'false') return false
+  return /^\d+$/.test(trimmed) ? Number(trimmed) : trimmed
+}
+
 export function requestRateLimit(
   limit = Number(process.env.API_RATE_LIMIT_PER_MINUTE ?? 240),
 ): RequestHandler {

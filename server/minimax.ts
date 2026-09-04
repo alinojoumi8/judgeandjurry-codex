@@ -41,6 +41,10 @@ export interface StageRequest {
   juryBallots?: JuryBallot[]
   runConfig?: RunConfig
   legalTemplate?: LegalTemplate
+  // When a caller (e.g. the trial engine) needs a specific decision vocabulary
+  // for verdict.outcome - motion dispositions, objection rulings, or an issue's
+  // permitted outcomes - it overrides the template's outcome labels.
+  verdictOutcomes?: string[]
 }
 
 export interface ModelClient {
@@ -226,6 +230,8 @@ export class MiniMaxClient implements ModelClient {
         ? panelRulesFor(template.id, request.runConfig.jurorCount)
         : undefined
     const ballots = formatJuryBallots(request.juryBallots ?? [])
+    const engineDirected = Boolean(request.verdictOutcomes?.length)
+    const verdictVocabulary = engineDirected ? request.verdictOutcomes : template?.outcomeLabels
     const roleInstruction = roleInstructionForStage(request.stage, template)
     const user = [
       `Stage: ${request.stage}`,
@@ -273,7 +279,9 @@ export class MiniMaxClient implements ModelClient {
         : 'For this non-judge stage, omit verdict or set it to null.',
       isBallotStage
         ? 'The content field is a one-sentence ballot summary.'
-        : 'The content field must be substantive, stage-specific, and 80 to 160 words unless this is the jury stage.',
+        : request.stage === 'witness_answer'
+          ? 'The content field is the witness answer in the first person, at most 80 words.'
+          : 'The content field must be substantive, stage-specific, and 80 to 160 words unless this is the jury stage.',
       'Cite at least one uploaded exhibit ID in content when making factual claims; if only one exhibit is available, cite E-001.',
       isChargeStage
         ? 'Charge requirements: explain the elements to be decided, who bears the burden and to what standard, how to assess credibility and circumstantial evidence, what the panel must not consider, and the decision rule. Remain strictly neutral; do not signal a preferred outcome.'
@@ -305,10 +313,10 @@ export class MiniMaxClient implements ModelClient {
       isJuryStage
         ? 'Do not force consensus. If the evidence is genuinely close, return a divided panel with realistic confidence levels.'
         : '',
-      isJudgeStage
+      isJudgeStage && !engineDirected
         ? 'Calibrate verdict.confidence as decision-support confidence: 88-92 only when citations are clean, proof gaps are limited, and the jury record shows the decision rule was met; use lower confidence for close splits or unresolved element-level issues.'
         : '',
-      isJudgeStage
+      isJudgeStage && !engineDirected
         ? 'If the jury record shows the panel did not reach the required agreement, the outcome must be the hung/no-verdict option, not a win for either side.'
         : '',
       isJudgeStage
@@ -317,8 +325,8 @@ export class MiniMaxClient implements ModelClient {
       isJuryStage || isBallotStage
         ? 'Keep each juror rationale under 45 words and make it address the case facts plus that juror profile.'
         : '',
-      isJudgeStage && template
-        ? `For verdict.outcome use exactly one of: ${template.outcomeLabels.map((label) => `"${label}"`).join(', ')}.`
+      isJudgeStage && verdictVocabulary?.length
+        ? `For verdict.outcome use exactly one of: ${verdictVocabulary.map((label) => `"${label}"`).join(', ')}.`
         : 'For verdict.outcome use a concrete result such as "crown", "defence", or "mixed"; never use "...".',
       'Do not copy placeholder strings from the JSON shape.',
       '',
@@ -339,7 +347,11 @@ export class MiniMaxClient implements ModelClient {
       temperature: temperatureForStage(request.stage),
     }
 
-    const configuredBudget = envNumber('MODEL_MAX_OUTPUT_TOKENS', 6_000)
+    // External providers (MiniMax) spend reasoning tokens from the same budget
+    // and truncated a 12-juror deliberation at 6k; give them more headroom.
+    const externalProvider =
+      this.config.provider === 'minimax' || !isLocalBaseUrl(this.config.baseUrl)
+    const configuredBudget = envNumber('MODEL_MAX_OUTPUT_TOKENS', externalProvider ? 16_000 : 6_000)
     const maxOutputTokens = isBallotStage
       ? Math.min(configuredBudget, 1_500)
       : configuredBudget
@@ -687,6 +699,8 @@ function roleInstructionForStage(stage: string, template?: LegalTemplate): strin
       `${judge} charge role. Instruct the ${jury} before deliberation: the elements to be decided, who bears the burden and to what standard, how to assess credibility and circumstantial evidence, what must not be considered, and the decision rule for this panel. Do not decide the case or hint at a preferred outcome.`,
     [jurorBallotStage]:
       'Single-juror secret ballot role. You are exactly one juror voting independently before deliberation begins. Apply only your own profile, the judge\'s charge, and the courtroom record; never reference other jurors or any ballots.',
+    witness_answer:
+      'Witness role. Answer the question in the first person using only the approved statement segments supplied in the packet. If the answer is not contained in those segments, say plainly that you do not recall or do not know; never invent facts, and cite the exhibit that contains your statement.',
     jury_deliberation:
       'Jury role. Give each juror an independent vote, confidence, exhibit-cited rationale, and burden-aware reason for defence, crown, or mixed leaning, then simulate the jury-room exchange between them.',
     judge_ruling:
@@ -715,7 +729,7 @@ function temperatureForStage(stage: string): number {
   ) {
     return 0.5
   }
-  if (stage === 'issue_spotting') {
+  if (stage === 'issue_spotting' || stage === 'witness_answer') {
     return 0.3
   }
   return 0.2

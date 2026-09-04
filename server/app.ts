@@ -11,12 +11,12 @@ import { access, rm } from 'node:fs/promises'
 import { extname, resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import multer from 'multer'
-import { z } from 'zod'
+import { z, ZodError } from 'zod'
 
 import { buildCasePacket } from './casePacket'
 import { CaseWorkflowService } from './caseWorkflow'
 import { CaseStore } from './db'
-import { CorpusService, isCorpusBlobPath } from './corpus'
+import { CorpusService } from './corpus'
 import { extractUploadedEvidence } from './evidence'
 import {
   persistEvidenceSource,
@@ -44,6 +44,7 @@ import {
   assertSafeBindConfiguration,
   corsConfiguration,
   requestRateLimit,
+  trustProxySetting,
   type ApiSecurityConfig,
 } from './security'
 import { TrialForgeService } from './trialforge'
@@ -141,7 +142,12 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   assertSafeBindConfiguration(security)
   const corpus = options.corpusService ?? new CorpusService(store, logger.child({ component: 'corpus' }))
   const caseWorkflow = new CaseWorkflowService(store)
-  const trialEngine = new TrialEngineService(store, modelClient, logger.child({ component: 'trial-engine' }))
+  const trialEngine = new TrialEngineService(
+    store,
+    modelClient,
+    logger.child({ component: 'trial-engine' }),
+    providerStatusFromConfig(config),
+  )
 
   logger.info('app.create', {
     provider: config.provider,
@@ -161,8 +167,12 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.locals.trialEngine = trialEngine
   app.locals.logger = logger
 
+  const trustProxy = trustProxySetting()
+  if (trustProxy !== undefined) app.set('trust proxy', trustProxy)
   app.use(cors(corsConfiguration(security)))
-  app.use(requestRateLimit())
+  // A single local user polling several streams can exceed a per-IP budget, so
+  // rate limiting applies to remote binding, or when explicitly configured.
+  if (security.remote || process.env.API_RATE_LIMIT_PER_MINUTE) app.use(requestRateLimit())
   app.use(apiAuthentication(security))
   app.use(requestLogMiddleware(logger))
   app.use('/api', createHardeningRouter(store, logger, maxArchiveBytes))
@@ -447,11 +457,11 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     '/api/matters/:matterId',
     asyncHandler(async (request, response) => {
       const matterId = routeParam(request, 'matterId')
-      const sourcePaths = store.listEvidenceSources(matterId)
-        .map((source) => source.path)
-        .filter((path) => !isCorpusBlobPath(path))
-      store.deleteMatter(matterId)
-      await Promise.all(sourcePaths.map((path) => removeEvidenceSource(path)))
+      // The store decides which source files are safe to unlink: shared
+      // content-addressed blobs survive while another matter references them
+      // and are released with the last reference.
+      const releasedPaths = store.deleteMatter(matterId)
+      await Promise.all(releasedPaths.map((path) => removeEvidenceSource(path)))
       const preferredMatterId = String(request.query.activeMatterId ?? '') || undefined
       const workspace = store.getWorkspace(
         preferredMatterId === matterId ? undefined : preferredMatterId,
@@ -874,13 +884,43 @@ function errorHandler(rootLogger: AppLogger): ErrorRequestHandler {
       return
     }
 
-    const message =
-      error instanceof Error ? error.message : 'Unexpected server error.'
-    const status = message.includes('not found') ? 404 : 400
-    getRequestLogger(request, rootLogger).error('http.request.error', {
-      status,
-      error,
-    })
+    const { status, message } = classifyError(error)
+    // Every handled request failure is written to the error log with its
+    // status so expected 4xx branches stay triageable alongside real faults.
+    getRequestLogger(request, rootLogger).error('http.request.error', { status, error })
     response.status(status).json({ error: message })
   }
+}
+
+// Domain errors thrown by the services are plain Errors and map to 400; lookups
+// map to 404; body-parser and other http-errors carry their own status; runtime
+// faults and system errors are genuine 500s whose details stay in the log.
+function classifyError(error: unknown): { status: number; message: string } {
+  if (error instanceof ZodError) {
+    const detail = error.issues
+      .map((issue) => `${issue.path.join('.') || 'body'}: ${issue.message}`)
+      .join('; ')
+    return { status: 400, message: `Invalid request: ${detail}` }
+  }
+  if (!(error instanceof Error)) {
+    return { status: 500, message: 'Unexpected server error.' }
+  }
+  const carried = error as Error & { status?: unknown; statusCode?: unknown; code?: unknown }
+  const httpStatus = Number(carried.status ?? carried.statusCode)
+  if (Number.isInteger(httpStatus) && httpStatus >= 400 && httpStatus <= 599) {
+    return { status: httpStatus, message: httpStatus >= 500 ? 'Unexpected server error.' : error.message }
+  }
+  if (/not found/i.test(error.message)) {
+    return { status: 404, message: error.message }
+  }
+  const systemFault =
+    error instanceof TypeError ||
+    error instanceof RangeError ||
+    error instanceof ReferenceError ||
+    error instanceof SyntaxError ||
+    (typeof carried.code === 'string' && /^(?:E[A-Z]+|SQLITE_)/.test(carried.code))
+  if (systemFault) {
+    return { status: 500, message: 'Unexpected server error.' }
+  }
+  return { status: 400, message: error.message }
 }

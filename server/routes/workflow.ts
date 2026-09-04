@@ -40,7 +40,7 @@ const trialConfigSchema = z.object({
   checkpointPolicy: z.object({
     default: z.enum(['autonomous', 'approval']), approvalPhases: z.array(z.string()), allowCounselTakeover: z.boolean(),
   }),
-  actorProviders: z.record(z.string(), z.object({ provider: z.string(), model: z.string() })),
+  provider: z.object({ name: z.string(), model: z.string(), mode: z.enum(['local', 'external']) }).optional(),
   witnessPlan: z.array(z.object({ witnessId: z.string(), calledByPartyId: z.string(), order: z.number().int() })),
   deliberation: z.object({ maxRounds: z.number().int().min(3).max(12), concurrency: z.number().int().min(1).max(8) }),
   civilDecisionMaker: z.enum(['judge_alone', 'jury']).optional(), externalDisclosureConfirmed: z.boolean(),
@@ -204,7 +204,9 @@ export function createWorkflowRouter(workflow: CaseWorkflowService, trials: Tria
 
   router.get('/trials/:runId/actors/:actorId/context', (request, response) => {
     const roles = String(request.query.roles ?? '').split(',').filter(Boolean)
-    response.json(trials.actorContext(parameter(request, 'runId'), parameter(request, 'actorId'), roles))
+    // Roles are derived server-side from the actor's place in the roster; a
+    // caller may narrow them but cannot claim roles the actor does not hold.
+    response.json(trials.actorContext(parameter(request, 'runId'), parameter(request, 'actorId'), roles.length ? roles : undefined))
   })
 
   router.get('/trials/:runId/events', (request, response) => {

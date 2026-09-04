@@ -133,10 +133,14 @@ export class CaseWorkflowService {
       if (/incomplete production|production is incomplete|missing pages?|page[s]? omitted|attachment[s]? (?:missing|omitted)|not produced/.test(lower)) candidates.push(findingFor(item, 'incomplete_production', 'high', false, `Potential incomplete production in ${item.exhibitId}`, 'The source indicates that pages, attachments, or other produced material may be incomplete. Confirm the production history before seeking relief.', ['further_production', 'adjourn', 'reserve']))
       if (/unsigned|signature missing|not authenticated|authenticity (?:unknown|disputed)|unverified copy/.test(lower)) candidates.push(findingFor(item, 'authenticity_gap', 'medium', false, `Authenticity foundation review for ${item.exhibitId}`, 'The source contains language suggesting an unsigned, unverified, or disputed copy. Authentication and intended use require review.', ['limited_use', 'voir_dire', 'exclude']))
       if (/privileg|solicitor.client|legal advice/.test(lower)) candidates.push(findingFor(item, 'privilege', 'high', false, `Potential privilege flag in ${item.exhibitId}`, 'The source contains privilege-related language and should be reviewed before use.', ['redact', 'exclude', 'limited_use']))
-      if (/expert|opinion report|forensic/.test(lower) && !/qualification|curriculum vitae|\bcv\b/.test(lower)) candidates.push(findingFor(item, 'expert_foundation', 'medium', false, `Expert foundation review for ${item.exhibitId}`, 'The source appears to contain opinion evidence without an obvious qualification/foundation reference.', ['limited_use', 'voir_dire']))
+      if (/\bexpert (?:report|opinion|evidence|witness)\b|\bopinion report\b|\bforensic (?:accountant|accounting|report|analysis|examination|expert)\b/.test(lower) && !/qualification|curriculum vitae|\bcv\b/.test(lower)) candidates.push(findingFor(item, 'expert_foundation', 'medium', false, `Expert foundation review for ${item.exhibitId}`, 'The source appears to contain opinion evidence without an obvious qualification/foundation reference.', ['limited_use', 'voir_dire']))
       if (/chain of custody|continuity/.test(lower) && /missing|gap|unknown/.test(lower)) candidates.push(findingFor(item, 'chain_of_custody_gap', 'high', false, `Continuity concern in ${item.exhibitId}`, 'The source itself signals an unresolved continuity or chain-of-custody issue.', ['exclude', 'limited_use', 'voir_dire']))
       if (/translation|translated/.test(lower) && !/certified|interpreter/.test(lower)) candidates.push(findingFor(item, 'missing_translation', 'medium', false, `Translation review for ${item.exhibitId}`, 'Translation language appears without an identified certification or interpreter foundation.', ['further_production', 'adjourn', 'limited_use']))
-      if (/\bhearsay\b|told me that|said that/.test(lower)) candidates.push(findingFor(item, 'hearsay', 'medium', false, `Hearsay risk in ${item.exhibitId}`, 'The source may contain an out-of-court statement; purpose, exception, and admissibility need legal review.', ['exclude', 'limited_use', 'voir_dire']))
+      // A single reported-speech phrase in a long document is weak signal; only
+      // an explicit hearsay reference or repeated reported speech is motion-grade.
+      const hearsayHits = countMatches(lower, /\btold (?:me|us|him|her|them) that\b|\bsaid that\b/g)
+      if (/\bhearsay\b/.test(lower) || hearsayHits >= 3) candidates.push(findingFor(item, 'hearsay', 'medium', false, `Hearsay risk in ${item.exhibitId}`, 'The source may contain an out-of-court statement; purpose, exception, and admissibility need legal review.', ['exclude', 'limited_use', 'voir_dire']))
+      else if (hearsayHits > 0) candidates.push(findingFor(item, 'hearsay', 'low', false, `Possible reported speech in ${item.exhibitId}`, 'A reported-speech phrase was found; confirm whether it is an out-of-court statement offered for its truth before treating it as a hearsay concern.', ['limited_use']))
       const referencedNames = [...item.text.matchAll(/\b([\w][\w .()'-]{0,100}\.(?:pdf|docx?|xlsx?|csv|txt|rtf|eml|msg|png|jpe?g|tiff?|mp3|wav|mp4|mov))\b/gi)]
         .map((match) => match[1].trim().toLowerCase())
       const missingNames = [...new Set(referencedNames.filter((name) => !availableNames.has(name)))]
@@ -183,15 +187,30 @@ export class CaseWorkflowService {
       .sort((a, b) => severityRank(b.severity) - severityRank(a.severity))
     const movingParty = model.parties.find((party) => ['accused', 'respondent', 'defendant'].includes(party.role))
     if (!movingParty) return []
+    const permitted = getProcedureAdapter(model.procedureAdapter).permittedRelief
     const existing = this.store.workflow.listMotions(model.matterId)
+    // One motion per exhibit: every motion-grade concern on the same source is
+    // consolidated, and low-severity heuristic hits stay findings only.
+    const byEvidence = new Map<string, DisclosureFinding[]>()
     for (const finding of findings) {
-      if (existing.some((motion) => motion.sourceRefs.some((ref) => finding.sourceRefs.some((source) => source.evidenceId === ref.evidenceId)))) continue
-      const requestedRelief = finding.suggestedRelief.filter((relief) => getProcedureAdapter(model.procedureAdapter).permittedRelief.includes(relief))
+      if (severityRank(finding.severity) < severityRank('medium')) continue
+      const evidenceId = finding.sourceRefs.find((ref) => ref.evidenceId)?.evidenceId ?? finding.id
+      byEvidence.set(evidenceId, [...(byEvidence.get(evidenceId) ?? []), finding])
+    }
+    for (const group of byEvidence.values()) {
+      if (existing.some((motion) => motion.sourceRefs.some((ref) => group.some((finding) => finding.sourceRefs.some((source) => source.evidenceId === ref.evidenceId))))) continue
+      const lead = group[0]
+      const categories = [...new Set(group.map((finding) => finding.category))]
+      const requestedRelief = [...new Set(group.flatMap((finding) => finding.suggestedRelief))].filter((relief) => permitted.includes(relief))
+      const sourceRefs = [...new Map(group.flatMap((finding) => finding.sourceRefs).map((ref) => [`${ref.evidenceId ?? ''}:${ref.exhibitId ?? ''}`, ref])).values()]
       this.store.workflow.createMotion({
         matterId: model.matterId, caseModelId: model.id, procedureAdapter: model.procedureAdapter,
-        movingPartyId: movingParty.id, title: `Proposed motion: ${finding.title}`,
-        motionType: finding.category, requestedRelief: requestedRelief.length ? requestedRelief : ['reserve'],
-        status: 'draft', submissions: [], sourceRefs: finding.sourceRefs,
+        movingPartyId: movingParty.id,
+        title: group.length === 1
+          ? `Proposed motion: ${lead.title}`
+          : `Proposed motion: ${group.length} concerns in ${lead.sourceRefs[0]?.exhibitId ?? 'source'} (${categories.join(', ')})`,
+        motionType: categories.join('+'), requestedRelief: requestedRelief.length ? requestedRelief : ['reserve'],
+        status: 'draft', submissions: [], sourceRefs,
       })
     }
     return this.store.workflow.listMotions(model.matterId)
@@ -357,6 +376,10 @@ function theoryNarrative(partyName: string, evidence: EvidenceItem[], claimCount
 function inferredOpposingName(title: string, fallback: string): string {
   const cleaned = title.replace(/\b(v\.?|vs\.?|matter of|re:)\b/gi, ' ').replace(/\s+/g, ' ').trim()
   return cleaned && cleaned.toLowerCase() !== 'new matter' ? cleaned.slice(0, 120) : fallback
+}
+
+function countMatches(text: string, pattern: RegExp): number {
+  return (text.match(pattern) ?? []).length
 }
 
 function severityRank(severity: DisclosureFinding['severity']): number {

@@ -42,7 +42,7 @@ describe('matter archive format v2', () => {
     const config: TrialRunConfig = {
       mode: 'full', procedureAdapter: 'ontario_civil_v1', seed: 'archive-seed',
       checkpointPolicy: { default: 'autonomous', approvalPhases: [], allowCounselTakeover: true },
-      actorProviders: { default: { provider: 'local', model: 'fixture' } }, witnessPlan: [],
+      witnessPlan: [],
       deliberation: { maxRounds: 3, concurrency: 2 }, civilDecisionMaker: 'judge_alone',
       externalDisclosureConfirmed: false,
     }
@@ -50,8 +50,19 @@ describe('matter archive format v2', () => {
     engine.command(run.id, {
       type: 'record_ballot',
       ballot: {
+        issueId: model.decisionIssues[0].id, actorId: 'judge-1', round: 'initial', choice: 'undecided',
+        confidence: 40, rationale: 'Fixture initial position.', sourceRefs: [], valid: true,
+      },
+    })
+    // A changed final ballot references the event that changed it; the import
+    // must keep that foreign key pointing at the re-identified event.
+    const anchorEvent = store.workflow.listTrialEvents(run.id)[0]
+    engine.command(run.id, {
+      type: 'record_ballot',
+      ballot: {
         issueId: model.decisionIssues[0].id, actorId: 'judge-1', round: 'final', choice: 'proved',
         confidence: 70, rationale: 'Fixture judge-alone finding.', sourceRefs: [], valid: true,
+        changedByEventId: anchorEvent.id,
       },
     })
     engine.command(run.id, { type: 'complete_decision' })
@@ -63,7 +74,7 @@ describe('matter archive format v2', () => {
     expect(archive.snapshot.derivedArtifacts).toHaveLength(1)
     expect(archive.snapshot.caseModelVersions).toHaveLength(1)
     expect(archive.snapshot.trialRuns).toHaveLength(1)
-    expect(archive.snapshot.issueBallots).toHaveLength(1)
+    expect(archive.snapshot.issueBallots).toHaveLength(2)
     expect(archive.snapshot.decisionSheets).toHaveLength(1)
 
     const imported = await importMatterArchive(store, archive)
@@ -72,8 +83,14 @@ describe('matter archive format v2', () => {
     expect(store.workflow.listCaseModels(imported.id)).toHaveLength(1)
     expect(store.workflow.listTheoryBriefs(store.workflow.listCaseModels(imported.id)[0].id)[0].narrative).toBe('Private archive theory.')
     const importedRun = store.workflow.listTrialRuns(imported.id)[0]
-    expect(store.workflow.listTrialEvents(importedRun.id).some((event) => event.type === 'decision_sheet_completed')).toBe(true)
-    expect(store.workflow.listBallots(importedRun.id)).toHaveLength(1)
+    const importedEvents = store.workflow.listTrialEvents(importedRun.id)
+    expect(importedEvents.some((event) => event.type === 'decision_sheet_completed')).toBe(true)
+    const importedBallots = store.workflow.listBallots(importedRun.id)
+    expect(importedBallots).toHaveLength(2)
+    const importedFinal = importedBallots.find((ballot) => ballot.round === 'final')!
+    expect(importedFinal.changedByEventId).toBeTruthy()
+    expect(importedFinal.changedByEventId).not.toBe(anchorEvent.id)
+    expect(importedEvents.some((event) => event.id === importedFinal.changedByEventId)).toBe(true)
     expect(store.workflow.getDecisionSheet(importedRun.id)).toMatchObject({ complete: true })
     const importedEvidence = store.listEvidence(imported.id)[0]
     expect(store.getEvidenceSource(importedEvidence.id).sha256).toBe(importedEvidence.sha256)

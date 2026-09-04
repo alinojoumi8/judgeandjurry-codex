@@ -205,6 +205,26 @@ describe('Judge & Jury API', () => {
     await request(app).get(`/api/sessions/${deletedSessionId}`).expect(404)
   })
 
+  it('maps validation, lookup, and runtime failures to 400, 404, and 500 without leaking internals', async () => {
+    store = new CaseStore(':memory:')
+    const app = createApp({ store })
+
+    const invalid = await request(app).post('/api/client-logs').send({ level: 'bogus', event: 'x' }).expect(400)
+    expect(invalid.body.error).toMatch(/^Invalid request: level:/)
+    const malformed = await request(app)
+      .post('/api/matters')
+      .set('Content-Type', 'application/json')
+      .send('{"title": ')
+      .expect(400)
+    expect(malformed.body.error).toBeTruthy()
+    await request(app).get('/api/sessions/does-not-exist').expect(404)
+
+    store.getWorkspace = () => { throw new TypeError('internal boom') }
+    const crashed = await request(app).get('/api/state').expect(500)
+    expect(crashed.body.error).toBe('Unexpected server error.')
+    expect(JSON.stringify(crashed.body)).not.toContain('boom')
+  })
+
   it('returns readiness details from health check', async () => {
     store = new CaseStore(':memory:')
     const app = createApp({ store })

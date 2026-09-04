@@ -112,6 +112,31 @@ describe('model provider reliability', () => {
     }
   })
 
+  it('gives external providers a larger default output budget than local runtimes', async () => {
+    const previous = process.env.MODEL_MAX_OUTPUT_TOKENS
+    delete process.env.MODEL_MAX_OUTPUT_TOKENS
+    const captured: Record<string, unknown>[] = []
+    const fetcher: typeof fetch = async (_url, init) => {
+      captured.push(JSON.parse(String(init?.body)) as Record<string, unknown>)
+      return Response.json({ choices: [{ message: { content: '{"title":"Budget","content":"Uses E-001.","citations":["E-001"]}' } }] })
+    }
+    try {
+      await new MiniMaxClient(
+        { provider: 'minimax', apiKey: 'key', baseUrl: 'https://api.minimax.io/v1', model: 'MiniMax-M3', timeoutMs: 2_000, maxRetries: 0 },
+        undefined, fetcher,
+      ).generateStage({ stage: 'issue_spotting', packet: 'packet', evidence, previousTurns: '' })
+      await new MiniMaxClient(
+        { provider: 'openai-compatible', apiKey: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', model: 'qwen2.5:7b', timeoutMs: 2_000, maxRetries: 0 },
+        undefined, fetcher,
+      ).generateStage({ stage: 'issue_spotting', packet: 'packet', evidence, previousTurns: '' })
+    } finally {
+      if (previous === undefined) delete process.env.MODEL_MAX_OUTPUT_TOKENS
+      else process.env.MODEL_MAX_OUTPUT_TOKENS = previous
+    }
+    expect(captured[0]?.max_completion_tokens).toBe(16_000)
+    expect(captured[1]?.max_tokens).toBe(6_000)
+  })
+
   it('asks the model for exactly the supplied jury profile count', async () => {
     let requestBody: {
       messages?: Array<{ role: string; content: string }>
@@ -341,6 +366,52 @@ describe('model provider reliability', () => {
     expect(userPrompt).toContain(
       'the outcome must be the hung/no-verdict option',
     )
+  })
+
+  it('lets an engine caller override the template verdict vocabulary', async () => {
+    let requestBody: {
+      messages?: Array<{ role: string; content: string }>
+    } | undefined
+    const client = new MiniMaxClient(
+      {
+        provider: 'openai-compatible',
+        apiKey: 'ollama',
+        baseUrl: 'http://127.0.0.1:11434/v1',
+        model: 'qwen2.5:7b',
+        timeoutMs: 2_000,
+        maxRetries: 0,
+      },
+      undefined,
+      async (_url, init) => {
+        requestBody = JSON.parse(String(init?.body)) as typeof requestBody
+        return Response.json({
+          choices: [
+            {
+              message: {
+                content:
+                  '{"title":"Motion Ruling","content":"The motion is dismissed on E-001.","citations":["E-001"],"verdict":{"outcome":"dismissed","confidence":70,"keyFactors":["E-001"],"unresolvedIssues":[],"recommendedNextSteps":[],"citationWarnings":[]}}',
+              },
+            },
+          ],
+        })
+      },
+    )
+
+    const result = await client.generateStage({
+      stage: 'judge_ruling',
+      packet: 'Decide only the approved simulated motion.',
+      evidence,
+      previousTurns: '',
+      verdictOutcomes: ['granted', 'partially_granted', 'dismissed', 'reserved'],
+      runConfig: defaultRunConfig({ templateId: 'criminal_defence' }),
+      legalTemplate: getLegalTemplate('criminal_defence'),
+    })
+
+    const userPrompt = requestBody?.messages?.[1]?.content ?? ''
+    expect(userPrompt).toContain('"granted", "partially_granted", "dismissed", "reserved"')
+    expect(userPrompt).not.toContain('Hung jury - no verdict')
+    expect(userPrompt).not.toContain('hung/no-verdict option')
+    expect(result.verdict?.outcome).toBe('dismissed')
   })
 
   it('normalizes juror belief trails and deliberation rounds', () => {

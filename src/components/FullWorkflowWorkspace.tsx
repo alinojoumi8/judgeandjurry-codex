@@ -126,7 +126,7 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
         approvalPhases: [reviewMotions ? 'motions' : '', reviewInstructions ? 'instructions' : ''].filter(Boolean),
         allowCounselTakeover: true,
       },
-      actorProviders: { default: { provider: 'minimax', model: 'server-configured' } },
+
       witnessPlan: caseModel.witnesses.map((witness, index) => ({
         witnessId: witness.id, calledByPartyId: caseModel.parties[0]?.id ?? 'user', order: index,
       })),

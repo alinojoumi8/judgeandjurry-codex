@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import request from 'supertest'
@@ -60,7 +60,7 @@ describe('trial engine workflow API', () => {
     const config = {
       mode: 'full', procedureAdapter: 'ontario_criminal_jury_v1', seed: 'api-seed',
       checkpointPolicy: { default: 'autonomous', approvalPhases: [], allowCounselTakeover: true },
-      actorProviders: { default: { provider: 'local', model: 'fixture' } }, witnessPlan: [],
+      witnessPlan: [],
       deliberation: { maxRounds: 3, concurrency: 2 }, externalDisclosureConfirmed: false,
     }
     const trial = await request(app)
@@ -71,6 +71,36 @@ describe('trial engine workflow API', () => {
     expect(store.workflow.listJurorProfiles(trial.body.run.id)).toHaveLength(12)
     const fetched = await request(app).get(`/api/trials/${trial.body.run.id}`).expect(200)
     expect(fetched.body.events[0].type).toBe('run_created')
+  })
+
+  it('releases shared corpus blobs only when the last matter referencing them is deleted', async () => {
+    const root = temporaryRoot()
+    const folder = join(root, 'packet')
+    mkdirSync(folder)
+    writeFileSync(join(folder, 'shared.txt'), 'Shared preserved disclosure bytes.')
+    const store = new CaseStore(':memory:')
+    stores.push(store)
+    const corpus = new CorpusService(store, undefined, join(root, 'blobs'))
+    const app = createApp({ store, corpusService: corpus, trialForgeModelClient: new FixtureModel() })
+    const importInto = async (title: string) => {
+      const matter = store.createMatter({ title })
+      const preview = await request(app).post(`/api/matters/${matter.id}/corpus/folder-preview`).send({ path: folder }).expect(200)
+      const confirm = await request(app).post(`/api/matters/${matter.id}/corpus/confirm`).send({ previewId: preview.body.id }).expect(202)
+      await corpus.runToCompletion(confirm.body.id)
+      return matter
+    }
+    const first = await importInto('First holder')
+    const second = await importInto('Second holder')
+    const sha256 = store.listEvidence(first.id)[0].sha256
+    const blobPath = store.getEvidenceSource(store.listEvidence(first.id)[0].id).path
+    expect(blobPath).toBe(store.getEvidenceSource(store.listEvidence(second.id)[0].id).path)
+
+    await request(app).delete(`/api/matters/${first.id}`).expect(200)
+    expect(existsSync(blobPath)).toBe(true)
+    expect(store.workflow.sourceBlob(sha256 ?? '')).toBeTruthy()
+    await request(app).delete(`/api/matters/${second.id}`).expect(200)
+    expect(existsSync(blobPath)).toBe(false)
+    expect(store.workflow.sourceBlob(sha256 ?? '')).toBeUndefined()
   })
 
   it('fails local-folder imports closed when the API is remotely bound', async () => {

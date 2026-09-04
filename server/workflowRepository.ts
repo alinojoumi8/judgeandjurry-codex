@@ -631,6 +631,38 @@ export class WorkflowRepository {
     } : undefined
   }
 
+  // Drops this matter's alias references from shared corpus blobs. The alias
+  // and manifest rows themselves cascade when the matter is deleted.
+  releaseMatterBlobReferences(matterId: string): void {
+    const counts = this.all(
+      `SELECT a.blob_sha256 AS sha256, COUNT(*) AS aliases
+       FROM source_blob_aliases a
+       JOIN corpus_manifest_entries e ON e.id = a.manifest_entry_id
+       WHERE e.matter_id = ?
+       GROUP BY a.blob_sha256`,
+      matterId,
+    )
+    const update = this.db.prepare(
+      'UPDATE source_blobs SET reference_count = MAX(0, reference_count - ?) WHERE sha256 = ?',
+    )
+    for (const row of counts) update.run(Number(row.aliases), String(row.sha256))
+  }
+
+  // Removes blob rows that nothing references any more and returns their
+  // storage paths for the caller to unlink. Runs after referencing rows are gone.
+  sweepUnreferencedBlobs(): string[] {
+    const orphans = this.all(
+      `SELECT b.sha256, b.storage_path FROM source_blobs b
+       WHERE b.reference_count <= 0
+         AND NOT EXISTS (SELECT 1 FROM source_blob_aliases a WHERE a.blob_sha256 = b.sha256)
+         AND NOT EXISTS (SELECT 1 FROM corpus_manifest_entries m WHERE m.sha256 = b.sha256)
+         AND NOT EXISTS (SELECT 1 FROM evidence ev WHERE ev.sha256 = b.sha256 AND ev.source_path IS NOT NULL)`,
+    )
+    const remove = this.db.prepare('DELETE FROM source_blobs WHERE sha256 = ?')
+    for (const row of orphans) remove.run(String(row.sha256))
+    return orphans.map((row) => String(row.storage_path)).filter(Boolean)
+  }
+
   schemaVersion(): number {
     const row = this.one('PRAGMA user_version')
     return Number(row?.user_version ?? 0)

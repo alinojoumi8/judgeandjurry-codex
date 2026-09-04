@@ -122,7 +122,7 @@ export interface TrialRunConfig {
   procedureAdapter: ProcedureAdapterId
   seed: string
   checkpointPolicy: { default: 'autonomous' | 'approval'; approvalPhases: string[]; allowCounselTakeover: boolean }
-  actorProviders: Record<string, { provider: string; model: string }>
+  provider?: { name: string; model: string; mode: 'local' | 'external' }
   witnessPlan: Array<{ witnessId: string; calledByPartyId: string; order: number }>
   deliberation: { maxRounds: number; concurrency: number }
   civilDecisionMaker?: 'judge_alone' | 'jury'

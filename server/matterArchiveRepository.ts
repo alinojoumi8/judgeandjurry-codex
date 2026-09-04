@@ -282,10 +282,13 @@ export class MatterArchiveRepository {
     overrides: ArchiveRow = {},
   ): void {
     for (const row of rows) {
+      // Honour a pre-computed id when other rows reference this one (trial
+      // events are referenced by ballots' changed_by_event_id and by event
+      // payloads); otherwise a fresh id is fine.
       this.insert(table, remapRow({
         ...row,
         ...overrides,
-        id: randomUUID(),
+        id: allIds.get(String(row.id)) ?? randomUUID(),
         [foreignKey]: parentIds.get(String(row[foreignKey])),
       }, allIds))
     }

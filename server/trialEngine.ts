@@ -27,10 +27,24 @@ import type {
   TrialRun,
   TrialRunConfig,
 } from './trialEngineTypes'
-import type { EvidenceItem, JurorProfile, LegalTemplateId } from './types'
+import type { EvidenceItem, JurorProfile, LegalTemplateId, ProviderMode, ProviderStatus } from './types'
 import { stableStateHash } from './workflowRepository'
 
-const motionHearingVisibility = ['user', 'role:judge', 'role:counsel', 'role:system']
+// Jury-out: motion hearings are visible to the bench, counsel for every party,
+// the user, and the system audit view - never to jurors.
+const motionHearingVisibility = [
+  'user', 'role:judge', 'role:adjudicator', 'role:crown', 'role:staff', 'role:plaintiff',
+  'role:defence', 'role:respondent', 'role:system',
+]
+const motionDispositions = ['granted', 'partially_granted', 'dismissed', 'reserved']
+const objectionDispositions = ['sustained', 'overruled', 'reserved']
+// Robustness variants each spawn a full autonomous run; keep the fan-out bounded.
+const maxRobustnessVariants = 24
+
+// What the engine needs to know about the server's actual model provider. There
+// is one server-wide client; the run config only carries a copy stamped at
+// creation so audits and resumed runs can name it.
+export type TrialProviderInfo = Pick<ProviderStatus, 'mode' | 'name' | 'model'>
 
 export type TrialCommand =
   | { type: 'start' }
@@ -66,12 +80,19 @@ export class TrialEngineService {
   private readonly store: CaseStore
   private readonly modelClient?: ModelClient
   private readonly logger: AppLogger
+  private readonly provider?: TrialProviderInfo
   private running = new Set<string>()
 
-  constructor(store: CaseStore, modelClient?: ModelClient, logger: AppLogger = noopLogger()) {
+  constructor(
+    store: CaseStore,
+    modelClient?: ModelClient,
+    logger: AppLogger = noopLogger(),
+    provider?: TrialProviderInfo,
+  ) {
     this.store = store
     this.modelClient = modelClient
     this.logger = logger
+    this.provider = provider
   }
 
   createRun(input: {
@@ -84,11 +105,20 @@ export class TrialEngineService {
     const model = this.store.workflow.getCaseModel(input.caseModelId)
     if (model.matterId !== input.matterId) throw new Error('Case model does not belong to the selected matter.')
     if (model.procedureAdapter !== input.config.procedureAdapter) throw new Error('Run adapter must match the approved case model.')
-    if (input.config.mode === 'full' && !input.config.externalDisclosureConfirmed && configuredExternalActors(input.config)) {
-      throw new Error('External-disclosure confirmation is required before a full run can send corpus content to an external provider.')
+    // The server stamps its real provider onto the run; clients cannot pick one.
+    const config: TrialRunConfig = {
+      ...input.config,
+      provider: this.provider
+        ? { name: this.provider.name, model: this.provider.model, mode: this.provider.mode }
+        : input.config.provider,
     }
-    const adapter = getProcedureAdapter(input.config.procedureAdapter)
-    const validation = adapter.validateRun(model, input.config)
+    // Screen and full runs both send admitted evidence to the model, so the
+    // disclosure gate depends on where the server's provider actually lives.
+    if (!config.externalDisclosureConfirmed && this.usesExternalProvider(config)) {
+      throw new Error('External-disclosure confirmation is required before a run can send corpus content to an external provider.')
+    }
+    const adapter = getProcedureAdapter(config.procedureAdapter)
+    const validation = adapter.validateRun(model, config)
     if (validation.length) throw new Error(validation.join(' '))
     let ledgerId = input.admissionLedgerId
     if (!ledgerId) {
@@ -101,8 +131,8 @@ export class TrialEngineService {
       })
       ledgerId = ledger.id
     }
-    const run = this.store.workflow.createTrialRun({ ...input, admissionLedgerId: ledgerId })
-    const actors = actorRoster(model, input.config)
+    const run = this.store.workflow.createTrialRun({ ...input, config, admissionLedgerId: ledgerId })
+    const actors = actorRoster(model, config)
     const jurors = actors.filter((actor) => actor.role === 'juror' || actor.role === 'foreperson')
     for (const actor of jurors) this.store.workflow.saveJurorProfile(cognitiveProfile(run, actor.id))
     this.store.workflow.appendTrialEvent({
@@ -168,6 +198,14 @@ export class TrialEngineService {
         trialRunId: run.id, phase: run.phase, type: 'objection_ruling', actorId: command.actorId,
         visibleTo: ['public'], payload: command, sourceRefs: [],
       })
+      if (command.strikeAnswer) {
+        this.store.workflow.appendTrialEvent({
+          trialRunId: run.id, phase: run.phase, type: 'answer_struck', actorId: command.actorId,
+          visibleTo: ['public'],
+          payload: { objectionEventId: last.id, questionEventId: last.payload.questionEventId, outcome: command.outcome },
+          sourceRefs: [],
+        })
+      }
       if (command.limitingInstruction) {
         this.store.workflow.appendTrialEvent({
           trialRunId: run.id, phase: run.phase, type: 'limiting_instruction', actorId: command.actorId,
@@ -211,7 +249,12 @@ export class TrialEngineService {
     else if (run.status === 'failed') run = this.store.workflow.updateTrialRun(runId, { status: 'running', error: undefined })
     const model = this.store.workflow.getCaseModel(run.caseModelId)
     const phases = phasesForRun(run)
-    for (const phase of phases) {
+    // Never rewind: a run advanced manually or resumed after a restart continues
+    // from its current phase. A run opened into sanctions only has that phase left.
+    const remaining = run.phase === 'sanctions'
+      ? (['sanctions'] as TrialPhase[])
+      : phases.slice(Math.max(0, phases.indexOf(run.phase)))
+    for (const phase of remaining) {
       run = this.store.workflow.getTrialRun(runId)
       if (run.status === 'checkpoint') return this.view(runId)
       const completed = this.store.workflow.listTrialEvents(runId)
@@ -257,9 +300,15 @@ export class TrialEngineService {
     }
   }
 
-  actorContext(runId: string, actorId: string, roles: string[]): { events: TrialEvent[]; theories: TheoryBrief[]; evidence: Array<{ evidence: EvidenceItem; use: string }> } {
+  actorContext(runId: string, actorId: string, requestedRoles?: string[]): { events: TrialEvent[]; theories: TheoryBrief[]; evidence: Array<{ evidence: EvidenceItem; use: string }> } {
     const run = this.store.workflow.getTrialRun(runId)
     const model = this.store.workflow.getCaseModel(run.caseModelId)
+    // Roles come from the actor's place in the roster, never from the caller;
+    // a caller may narrow them but cannot claim a role the actor does not hold.
+    const heldRoles = rolesForActor(model, run.config, actorId)
+    const roles = requestedRoles?.length ? requestedRoles : heldRoles
+    const escalated = roles.filter((role) => !heldRoles.includes(role as TrialRole))
+    if (escalated.length) throw new Error(`Actor ${actorId} does not hold role(s): ${escalated.join(', ')}.`)
     const party = model.parties.find((candidate) => candidate.id === actorId)
     return {
       events: this.store.workflow.listTrialEvents(runId, actorId, roles),
@@ -274,8 +323,9 @@ export class TrialEngineService {
     const base = this.store.workflow.getTrialRun(baseRunId)
     const ledgers = admissionLedgerIds.length ? admissionLedgerIds : [base.admissionLedgerId].filter((id): id is string => Boolean(id))
     const variants: TrialRun[] = []
-    for (const seed of [...new Set(seeds)].slice(0, 24)) {
+    for (const seed of [...new Set(seeds)].slice(0, maxRobustnessVariants)) {
       for (const admissionLedgerId of ledgers.slice(0, 12)) {
+        if (variants.length >= maxRobustnessVariants) return variants
         variants.push(this.createRun({
           matterId: base.matterId, caseModelId: base.caseModelId,
           config: { ...base.config, seed }, admissionLedgerId, parentRunId: base.id,
@@ -362,29 +412,35 @@ export class TrialEngineService {
     }
     if (['deliberation_inventory', 'deliberation_challenges', 'deliberation_review'].includes(run.phase)) {
       const profiles = this.store.workflow.listJurorProfiles(run.id)
-      for (const [index, profile] of profiles.entries()) {
-        if (this.hasPhaseEvent(run, 'juror_deliberation_turn', profile.actorId)) continue
-        const evidence = this.visibleEvidence(run, 'juror').map((item) => item.evidence)
-        let generated: Awaited<ReturnType<TrialEngineService['generateModelStage']>> | undefined
-        try {
-          generated = await this.generateModelStage(
-            run, 'jury_deliberation',
-            `Private profile ${profile.actorId}. ${deliberationFocus(run.phase)}. Discuss only admitted evidence and do not cast or alter another actor's ballot.`,
-            evidence, profile.actorId, cognitiveToLegacy(profile),
-          )
-        } catch (error) {
-          generated = undefined
-          this.logger.warn('trial_engine.deliberation_turn.failed', { runId: run.id, actorId: profile.actorId, error })
+      // maxRounds is the total number of deliberation turns per juror: one
+      // inventory turn, one review turn, and the remainder spent on challenges.
+      const rounds = run.phase === 'deliberation_challenges' ? Math.max(1, run.config.deliberation.maxRounds - 2) : 1
+      const evidence = this.visibleEvidence(run, 'juror').map((item) => item.evidence)
+      for (let round = 1; round <= rounds; round += 1) {
+        for (const [index, profile] of profiles.entries()) {
+          if (this.hasDeliberationTurn(run, profile.actorId, round)) continue
+          let generated: Awaited<ReturnType<TrialEngineService['generateModelStage']>> | undefined
+          try {
+            generated = await this.generateModelStage(
+              run, 'jury_deliberation',
+              `Private profile ${profile.actorId}. ${deliberationFocus(run.phase)} (round ${round} of ${rounds}). Discuss only admitted evidence and do not cast or alter another actor's ballot.`,
+              evidence, profile.actorId, cognitiveToLegacy(profile),
+            )
+          } catch (error) {
+            generated = undefined
+            this.logger.warn('trial_engine.deliberation_turn.failed', { runId: run.id, actorId: profile.actorId, round, error })
+          }
+          this.store.workflow.appendTrialEvent({
+            trialRunId: run.id, phase: run.phase, type: 'juror_deliberation_turn', actorId: profile.actorId,
+            visibleTo: ['role:juror', 'role:system'], payload: {
+              turn: (round - 1) * profiles.length + index + 1,
+              round,
+              focus: deliberationFocus(run.phase),
+              contribution: generated?.jurors?.[0]?.rationale ?? generated?.content ?? 'No valid model contribution was available for this turn.',
+              forepersonControlsVote: false,
+            }, sourceRefs: generated ? citationsToRefs(generated.citations, evidence) : [], modelAudit: generated?.audit,
+          })
         }
-        this.store.workflow.appendTrialEvent({
-          trialRunId: run.id, phase: run.phase, type: 'juror_deliberation_turn', actorId: profile.actorId,
-          visibleTo: ['role:juror', 'role:system'], payload: {
-            turn: index + 1,
-            focus: deliberationFocus(run.phase),
-            contribution: generated?.jurors?.[0]?.rationale ?? generated?.content ?? 'No valid model contribution was available for this turn.',
-            forepersonControlsVote: false,
-          }, sourceRefs: generated ? citationsToRefs(generated.citations, evidence) : [], modelAudit: generated?.audit,
-        })
       }
       await this.snapshotJurors(run, { after: run.phase })
       if (run.phase === 'deliberation_review') await this.collectBallots(run, model, 'final')
@@ -409,6 +465,17 @@ export class TrialEngineService {
     }
   }
 
+  private usesExternalProvider(config: TrialRunConfig): boolean {
+    return (this.provider ?? config.provider)?.mode === 'external'
+  }
+
+  private hasDeliberationTurn(run: TrialRun, actorId: string, round: number): boolean {
+    return this.store.workflow.listTrialEvents(run.id).some((event) =>
+      event.phase === run.phase && event.type === 'juror_deliberation_turn' && event.actorId === actorId
+      && (event.payload.round ?? 1) === round,
+    )
+  }
+
   private hasPhaseEvent(run: TrialRun, type: string, actorId?: string): boolean {
     return this.store.workflow.listTrialEvents(run.id).some((event) =>
       event.phase === run.phase && event.type === type && (!actorId || event.actorId === actorId),
@@ -421,7 +488,6 @@ export class TrialEngineService {
     witness: CaseModelV1['witnesses'][number],
     calledByPartyId: string,
   ): Promise<void> {
-    const source = witness.approvedStatementRefs[0]
     const evidence = this.store.listEvidence(run.matterId, true).filter((item) =>
       witness.sourceRefs.some((ref) => ref.evidenceId === item.id) || witness.approvedStatementRefs.some((ref) => ref.evidenceId === item.id),
     )
@@ -435,11 +501,7 @@ export class TrialEngineService {
       await this.askAutonomousQuestion(run, witness.id, calledByPartyId, 'direct', evidence)
     }
     if (!this.hasWitnessEvent(run, 'witness_answer', witness.id, 'direct')) {
-      this.store.workflow.appendTrialEvent({
-        trialRunId: run.id, phase: run.phase, type: 'witness_answer', actorId: witness.id,
-        visibleTo: ['public'], payload: { witnessId: witness.id, examination: 'direct', answerType: source ? 'answer' : 'do_not_recall', text: source?.quote ?? 'I do not recall beyond the approved source material.' },
-        sourceRefs: source ? [source] : [],
-      })
+      await this.answerAutonomously(run, witness, 'direct', evidence)
     }
     const crossExaminer = model.parties.find((party) => party.id !== calledByPartyId)?.id
     if (!crossExaminer) return
@@ -487,11 +549,7 @@ export class TrialEngineService {
       }
     }
     if (!this.hasWitnessEvent(run, 'witness_answer', witness.id, 'cross')) {
-      this.store.workflow.appendTrialEvent({
-        trialRunId: run.id, phase: run.phase, type: 'witness_answer', actorId: witness.id,
-        visibleTo: ['public'], payload: { witnessId: witness.id, examination: 'cross', answerType: source ? 'inconsistency' : 'do_not_know', text: source?.quote ?? 'I do not know beyond the approved source material.' },
-        sourceRefs: source ? [source] : [],
-      })
+      await this.answerAutonomously(run, witness, 'cross', evidence)
     }
     this.markWitnessExaminationCompleted(run, witness.id)
   }
@@ -526,6 +584,62 @@ export class TrialEngineService {
     })
   }
 
+  // Witness answers are generated in role but bounded to the approved statement
+  // segments: a factual answer must cite the witness's own approved source,
+  // otherwise the approved statement itself is recorded rather than invented
+  // testimony. Model failure also falls back to the approved statement.
+  private async answerAutonomously(
+    run: TrialRun, witness: CaseModelV1['witnesses'][number], examination: 'direct' | 'cross', evidence: EvidenceItem[],
+  ): Promise<void> {
+    const question = this.store.workflow.listTrialEvents(run.id).filter((event) =>
+      event.phase === run.phase && event.type === 'witness_question'
+      && event.payload.witnessId === witness.id && event.payload.examination === examination,
+    ).at(-1)
+    const approved = witness.approvedStatementRefs
+    const approvedEvidenceIds = new Set(approved.map((ref) => ref.evidenceId).filter(Boolean))
+    const statementText = approved
+      .map((ref) => ref.quote ?? evidence.find((item) => item.id === ref.evidenceId)?.text.slice(0, 4_000) ?? '')
+      .filter(Boolean)
+      .join('\n')
+    const fallback = {
+      answerType: approved[0] ? (examination === 'direct' ? 'answer' : 'inconsistency') : (examination === 'direct' ? 'do_not_recall' : 'do_not_know'),
+      text: approved[0]?.quote ?? (examination === 'direct' ? 'I do not recall beyond the approved source material.' : 'I do not know beyond the approved source material.'),
+      sourceRefs: approved[0] ? [approved[0]] : [],
+    }
+    let answer = fallback
+    let audit: ModelAudit | undefined
+    let generationNote: string | undefined
+    if (this.modelClient) {
+      try {
+        const packet = [
+          `You are witness ${witness.name} (${witness.id}) under ${examination} examination.`,
+          `Question: ${String(question?.payload.question ?? 'Please describe what you recall.')}`,
+          'Your approved statement segments (the only facts you may assert):',
+          statementText || 'No approved statement text is available; you do not recall anything beyond it.',
+        ].join('\n')
+        const generated = await this.generateModelStage(run, 'witness_answer', packet, evidence, witness.id)
+        audit = generated.audit
+        const text = generated.content.trim()
+        const answerType = witnessAnswerType(text)
+        const sourceRefs = citationsToRefs(generated.citations, evidence).filter((ref) => approvedEvidenceIds.has(ref.evidenceId))
+        if (answerType === 'answer' && sourceRefs.length === 0 && approvedEvidenceIds.size > 0) {
+          generationNote = 'Generated answer did not cite an approved statement segment; the approved statement was used instead.'
+        } else {
+          answer = { answerType, text, sourceRefs: answerType === 'answer' ? sourceRefs : [] }
+        }
+      } catch (error) {
+        audit = failureAudit(run, witness.id, examination, error, this.provider)
+        generationNote = `Witness answer generation failed (${errorMessage(error)}); the approved statement was used instead.`
+      }
+    }
+    this.store.workflow.appendTrialEvent({
+      trialRunId: run.id, phase: run.phase, type: 'witness_answer', actorId: witness.id,
+      visibleTo: ['public'],
+      payload: { witnessId: witness.id, examination, answerType: answer.answerType, text: answer.text, ...(generationNote ? { generationNote } : {}) },
+      sourceRefs: answer.sourceRefs, modelAudit: audit,
+    })
+  }
+
   private async autonomousObjectionRuling(
     run: TrialRun, ground: string, evidence: EvidenceItem[],
   ): Promise<{ outcome: 'sustained' | 'overruled' | 'reserved'; reasons: string; sourceRefs: SourceSegmentRef[]; audit?: ModelAudit }> {
@@ -533,7 +647,7 @@ export class TrialEngineService {
       const result = await this.generateModelStage(
         run, 'judge_ruling',
         `Rule on the ${ground.replaceAll('_', ' ')} objection. Choose only sustained, overruled, or reserved and explain the permitted evidentiary use.`,
-        evidence, judgeActorFor(run),
+        evidence, judgeActorFor(run), undefined, { verdictOutcomes: objectionDispositions },
       )
       const normalized = (result.verdict?.outcome ?? '').toLowerCase()
       const outcome = normalized.includes('sustain')
@@ -543,7 +657,7 @@ export class TrialEngineService {
     } catch (error) {
       return {
         outcome: 'reserved', reasons: 'The objection is reserved because no valid structured judicial response was available.',
-        sourceRefs: [], audit: failureAudit(run, judgeActorFor(run), ground, error),
+        sourceRefs: [], audit: failureAudit(run, judgeActorFor(run), ground, error, this.provider),
       }
     }
   }
@@ -574,7 +688,7 @@ export class TrialEngineService {
           sourceRefs: citationsToRefs(result.citations, evidence), modelAudit: result.audit,
         })
       } catch (error) {
-        const audit = failureAudit(run, actorId, motion.id, error)
+        const audit = failureAudit(run, actorId, motion.id, error, this.provider)
         this.store.workflow.appendTrialEvent({
           trialRunId: run.id, phase: 'motions', type: 'motion_submission_failed', actorId,
           visibleTo: motionHearingVisibility, payload: { motionId: motion.id, kind, error: errorMessage(error) },
@@ -597,18 +711,19 @@ export class TrialEngineService {
       rulingResult = await this.generateModelStage(
         run, 'judge_ruling',
         `Decide only the approved simulated motion "${motion.title}". Permitted dispositions: granted, partially_granted, dismissed, reserved. Do not imply that a disclosure concern automatically requires exclusion.`,
-        evidence, judgeActorFor(run),
+        evidence, judgeActorFor(run), undefined, { verdictOutcomes: motionDispositions },
       )
     } catch (error) {
       this.logger.warn('trial_engine.motion.reserved_after_actor_failure', { runId: run.id, motionId: motion.id, error })
       this.store.workflow.appendTrialEvent({
         trialRunId: run.id, phase: 'motions', type: 'motion_ruling_generation_failed', actorId: judgeActorFor(run),
         visibleTo: motionHearingVisibility, payload: { motionId: motion.id, error: errorMessage(error) },
-        sourceRefs: motion.sourceRefs, modelAudit: failureAudit(run, judgeActorFor(run), motion.id, error),
+        sourceRefs: motion.sourceRefs, modelAudit: failureAudit(run, judgeActorFor(run), motion.id, error, this.provider),
       })
     }
-    const leaning = verdictLeaning(rulingResult?.verdict?.outcome)
-    const outcome: MotionRuling['outcome'] = rulingResult ? (leaning === 'defence' ? 'granted' : leaning === 'crown' ? 'dismissed' : 'reserved') : 'reserved'
+    const outcome: MotionRuling['outcome'] = rulingResult
+      ? motionDisposition(rulingResult.verdict?.outcome, roleForParty(model, motion.movingPartyId))
+      : 'reserved'
     const parent = currentRun.admissionLedgerId ? this.store.workflow.getAdmissionLedger(currentRun.admissionLedgerId) : undefined
     const effects = outcome === 'granted' ? motionEffects(motion, parent?.evidenceUses ?? []) : []
     const ruling: MotionRuling = {
@@ -748,11 +863,14 @@ export class TrialEngineService {
         if (existing.has(`${actor.id}:${issue.id}`)) continue
         const evidence = this.visibleEvidence(run, 'adjudicator').map((item) => item.evidence)
         try {
-          const generated = await this.generateModelStage(run, 'judge_ruling', `Record an independent, source-grounded merits finding for ${issue.label}. The permitted outcomes are ${issue.permittedOutcomes.join(', ')}.`, evidence, actor.id)
-          const leaning = verdictLeaning(generated.verdict?.outcome)
+          const generated = await this.generateModelStage(
+            run, 'judge_ruling',
+            `Record an independent, source-grounded merits finding for ${issue.label}. The permitted outcomes are ${issue.permittedOutcomes.join(', ')}.`,
+            evidence, actor.id, undefined, { verdictOutcomes: issue.permittedOutcomes },
+          )
           const ballot = this.store.workflow.saveBallot({
             id: randomUUID(), trialRunId: run.id, issueId: issue.id, actorId: actor.id, round: 'final',
-            choice: mapLeaningToOutcome(leaning, issue.permittedOutcomes, 'final'),
+            choice: choiceFromOutcome(generated.verdict?.outcome, issue.permittedOutcomes),
             confidence: clampConfidence(generated.verdict?.confidence ?? 50), rationale: generated.content,
             sourceRefs: citationsToRefs(generated.citations, evidence), valid: true, createdAt: nowIso(),
           })
@@ -763,7 +881,7 @@ export class TrialEngineService {
             choice: 'no_finding', confidence: 0, rationale: 'No valid adjudicator finding was available.', sourceRefs: [],
             valid: false, error: errorMessage(error), createdAt: nowIso(),
           })
-          this.appendDecisionActorEvent(run, actor.id, ballot, failureAudit(run, actor.id, issue.id, error))
+          this.appendDecisionActorEvent(run, actor.id, ballot, failureAudit(run, actor.id, issue.id, error, this.provider))
         }
       }
     }
@@ -779,11 +897,11 @@ export class TrialEngineService {
         const generated = await this.generateModelStage(
           run, 'judge_ruling',
           `Decide only ${issue.id}: ${issue.label}. Apply the approved elements and select only from ${issue.permittedOutcomes.join(', ')}.`,
-          evidence, actorId,
+          evidence, actorId, undefined, { verdictOutcomes: issue.permittedOutcomes },
         )
         const ballot = this.store.workflow.saveBallot({
           id: randomUUID(), trialRunId: run.id, issueId: issue.id, actorId, round: 'final',
-          choice: mapLeaningToOutcome(verdictLeaning(generated.verdict?.outcome), issue.permittedOutcomes, 'final'),
+          choice: choiceFromOutcome(generated.verdict?.outcome, issue.permittedOutcomes),
           confidence: clampConfidence(generated.verdict?.confidence ?? 50), rationale: generated.content,
           sourceRefs: citationsToRefs(generated.citations, evidence), valid: true, createdAt: nowIso(),
         })
@@ -794,7 +912,7 @@ export class TrialEngineService {
           choice: 'no_decision', confidence: 0, rationale: 'No valid judge-alone finding was available.',
           sourceRefs: [], valid: false, error: errorMessage(error), createdAt: nowIso(),
         })
-        this.appendDecisionActorEvent(run, actorId, ballot, failureAudit(run, actorId, issue.id, error))
+        this.appendDecisionActorEvent(run, actorId, ballot, failureAudit(run, actorId, issue.id, error, this.provider))
       }
     }
   }
@@ -920,10 +1038,11 @@ export class TrialEngineService {
     evidence: EvidenceItem[],
     actorId: string,
     jurorProfile?: JurorProfile,
+    options: { verdictOutcomes?: string[] } = {},
   ): Promise<{ title: string; content: string; citations: string[]; jurors?: Awaited<ReturnType<ModelClient['generateStage']>>['jurors']; verdict?: Awaited<ReturnType<ModelClient['generateStage']>>['verdict']; audit: ModelAudit }> {
     if (!this.modelClient) throw new Error('No model client is configured for autonomous actor generation.')
     const model = this.store.workflow.getCaseModel(run.caseModelId)
-    const provider = run.config.actorProviders[actorId] ?? run.config.actorProviders.default ?? { provider: 'minimax', model: 'MiniMax-M3' }
+    const provider = resolveProvider(run, this.provider)
     const previousTurns = this.store.workflow.listTrialEvents(run.id, actorId, [roleForParty(model, actorId) ?? 'juror'])
       .map((event) => `${event.type}: ${JSON.stringify(event.payload)}`)
       .join('\n')
@@ -937,10 +1056,11 @@ export class TrialEngineService {
         evidence,
         previousTurns,
         jurorProfiles: jurorProfile ? [jurorProfile] : undefined,
+        verdictOutcomes: options.verdictOutcomes,
         runConfig: defaultRunConfig({
-          providerMode: provider.provider === 'local' ? 'local' : 'external',
+          providerMode: provider.mode,
           templateId: templateForAdapter(run.procedureAdapter),
-          jurorCount: run.procedureAdapter === 'ontario_criminal_jury_v1' ? 12 : 6,
+          jurorCount: panelSizeForAdapter(run.procedureAdapter),
           externalDisclosureConfirmed: run.config.externalDisclosureConfirmed,
         }),
         legalTemplate: getLegalTemplate(templateForAdapter(run.procedureAdapter)),
@@ -970,6 +1090,67 @@ class TrialActorError extends Error {
     super(message)
     this.audit = audit
   }
+}
+
+// The server has exactly one model client; per-actor provider labels in the
+// run config are informational. Prefer the real provider when it is known.
+function resolveProvider(
+  run: TrialRun,
+  serverProvider?: TrialProviderInfo,
+): { provider: string; model: string; mode: ProviderMode } {
+  const known = serverProvider ?? run.config.provider
+  if (known) return { provider: known.name, model: known.model, mode: known.mode }
+  // Unknown provider (tests, ad-hoc scripts): treat as local so nothing is
+  // gated or labelled external without evidence.
+  return { provider: 'unknown', model: 'unknown', mode: 'local' }
+}
+
+function rolesForActor(model: CaseModelV1, config: TrialRunConfig, actorId: string): TrialRole[] {
+  if (actorId === 'system' || actorId === 'user') return ['system', 'user']
+  const member = actorRoster(model, config).find((actor) => actor.id === actorId)
+  if (member) return member.role === 'foreperson' ? ['foreperson', 'juror'] : [member.role]
+  if (model.witnesses.some((witness) => witness.id === actorId)) return ['witness']
+  throw new Error(`Unknown actor: ${actorId}`)
+}
+
+function witnessAnswerType(text: string): 'answer' | 'do_not_know' | 'do_not_recall' {
+  const normalized = text.toLowerCase()
+  if (/\b(?:do not|don't|cannot|can't) recall\b|\bno recollection\b/.test(normalized)) return 'do_not_recall'
+  if (/\b(?:do not|don't) know\b|\bnot aware\b/.test(normalized)) return 'do_not_know'
+  return 'answer'
+}
+
+function panelSizeForAdapter(adapter: TrialRun['procedureAdapter']): number {
+  return adapter === 'ontario_criminal_jury_v1' ? 12 : adapter === 'ontario_capital_markets_v1' ? 3 : 6
+}
+
+function normalizeOutcome(value?: string): string {
+  return (value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_')
+}
+
+// Match the model's answer against the permitted vocabulary first; only fall
+// back to the legacy crown/defence leaning heuristic when no permitted outcome
+// was named.
+function choiceFromOutcome(outcome: string | undefined, permitted: string[]): string {
+  const normalized = normalizeOutcome(outcome)
+  const direct = permitted.find((candidate) => normalizeOutcome(candidate) === normalized)
+  return direct ?? mapLeaningToOutcome(verdictLeaning(outcome), permitted, 'final')
+}
+
+// Read the judge's disposition directly. A motion is "granted" when its mover
+// prevails, so the leaning fallback must respect which side moved it - the
+// previous party-leaning mapping inverted "granted"/"dismissed" answers.
+function motionDisposition(outcome: string | undefined, moverRole: TrialRole | undefined): MotionRuling['outcome'] {
+  const normalized = normalizeOutcome(outcome)
+  if (/partial/.test(normalized)) return 'partially_granted'
+  if (/grant|allow/.test(normalized)) return 'granted'
+  if (/dismiss|denied|deny|refus|reject/.test(normalized)) return 'dismissed'
+  if (/reserv/.test(normalized)) return 'reserved'
+  const leaning = verdictLeaning(outcome)
+  if (leaning === 'mixed') return 'reserved'
+  const moverIsProsecution = moverRole === 'crown' || moverRole === 'staff' || moverRole === 'plaintiff'
+  const moverPrevails = moverIsProsecution ? leaning === 'crown' : leaning === 'defence'
+  return moverPrevails ? 'granted' : 'dismissed'
 }
 
 function actorRoster(model: CaseModelV1, config: TrialRunConfig): Array<{ id: string; role: TrialRole; partyId?: string }> {
@@ -1031,9 +1212,6 @@ function requiresCheckpoint(config: TrialRunConfig, phase: TrialPhase): boolean 
   return config.checkpointPolicy.default === 'approval' || config.checkpointPolicy.approvalPhases.includes(phase)
 }
 
-function configuredExternalActors(config: TrialRunConfig): boolean {
-  return Object.values(config.actorProviders).some((provider) => provider.provider !== 'local')
-}
 
 function mapLeaningToOutcome(leaning: 'crown' | 'defence' | 'mixed', outcomes: string[], round: IssueBallot['round']): string {
   if (leaning === 'crown') return outcomes.find((outcome) => ['guilty', 'proved', 'yes', 'liable'].includes(outcome)) ?? outcomes[0]
@@ -1043,9 +1221,12 @@ function mapLeaningToOutcome(leaning: 'crown' | 'defence' | 'mixed', outcomes: s
 }
 
 function verdictLeaning(outcome?: string): 'crown' | 'defence' | 'mixed' {
-  const normalized = (outcome ?? '').toLowerCase().replaceAll('-', '_').replaceAll(' ', '_')
-  if (/not_guilty|not_proved|not_liable|defence|defense|dismiss/.test(normalized)) return 'defence'
-  if (/guilty|(?<!not_)proved|liable|crown|staff|plaintiff|grant/.test(normalized)) return 'crown'
+  const normalized = normalizeOutcome(outcome)
+  // Template vocabularies say "proven"/"not proven", "hung jury", "partly proven",
+  // "split liability"; all of those must map correctly, not fall to a default.
+  if (/partly|partial|split|mixed|hung|no_verdict|no_finding|no_decision/.test(normalized)) return 'mixed'
+  if (/not_guilty|not_prove[dn]|not_liable|not_established|acquit|defence|defense|dismiss/.test(normalized)) return 'defence'
+  if (/guilty|(?<!not_)prove[dn]|(?<!not_)liable|(?<!not_)established|crown|staff|plaintiff|grant/.test(normalized)) return 'crown'
   return 'mixed'
 }
 
@@ -1081,11 +1262,12 @@ function motionEffects(motion: Motion, existing: EvidenceUse[]): MotionRuling['e
   })
 }
 
-function failureAudit(run: TrialRun, actorId: string, issueId: string, error: unknown): ModelAudit {
+function failureAudit(run: TrialRun, actorId: string, issueId: string, error: unknown, serverProvider?: TrialProviderInfo): ModelAudit {
   if (error instanceof TrialActorError) return error.audit
+  const provider = resolveProvider(run, serverProvider)
   return {
-    provider: run.config.actorProviders[actorId]?.provider ?? run.config.actorProviders.default?.provider ?? 'unknown',
-    model: run.config.actorProviders[actorId]?.model ?? run.config.actorProviders.default?.model ?? 'unknown',
+    provider: provider.provider,
+    model: provider.model,
     promptHash: hashText(`${run.id}:${actorId}:${issueId}:decision`), schemaVersion: 'trial-event-v1',
     retries: 0, durationMs: 0, status: 'failed', error: errorMessage(error),
   }

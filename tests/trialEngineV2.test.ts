@@ -258,7 +258,275 @@ describe('trial engine v2', () => {
     const jurorEvents = store.workflow.listTrialEvents(run.id, 'juror-01', ['juror'])
     expect(jurorEvents.some((event) => event.type === 'motion_submission' || event.type === 'motion_ruling')).toBe(false)
   })
+
+  it('reads the judge\'s motion disposition directly instead of inverting it through party leaning', async () => {
+    for (const [disposition, expectedOutcome, expectedStatus] of [
+      ['dismissed', 'dismissed', 'admitted'],
+      ['granted', 'granted', 'excluded'],
+      ['partially granted', 'partially_granted', 'admitted'],
+    ] as const) {
+      const { store, matterId, workflow } = fixtureStore()
+      const privileged = addEvidence(store, matterId, 'privileged.txt', 'Potential privileged legal advice.')
+      const model = workflow.approveCaseModel(workflow.draftCaseModel(matterId, 'ontario_criminal_jury_v1').id)
+      workflow.analyzeDisclosure(matterId, model.id)
+      const draft = workflow.draftMotionDocket(model.id).find((motion) => motion.motionType === 'privilege')!
+      workflow.approveMotion(draft.id, ['exclude'])
+      const client = new DispositionWordModel(disposition)
+      const engine = new TrialEngineService(store, client)
+      const run = engine.createRun({
+        matterId, caseModelId: model.id,
+        config: { ...configFor('ontario_criminal_jury_v1'), checkpointPolicy: { default: 'autonomous', approvalPhases: ['motions'], allowCounselTakeover: true } },
+      }).run
+      await engine.runAutonomous(run.id)
+
+      expect(store.workflow.getMotion(draft.id).ruling?.outcome).toBe(expectedOutcome)
+      const ledger = store.workflow.getAdmissionLedger(store.workflow.getTrialRun(run.id).admissionLedgerId!)
+      expect(ledger.evidenceUses.find((use) => use.evidenceId === privileged.id)?.status).toBe(expectedStatus)
+      const rulingRequest = client.requests.find((request) => request.stage === 'judge_ruling' && request.packet.includes('approved simulated motion'))
+      expect(rulingRequest?.verdictOutcomes).toEqual(['granted', 'partially_granted', 'dismissed', 'reserved'])
+    }
+  })
+
+  it('maps template "proven / not proven" findings onto the permitted tribunal outcomes', async () => {
+    const { store, matterId, workflow } = fixtureStore()
+    addEvidence(store, matterId, 'osc.txt', 'Capital-markets record.')
+    const model = workflow.approveCaseModel(workflow.draftCaseModel(matterId, 'ontario_capital_markets_v1').id)
+    const client = new DispositionWordModel('Allegations not proven')
+    const engine = new TrialEngineService(store, client)
+    const run = engine.createRun({ matterId, caseModelId: model.id, config: configFor('ontario_capital_markets_v1') }).run
+    const result = await engine.runAutonomous(run.id)
+
+    const final = store.workflow.listBallots(run.id, 'final')
+    expect(final).toHaveLength(3)
+    expect(final.every((ballot) => ballot.valid && ballot.choice === 'not_proved')).toBe(true)
+    expect(result.decisionSheet?.decisions[0]).toMatchObject({ outcome: 'not_proved', complete: true })
+    const findingRequest = client.requests.find((request) => request.stage === 'judge_ruling')
+    expect(findingRequest?.verdictOutcomes).toEqual(model.decisionIssues[0].permittedOutcomes)
+  })
+
+  it('derives provider mode and the disclosure gate from the server provider, not the actor label', async () => {
+    const { store, matterId, workflow } = fixtureStore()
+    addEvidence(store, matterId, 'civil-record.txt', 'The admitted civil record supports the claim.')
+    const model = workflow.approveCaseModel(workflow.draftCaseModel(matterId, 'ontario_civil_v1').id)
+    const client = new DispositionWordModel('proved')
+    const localEngine = new TrialEngineService(store, client, undefined, { mode: 'local', name: 'openai-compatible', model: 'qwen' })
+    // The guided UI labels actors "minimax"; on a local server that must neither
+    // demand an external-disclosure waiver nor request external provider mode.
+    const run = localEngine.createRun({
+      matterId, caseModelId: model.id,
+      config: { ...configFor('ontario_civil_v1', 'judge_alone'), externalDisclosureConfirmed: false },
+    }).run
+    const result = await localEngine.runAutonomous(run.id)
+    expect(result.run.status).toBe('completed')
+    expect(store.workflow.getTrialRun(run.id).config.provider).toMatchObject({ name: 'openai-compatible', model: 'qwen', mode: 'local' })
+    expect(client.requests.length).toBeGreaterThan(0)
+    expect(client.requests.every((request) => request.runConfig?.providerMode === 'local')).toBe(true)
+    expect(store.workflow.listTrialEvents(run.id).find((event) => event.modelAudit)?.modelAudit).toMatchObject({ provider: 'openai-compatible', model: 'qwen' })
+
+    const externalEngine = new TrialEngineService(store, client, undefined, { mode: 'external', name: 'minimax', model: 'MiniMax-M3' })
+    expect(() => externalEngine.createRun({
+      matterId, caseModelId: model.id,
+      config: { ...configFor('ontario_civil_v1', 'judge_alone'), mode: 'screen' },
+    })).toThrow(/External-disclosure confirmation/)
+  })
+
+  it('continues an autonomous run from its current phase instead of rewinding to setup', async () => {
+    const { store, matterId, workflow } = fixtureStore()
+    addEvidence(store, matterId, 'record.txt', 'Screening record.')
+    const model = workflow.approveCaseModel(workflow.draftCaseModel(matterId, 'ontario_criminal_jury_v1').id)
+    const engine = new TrialEngineService(store, new StableActorModel())
+    const run = engine.createRun({ matterId, caseModelId: model.id, config: { ...configFor('ontario_criminal_jury_v1'), mode: 'screen' } }).run
+    engine.command(run.id, { type: 'start' })
+    engine.command(run.id, { type: 'advance' })
+    expect(store.workflow.getTrialRun(run.id).phase).toBe('openings')
+
+    const completed = await engine.runAutonomous(run.id)
+    expect(completed.run.status).toBe('completed')
+    const events = store.workflow.listTrialEvents(run.id)
+    expect(events.filter((event) => event.type === 'phase_started' && event.phase === 'setup')).toHaveLength(1)
+    expect(events.some((event) => event.type === 'phase_completed' && event.phase === 'setup')).toBe(false)
+    expect(events.some((event) => event.type === 'public_submission' && event.phase === 'openings')).toBe(true)
+  })
+
+  it('shows the jury-out motion record to counsel for both sides but never to jurors', async () => {
+    const { store, matterId, workflow } = fixtureStore()
+    addEvidence(store, matterId, 'privileged.txt', 'Potential privileged legal advice.')
+    const model = workflow.approveCaseModel(workflow.draftCaseModel(matterId, 'ontario_criminal_jury_v1').id)
+    workflow.analyzeDisclosure(matterId, model.id)
+    const draft = workflow.draftMotionDocket(model.id).find((motion) => motion.motionType === 'privilege')!
+    workflow.approveMotion(draft.id, ['exclude'])
+    const engine = new TrialEngineService(store, new StableActorModel())
+    const run = engine.createRun({
+      matterId, caseModelId: model.id,
+      config: { ...configFor('ontario_criminal_jury_v1'), checkpointPolicy: { default: 'autonomous', approvalPhases: ['motions'], allowCounselTakeover: true } },
+    }).run
+    await engine.runAutonomous(run.id)
+
+    expect(engine.actorContext(run.id, 'accused-1', ['defence']).events.some((event) => event.type === 'motion_ruling')).toBe(true)
+    expect(engine.actorContext(run.id, 'crown', ['crown']).events.some((event) => event.type === 'motion_submission')).toBe(true)
+    expect(engine.actorContext(run.id, 'juror-01', ['juror']).events.some((event) => event.type === 'motion_ruling' || event.type === 'motion_submission')).toBe(false)
+  })
+
+  it('records a struck answer when a sustained objection asks for it', () => {
+    const { store, matterId, workflow } = fixtureStore()
+    addEvidence(store, matterId, 'witness-statement.txt', 'The witness recalls only the approved statement.')
+    const model = workflow.approveCaseModel(workflow.draftCaseModel(matterId, 'ontario_criminal_jury_v1').id)
+    const witness = model.witnesses[0]
+    const engine = new TrialEngineService(store)
+    const run = engine.createRun({ matterId, caseModelId: model.id, config: configFor('ontario_criminal_jury_v1') }).run
+    engine.command(run.id, { type: 'start' })
+    while (store.workflow.getTrialRun(run.id).phase !== 'evidence') engine.command(run.id, { type: 'advance' })
+    engine.command(run.id, { type: 'ask_witness', actorId: 'crown', witnessId: witness.id, question: 'What did counsel tell you?' })
+    engine.command(run.id, { type: 'object', actorId: 'accused-1', ground: 'privilege' })
+    engine.command(run.id, { type: 'rule_objection', actorId: 'judge-1', outcome: 'sustained', reasons: 'Privileged.', strikeAnswer: true })
+
+    const events = store.workflow.listTrialEvents(run.id)
+    expect(events.slice(-3).map((event) => event.type)).toEqual(['objection', 'objection_ruling', 'answer_struck'])
+    expect(events.at(-1)?.payload).toMatchObject({ objectionEventId: events.at(-3)?.id, outcome: 'sustained' })
+  })
 })
+
+describe('trial engine v2 improvements', () => {
+  it('generates witness answers in role but bounds them to approved statement segments', async () => {
+    const { store, matterId, workflow } = fixtureStore()
+    const statement = addEvidence(store, matterId, 'witness-statement.txt', 'The witness recalls seeing the signed delivery record on 1 March.')
+    const model = workflow.approveCaseModel(workflow.draftCaseModel(matterId, 'ontario_criminal_jury_v1').id)
+    const witness = model.witnesses[0]
+    const client = new WitnessModel(`I recall seeing the signed delivery record on 1 March [${statement.exhibitId}].`)
+    const engine = new TrialEngineService(store, client)
+    const run = engine.createRun({
+      matterId, caseModelId: model.id,
+      config: { ...configFor('ontario_criminal_jury_v1'), witnessPlan: [{ witnessId: witness.id, calledByPartyId: 'crown', order: 0 }] },
+    }).run
+    await engine.runAutonomous(run.id)
+
+    const answers = store.workflow.listTrialEvents(run.id).filter((event) => event.type === 'witness_answer')
+    expect(answers.map((event) => event.payload.examination)).toEqual(['direct', 'cross'])
+    expect(answers[0].payload).toMatchObject({ answerType: 'answer', text: expect.stringContaining('delivery record') })
+    expect(answers[0].sourceRefs.map((ref) => ref.evidenceId)).toEqual([statement.id])
+    expect(answers[0].modelAudit?.status).toBe('ok')
+    expect(client.requests.some((request) => request.stage === 'witness_answer' && request.packet.includes('approved statement segments'))).toBe(true)
+  })
+
+  it('never records invented testimony: uncited answers fall back to the approved statement and recall gaps stay honest', async () => {
+    for (const [answer, expected] of [
+      ['The defendant confessed to me privately.', { answerType: 'answer', generationNote: expect.stringContaining('did not cite') }],
+      ['I do not recall that detail.', { answerType: 'do_not_recall', text: 'I do not recall that detail.' }],
+    ] as const) {
+      const { store, matterId, workflow } = fixtureStore()
+      addEvidence(store, matterId, 'witness-statement.txt', 'The witness recalls seeing the signed delivery record on 1 March.')
+      const model = workflow.approveCaseModel(workflow.draftCaseModel(matterId, 'ontario_criminal_jury_v1').id)
+      const witness = model.witnesses[0]
+      const engine = new TrialEngineService(store, new WitnessModel(answer, false))
+      const run = engine.createRun({
+        matterId, caseModelId: model.id,
+        config: { ...configFor('ontario_criminal_jury_v1'), witnessPlan: [{ witnessId: witness.id, calledByPartyId: 'crown', order: 0 }] },
+      }).run
+      await engine.runAutonomous(run.id)
+      const direct = store.workflow.listTrialEvents(run.id).find((event) => event.type === 'witness_answer' && event.payload.examination === 'direct')!
+      expect(direct.payload).toMatchObject(expected)
+      expect(String(direct.payload.text)).not.toContain('confessed')
+    }
+  })
+
+  it('spends the configured deliberation rounds on challenges', async () => {
+    const { store, matterId, workflow } = fixtureStore()
+    addEvidence(store, matterId, 'record.txt', 'Screening record.')
+    const model = workflow.approveCaseModel(workflow.draftCaseModel(matterId, 'ontario_criminal_jury_v1').id)
+    const engine = new TrialEngineService(store, new StableActorModel())
+    const run = engine.createRun({
+      matterId, caseModelId: model.id,
+      config: { ...configFor('ontario_criminal_jury_v1'), mode: 'screen', deliberation: { maxRounds: 5, concurrency: 4 } },
+    }).run
+    await engine.runAutonomous(run.id)
+    const turns = store.workflow.listTrialEvents(run.id).filter((event) => event.type === 'juror_deliberation_turn')
+    expect(turns.filter((event) => event.phase === 'deliberation_inventory')).toHaveLength(12)
+    expect(turns.filter((event) => event.phase === 'deliberation_challenges')).toHaveLength(36)
+    expect(new Set(turns.filter((event) => event.phase === 'deliberation_challenges').map((event) => event.payload.round))).toEqual(new Set([1, 2, 3]))
+    expect(turns.filter((event) => event.phase === 'deliberation_review')).toHaveLength(12)
+  })
+
+  it('derives actor roles from the roster and rejects role escalation', () => {
+    const { store, matterId, workflow } = fixtureStore()
+    addEvidence(store, matterId, 'record.txt', 'Roster record.')
+    const model = workflow.approveCaseModel(workflow.draftCaseModel(matterId, 'ontario_criminal_jury_v1').id)
+    workflow.saveTheoryBrief({ caseModelId: model.id, partyId: 'crown', side: 'crown', narrative: 'Private Crown theory.' })
+    const engine = new TrialEngineService(store)
+    const run = engine.createRun({ matterId, caseModelId: model.id, config: configFor('ontario_criminal_jury_v1') }).run
+
+    expect(engine.actorContext(run.id, 'juror-01').theories).toEqual([])
+    expect(engine.actorContext(run.id, 'crown').theories.map((brief) => brief.narrative)).toEqual(['Private Crown theory.'])
+    expect(() => engine.actorContext(run.id, 'juror-01', ['system'])).toThrow(/does not hold/)
+    expect(() => engine.actorContext(run.id, 'accused-1', ['crown'])).toThrow(/does not hold/)
+    expect(() => engine.actorContext(run.id, 'nobody', ['juror'])).toThrow(/Unknown actor/)
+  })
+
+  it('consolidates motion-grade concerns per exhibit and keeps weak heuristic hits as findings only', () => {
+    const { store, matterId, workflow } = fixtureStore()
+    const mixed = addEvidence(store, matterId, 'interview-notes.txt', 'Counsel gave privileged legal advice. The neighbour told me that the accused said that he left early and later said that he returned.')
+    const diary = addEvidence(store, matterId, 'diary.txt', 'She said that the meeting ran late.')
+    const model = workflow.approveCaseModel(workflow.draftCaseModel(matterId, 'ontario_criminal_jury_v1').id)
+    const findings = workflow.analyzeDisclosure(matterId, model.id)
+    expect(findings.find((finding) => finding.category === 'hearsay' && finding.sourceRefs[0]?.evidenceId === diary.id)?.severity).toBe('low')
+    expect(findings.find((finding) => finding.category === 'hearsay' && finding.sourceRefs[0]?.evidenceId === mixed.id)?.severity).toBe('medium')
+
+    const docket = workflow.draftMotionDocket(model.id)
+    expect(docket).toHaveLength(1)
+    expect(docket[0]).toMatchObject({ motionType: 'privilege+hearsay' })
+    expect(docket[0].requestedRelief).toEqual(expect.arrayContaining(['redact', 'exclude', 'limited_use', 'voir_dire']))
+    expect(docket[0].sourceRefs.map((ref) => ref.evidenceId)).toEqual([mixed.id])
+  })
+})
+
+class WitnessModel implements ModelClient {
+  readonly requests: StageRequest[] = []
+  private readonly answer: string
+  private readonly cite: boolean
+
+  constructor(answer: string, cite = true) {
+    this.answer = answer
+    this.cite = cite
+  }
+
+  async generateStage(request: StageRequest) {
+    this.requests.push(request)
+    const exhibit = request.evidence[0]?.exhibitId ?? 'E-001'
+    if (request.stage === 'witness_answer') {
+      return { title: 'Witness answer', content: this.answer, citations: this.cite ? [exhibit] : [], jurors: [] }
+    }
+    const juror = request.jurorProfiles?.[0]?.juror
+    return {
+      title: 'Fixture actor output', content: `Source-grounded fixture output [${exhibit}].`, citations: [exhibit],
+      jurors: juror ? [{ juror, leaning: 'crown' as const, confidence: 70, rationale: `Admitted evidence [${exhibit}] supports the issue.`, citations: [exhibit] }] : [],
+      verdict: request.stage === 'judge_ruling' ? {
+        outcome: 'crown', confidence: 70, keyFactors: [exhibit], unresolvedIssues: [], recommendedNextSteps: [], citationWarnings: [],
+      } : undefined,
+    }
+  }
+}
+
+class DispositionWordModel implements ModelClient {
+  readonly requests: StageRequest[] = []
+  private readonly disposition: string
+
+  constructor(disposition: string) {
+    this.disposition = disposition
+  }
+
+  async generateStage(request: StageRequest) {
+    this.requests.push(request)
+    const exhibit = request.evidence[0]?.exhibitId ?? 'E-001'
+    const juror = request.jurorProfiles?.[0]?.juror
+    return {
+      title: 'Fixture actor output', content: `Source-grounded fixture output [${exhibit}].`, citations: [exhibit],
+      jurors: juror ? [{ juror, leaning: 'crown' as const, confidence: 70, rationale: `Admitted evidence [${exhibit}] supports the issue.`, citations: [exhibit] }] : [],
+      verdict: request.stage === 'judge_ruling' ? {
+        outcome: this.disposition, confidence: 70, keyFactors: [exhibit], unresolvedIssues: [],
+        recommendedNextSteps: [], citationWarnings: [],
+      } : undefined,
+    }
+  }
+}
 
 class JurorFailingModel implements ModelClient {
   async generateStage(request: StageRequest) {
@@ -309,7 +577,7 @@ function configFor(adapter: ProcedureAdapterId, civilDecisionMaker?: 'judge_alon
   return {
     mode: 'full', procedureAdapter: adapter, seed: 'acceptance-seed',
     checkpointPolicy: { default: 'autonomous', approvalPhases: [], allowCounselTakeover: true },
-    actorProviders: { default: { provider: 'local', model: 'fixture' } },
+
     witnessPlan: [], deliberation: { maxRounds: 3, concurrency: 4 },
     civilDecisionMaker, externalDisclosureConfirmed: false,
   }

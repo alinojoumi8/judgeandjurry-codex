@@ -247,7 +247,9 @@ export interface TrialRunConfig {
   procedureAdapter: ProcedureAdapterId
   seed: string
   checkpointPolicy: CheckpointPolicy
-  actorProviders: Record<string, { provider: string; model: string }>
+  // Stamped by the server from its configured model client when a run is
+  // created; clients cannot choose a provider per actor.
+  provider?: { name: string; model: string; mode: 'local' | 'external' }
   witnessPlan: Array<{ witnessId: string; calledByPartyId: string; order: number }>
   deliberation: { maxRounds: number; concurrency: number }
   civilDecisionMaker?: 'judge_alone' | 'jury'

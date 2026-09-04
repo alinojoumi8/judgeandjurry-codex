@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import { CaseWorkflowService } from '../server/caseWorkflow'
 import { CaseStore } from '../server/db'
 import { createMiniMaxConfig, MiniMaxClient } from '../server/minimax'
+import { providerStatusFromConfig } from '../server/runConfig'
 import { TrialEngineService } from '../server/trialEngine'
 import type { TrialRunConfig } from '../server/trialEngineTypes'
 
@@ -44,12 +45,12 @@ try {
   const config: TrialRunConfig = {
     mode: 'full', procedureAdapter: 'ontario_civil_v1', seed: 'live-v2-restart-seed',
     checkpointPolicy: { default: 'autonomous', approvalPhases: ['openings'], allowCounselTakeover: true },
-    actorProviders: { default: { provider: 'minimax', model: provider.model } },
+
     witnessPlan: [], deliberation: { maxRounds: 3, concurrency: 2 },
     civilDecisionMaker: 'judge_alone', externalDisclosureConfirmed: true,
   }
   const client = new MiniMaxClient(provider)
-  let engine = new TrialEngineService(store, client)
+  let engine = new TrialEngineService(store, client, undefined, providerStatusFromConfig(provider))
   const run = engine.createRun({ matterId: matter.id, caseModelId: model.id, config }).run
   const paused = await engine.runAutonomous(run.id)
   assert(paused.run.status === 'checkpoint' && paused.run.phase === 'openings', 'Live run did not stop at the persisted openings checkpoint.')
@@ -58,7 +59,7 @@ try {
 
   store.close()
   store = new CaseStore(databasePath)
-  engine = new TrialEngineService(store, client)
+  engine = new TrialEngineService(store, client, undefined, providerStatusFromConfig(provider))
   engine.command(run.id, { type: 'approve_checkpoint', note: 'Live restart gate approval.' })
   const completed = await engine.runAutonomous(run.id)
   assert(completed.run.status === 'completed', `Live run ended with status ${completed.run.status}.`)

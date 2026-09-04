@@ -116,8 +116,22 @@ export class CorpusService {
     const expandedBytes = entries.reduce((sum, entry) => sum + entry.header.size, 0)
     if (expandedBytes > maxZipExpandedBytes) throw new Error('ZIP expansion exceeds the configured safety limit.')
     const files: CorpusPreviewEntry[] = []
+    const previewHashLimit = numberFromEnv('JUDGE_JURY_MAX_PREVIEW_HASH_BYTES', 64 * 1024 * 1024)
     for (const entry of entries) {
-      const path = safeZipPath(entry.entryName)
+      let path: string
+      try {
+        path = safeZipPath(entry.entryName)
+      } catch (error) {
+        // One unsafe entry name must not reject an entire disclosure ZIP; the
+        // entry is preserved in the manifest as excluded and never read.
+        files.push({
+          relativePath: entry.entryName, sourceReference: entry.entryName, originalName: basename(entry.entryName),
+          mimeType: 'application/octet-stream', size: entry.header.size,
+          modifiedAt: entry.header.time?.toISOString(), status: 'excluded',
+          warning: errorMessage(error, 'Unsafe ZIP entry path is excluded.'),
+        })
+        continue
+      }
       const encrypted = entry.header.encrypted
       const symlink = (entry.header.fileAttr & 0o170000) === 0o120000
       const compressed = Math.max(entry.header.compressedSize, 1)
@@ -133,6 +147,10 @@ export class CorpusService {
       } else if (encrypted) {
         status = 'locked'
         warning = 'Password-protected ZIP entry is preserved but cannot be extracted without credentials.'
+      } else if (entry.header.size > previewHashLimit) {
+        // Hashing means decompressing the whole entry into memory; very large
+        // entries are hashed during import instead of at preview time.
+        warning = 'Large entry; its hash and duplicate check are deferred to import.'
       } else {
         try {
           sha256 = digest(entry.getData())
@@ -143,7 +161,9 @@ export class CorpusService {
       }
       files.push({
         relativePath: path,
-        sourceReference: path,
+        // Keep the raw entry name: it is the key later used to re-open the entry,
+        // and normalization (e.g. stripping "./") would make that lookup miss.
+        sourceReference: entry.entryName,
         originalName: basename(path),
         mimeType: mimeFor(path),
         size: entry.header.size,
@@ -327,7 +347,10 @@ export class CorpusService {
       return readFile(actual)
     }
     const zip = new AdmZip(job.sourceLocator)
-    const zipEntry = zip.getEntry(entry.sourceReference)
+    // Match the raw stored name: adm-zip's getEntry() canonicalizes its lookup
+    // and cannot find entries whose stored name carries a "./" prefix, which
+    // ZIPs produced by other tools routinely do.
+    const zipEntry = zip.getEntries().find((candidate) => candidate.entryName === entry.sourceReference)
     if (!zipEntry) throw new Error(`ZIP entry no longer exists: ${entry.sourceReference}`)
     safeZipPath(zipEntry.entryName)
     if (zipEntry.header.encrypted) throw new Error('ZIP entry is password protected.')
@@ -761,6 +784,8 @@ function previewWarnings(files: CorpusPreviewEntry[]): string[] {
   if (locked) warnings.push(`${locked} locked or unreadable file(s) will remain preserved but unextracted.`)
   if (unsupported) warnings.push(`${unsupported} unsupported file(s) will remain preserved for review or conversion.`)
   if (excluded) warnings.push(`${excluded} unsafe filesystem or ZIP entry/entries are proposed for exclusion.`)
+  const deferred = files.filter((file) => file.status === 'pending' && !file.sha256).length
+  if (deferred) warnings.push(`${deferred} large entry/entries will be hashed during import.`)
   return warnings
 }
 

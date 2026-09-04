@@ -186,6 +186,26 @@ describe('release hardening', () => {
     check.close()
   })
 
+  it('rate-limits remote clients while leaving loopback development unthrottled', async () => {
+    const previous = process.env.API_RATE_LIMIT_PER_MINUTE
+    process.env.API_RATE_LIMIT_PER_MINUTE = '2'
+    const token = 'a-secure-token-with-24-characters'
+    const store = new CaseStore(':memory:')
+    try {
+      const remote = createApp({ store, security: { remote: true, token, allowedOrigins: ['https://example.test'] } })
+      await request(remote).get('/api/health').set('Authorization', `Bearer ${token}`).expect(200)
+      await request(remote).get('/api/health').set('Authorization', `Bearer ${token}`).expect(200)
+      const limited = await request(remote).get('/api/health').set('Authorization', `Bearer ${token}`).expect(429)
+      expect(limited.headers['retry-after']).toBe('60')
+    } finally {
+      if (previous === undefined) delete process.env.API_RATE_LIMIT_PER_MINUTE
+      else process.env.API_RATE_LIMIT_PER_MINUTE = previous
+    }
+    const local = createApp({ store, security: { remote: false, token: null, allowedOrigins: [] } })
+    for (let call = 0; call < 5; call += 1) await request(local).get('/api/health').expect(200)
+    store.close()
+  })
+
   it('labels curated authorities honestly and suppresses live-verification claims', () => {
     for (const authority of listCuratedAuthorities()) {
       expect(authority.provenance).toBe('curated')
