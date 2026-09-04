@@ -31,3 +31,9 @@ tmp/
 *.njsproj
 *.sln
 *.sw?
+
+# Local tooling and media artifacts
+.runtime-logs/
+graphify-out/
+.codebase-memory/
+videos/
