@@ -1,15 +1,16 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import {readFileSync} from 'node:fs'
 import {describe,expect,it} from 'vitest'
-import {groundingUnits,parseGroundingReview} from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const c=JSON.parse(readFileSync('docs/qa/jury/v92-captured-reversed-departure-actor-failure.json','utf8')),q=c.request
 function check(text:string,evidence=q.evidence){
  const units=groundingUnits({title:'',content:text,citations:[]})
- return parseGroundingReview(JSON.stringify({findings:units.map(unit=>({unitId:unit.id,status:'analysis',citations:[]}))}),units,evidence,q.groundingContext).status
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:units.map(unit=>({unitId:unit.id,status:'analysis',citations:[]}))}),units,evidence,q.groundingContext).status
 }
 describe('quoted non-observation does not transfer departure to the witness',()=>{
  it('preserves the captured whole-unit conditional despite checker rejection',()=>{
   const captured=JSON.parse(readFileSync('docs/qa/jury/v93-calibration-v93-reversed-actor-7.json','utf8'))
-  expect(parseGroundingReview(JSON.stringify({findings:captured.checkerResult.review.findings}),groundingUnits(captured.result),captured.request.evidence,captured.request.groundingContext).status).toBe('passed')
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:captured.checkerResult.review.findings}),groundingUnits(captured.result),captured.request.evidence,captured.request.groundingContext).status).toBe('passed')
  })
  it('rejects the exact accepted reversed quotation rationale',()=>expect(check(c.result.jurors[0].rationale)).toBe('failed'))
  it.each([

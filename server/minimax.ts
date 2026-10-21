@@ -441,7 +441,7 @@ export class MiniMaxClient implements ModelClient {
         review.errors.push('The ballot uses exclusively attribution-only sources as its proof basis. Those permissions establish what an account says, not receipt truth or guilt. A Crown finding requires an actually permitted substantive proof basis; profiles, uncontradicted descriptions and prior votes cannot expand source purpose. Reassess under the actual permission without inventing corroboration or a receipt carve-out.')
         return review
       }
-      const substantiveFindings = review.findings.filter((finding) => (finding.status === 'unsupported' || finding.status === 'contradicted') && finding.explanation &&
+      const substantiveFindings = review.findings.filter((finding) => !review.scopeValidationUnitIds?.includes(finding.unitId) && (finding.status === 'unsupported' || finding.status === 'contradicted') && finding.explanation &&
           !review.validationErrors?.includes(`${finding.unitId}: a valid finding status is required.`) && !review.peerReferenceValidationUnitIds?.includes(finding.unitId) && !currentStateValidationUnitIds.includes(finding.unitId) && !peerNegationValidationUnitIds.includes(finding.unitId) && !influenceValidationUnitIds.includes(finding.unitId) && !review.roleValidationUnitIds?.includes(finding.unitId) && !classificationScopeValidationUnitIds.includes(finding.unitId) && !suppliedBurdenScopeValidationUnitIds.includes(finding.unitId) &&
               !comparisonValidationUnitIds.includes(finding.unitId) && !excerptScopeValidationUnitIds.includes(finding.unitId) && !review.sourceLocatorValidationUnitIds?.includes(finding.unitId) && !polarityValidationUnitIds.includes(finding.unitId) && !profileValidationUnitIds.includes(finding.unitId) && !sourcePremiseValidationUnitIds.includes(finding.unitId) && !initialContextValidationUnitIds.includes(finding.unitId) && !causalScopeValidationUnitIds.includes(finding.unitId) && !authenticationScopeValidationUnitIds.includes(finding.unitId) && !chronologyDoubtScopeValidationUnitIds.includes(finding.unitId) && !verificationScopeValidationUnitIds.includes(finding.unitId))
       const substantiveFailure = substantiveFindings.length > 0
@@ -490,14 +490,25 @@ export class MiniMaxClient implements ModelClient {
     const url = `${this.config.baseUrl.replace(/\/$/, '')}/chat/completions`
     const paceKey = `${url}/${this.config.model}`
     const interval = this.config.requestIntervalMs ?? 0
-    const waitForSlot = async () => {
+    const waitForRetry = (milliseconds: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => { signal?.removeEventListener('abort', abort); resolve() }, milliseconds)
+      const abort = () => {
+        clearTimeout(timer)
+        signal?.removeEventListener('abort', abort)
+        reject(signal?.reason ?? new Error('Request aborted.'))
+      }
+      signal?.addEventListener('abort', abort, { once: true })
+      if (signal?.aborted) abort()
+    })
+    const waitForSlot = async (signal?: AbortSignal) => {
       if (!interval) return
       const now = Date.now(), slot = Math.max(now, nextProviderRequest.get(paceKey) ?? now)
       nextProviderRequest.set(paceKey, slot + interval)
-      if (slot > now) await new Promise(resolve => setTimeout(resolve, slot - now))
+      if (slot > now) await waitForRetry(slot - now, signal)
     }
     await waitForSlot()
     const controller = new AbortController()
+    const deadline = Date.now() + this.config.timeoutMs
     const timeout = setTimeout(() => controller.abort(), this.config.timeoutMs)
 
     stageLogger.info('model.request.start', {
@@ -532,11 +543,12 @@ export class MiniMaxClient implements ModelClient {
         }
         const header = response.headers.get('retry-after')
         const retryAfter = header ? (Number.isFinite(Number(header)) ? Number(header) * 1000 : Date.parse(header) - Date.now()) : 0
-        const delay = Math.max(0, retryAfter || Math.min(30000, 2000 * 2 ** retry))
+        const delay = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(30000, retryAfter) : Math.min(30000, 2000 * 2 ** retry)
+        if (delay >= deadline - Date.now()) throw new ModelProviderError(`${providerLabel(this.config.provider)} retry delay exceeds the remaining request timeout.`, { retryable: true, status })
         stageLogger.info('model.request.transport_retry', {attempt, retry:retry+1, status, delayMs:delay})
         if (interval) nextProviderRequest.set(paceKey, Math.max(nextProviderRequest.get(paceKey) ?? 0, Date.now() + delay))
-        await new Promise(resolve => setTimeout(resolve, delay))
-        await waitForSlot()
+        await waitForRetry(delay, controller.signal)
+        await waitForSlot(controller.signal)
         response = await this.fetcher(url, init)
       }
 

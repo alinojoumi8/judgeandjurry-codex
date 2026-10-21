@@ -1,10 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import {readFileSync} from 'node:fs'
 import {describe,expect,it} from 'vitest'
-import {groundingUnits,parseGroundingReview} from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const c=JSON.parse(readFileSync('docs/qa/jury/v114-causal-question-accepted-failure.json','utf8'))
 function check(content=c.result.content,status='analysis',evidence=c.request.evidence,citations:any[]=[]){
  const units=groundingUnits({...c.result,content})
- return parseGroundingReview(JSON.stringify({findings:units.map(u=>({unitId:u.id,status,citations,explanation:'The checker calls this a neutral question.'}))}),units,evidence,c.request.groundingContext).status
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:units.map(u=>({unitId:u.id,status,citations,explanation:'The checker calls this a neutral question.'}))}),units,evidence,c.request.groundingContext).status
 }
 describe('causal source questions preserve completed-act premises',()=>{
  it.each(['analysis','supported'])('rejects captured unsupported return despite %s',status=>expect(check(undefined,status)).toBe('failed'))

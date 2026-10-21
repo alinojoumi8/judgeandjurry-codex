@@ -1,12 +1,13 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const knowledge = JSON.parse(readFileSync('docs/qa/jury/v107-full-control-knowledge-timing-positive-capture.json', 'utf8'))
 const history = JSON.parse(readFileSync('docs/qa/jury/v107-full-control-vote-history-positive-capture.json', 'utf8'))
 function audit(c: any, q = c.job.request, text?: string, status?: string) {
   const result = text === undefined ? c.job.draft : { ...c.job.draft, content: text, jurors: [] }
   const units = groundingUnits(result)
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => {
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => {
     const original = c.result.review.findings.find((finding: any) => finding.unitId === unit.id) ?? c.result.review.findings.at(-1)
     return { ...original, unitId: unit.id, status: status ?? original.status }
   }) }), units, q.evidence, q.groundingContext, { actorId: q.courtroomActor.id, assessments: q.courtroomAssessments ?? [] }, { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, stage: q.stage }).status
