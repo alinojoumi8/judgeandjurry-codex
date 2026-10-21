@@ -1,0 +1,33 @@
+{
+  "exchange": {
+    "caseId": "full-control-v127-opposition-not-global-3",
+    "planHash": "b7fc5ab3146a42aa60ef364a86eec1b43ff8c82991632567b4feafe906ad2b2c",
+    "requestRole": "checker",
+    "id": 1,
+    "startedAt": "2026-10-12T04:02:36.113Z",
+    "requestHash": "96aad5fa6e573522898a5ad632e930b0d39c08a3006fc1950837592963f5f7e6",
+    "requestCharacters": 65210,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "eb2d20ec4b6f5151f03a8816edaa01c7f8a56490751d4e92c1a926a84ec46a0b",
+    "responseBytes": 1894,
+    "reportedUsage": {
+      "total_tokens": 11961,
+      "total_characters": 0,
+      "prompt_tokens": 11706,
+      "completion_tokens": 255,
+      "completion_tokens_details": {
+        "reasoning_tokens": 152
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 178
+      }
+    },
+    "providerResponseId": "071b8ee0110a71cea7f5100aad6d2169",
+    "finishedAt": "2026-10-12T04:02:38.209Z",
+    "elapsedMs": 2084.6661000000313
+  },
+  "checkerContent": "{\"findings\":[{\"unitId\":\"content:1\",\"status\":\"unsupported\",\"explanation\":\"E-001 asserts a handover, while E-002 contains only the neutral question \u201cDid a handover occur?\u201d and supplies no competing factual proposition. The record therefore does not support the claim that the accounts do not directly contradict on receipt.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1},{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]}]}"
+}

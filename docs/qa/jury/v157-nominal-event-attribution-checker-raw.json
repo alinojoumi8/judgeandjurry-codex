@@ -1,0 +1,35 @@
+{
+  "checkerContent": "{\"findings\":[{\"unitId\":\"title:1\",\"status\":\"analysis\",\"explanation\":\"Neutral title for the juror response.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"content:1\",\"status\":\"supported\",\"explanation\":\"The quoted account propositions match E-001 and E-002, and the stated not-guilty assessment follows from the juror\u2019s express reasonable-doubt conclusion.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1},{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-0:1\",\"status\":\"supported\",\"explanation\":\"The draft accurately attributes the handover observation to Mira and the departure with the token and personal non-observation to Tavi.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1},{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-0:2\",\"status\":\"analysis\",\"explanation\":\"This is the juror\u2019s present assessment that receipt remains doubtful, without an added factual premise.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"juror-change-0:1\",\"status\":\"analysis\",\"explanation\":\"This explains the juror\u2019s present initial assessment and accurately notes the absence of a presented deliberation event supporting a change.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"ballot-consistency-0:1\",\"status\":\"analysis\",\"explanation\":\"The not-guilty selection, reasonable-doubt conclusion, and reasoning about the attributed competing accounts are coherent for the sole required receipt condition under the supplied burden and source-use permissions.\",\"citations\":[],\"recordCitations\":[]}]}",
+  "exchange": {
+    "caseId": "v73-fresh-affirmative-corrob-1",
+    "planHash": "f98f790539dcec930d4c200935d76d858aa1d0869848e4b24d866103030ce52a",
+    "requestRole": "checker",
+    "id": 5,
+    "startedAt": "2026-10-13T22:59:22.373Z",
+    "requestHash": "1b1dc4a1f27902aaa8c12a4a556ddb7d9c27b1497e0167e182faca857b938732",
+    "requestCharacters": 66837,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "cd119370d3c7e93d6c02ca017a752b31a9210f16a76899e39ab5006295d261a0",
+    "responseBytes": 4562,
+    "reportedUsage": {
+      "total_tokens": 12887,
+      "total_characters": 0,
+      "prompt_tokens": 12131,
+      "completion_tokens": 756,
+      "completion_tokens_details": {
+        "reasoning_tokens": 405
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 199
+      }
+    },
+    "providerResponseId": "071dead3274aed56b3d398ecd96d20b9",
+    "finishedAt": "2026-10-13T22:59:26.323Z",
+    "elapsedMs": 3939.7158000000054
+  },
+  "requestFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v157-current-comparison\\live-f98f790539dcec930d4c200935d76d858aa1d0869848e4b24d866103030ce52a-1791932007777\\v73-fresh-affirmative-corrob-1\\http-0005\\request-body.txt",
+  "responseFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v157-current-comparison\\live-f98f790539dcec930d4c200935d76d858aa1d0869848e4b24d866103030ce52a-1791932007777\\v73-fresh-affirmative-corrob-1\\http-0005\\response-body.raw"
+}

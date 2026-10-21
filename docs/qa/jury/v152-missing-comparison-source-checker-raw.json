@@ -1,0 +1,33 @@
+{
+  "exchange": {
+    "caseId": "full-control-v152-question-missing-second-source-negative",
+    "planHash": "25f3d264c9a17408d9f97534dd3fb318351a8d33327cb13f3299cde2c2878b84",
+    "requestRole": "checker",
+    "id": 1,
+    "startedAt": "2026-10-12T04:49:17.640Z",
+    "requestHash": "7fa4b9ea713c1f14aa660120a8c3c8a01339786ec216cca0de6f733d720ad3f1",
+    "requestCharacters": 65119,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "b65c5ff4ddc9b1d9dc6c7923dc6dbe37dff649bf8ea9aed76ca01675a5fb7b62",
+    "responseBytes": 6352,
+    "reportedUsage": {
+      "total_tokens": 12798,
+      "total_characters": 0,
+      "prompt_tokens": 11680,
+      "completion_tokens": 1118,
+      "completion_tokens_details": {
+        "reasoning_tokens": 999
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 11648
+      }
+    },
+    "providerResponseId": "071b99d2d1269dc236245a8c2054f44f",
+    "finishedAt": "2026-10-12T04:49:24.785Z",
+    "elapsedMs": 7134.2966000000015
+  },
+  "checkerContent": "{\"findings\":[{\"unitId\":\"content:1\",\"status\":\"analysis\",\"explanation\":\"E-001 describes a handover and receipt, while E-002 describes non-observation rather than denying that a handover occurred. The accounts therefore do not directly contradict on receipt; this is an assessment of the attributed accounts, not an independent finding that receipt occurred.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1}],\"recordCitations\":[{\"eventId\":\"f537063c-d174-45a9-b1d9-2d667c546dee\"}]}]}"
+}

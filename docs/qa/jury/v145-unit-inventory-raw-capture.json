@@ -1,0 +1,6 @@
+{
+  "rawResponseFile": "tmp\\qa\\courtroom\\jury-v145-current-comparison\\live-8b4d40038888486ab1e2104b59c45a0a56f894d4f30ec82cda5519326357cdce-1791729186828\\full-control-v143-crown-proof\\http-0001\\response-body.raw",
+  "requestHash": "9851cef30b081e8e20f76c798d211577024b4db0edc511707fc31d666cc5a2e6",
+  "responseHash": "c2a03ab76ce0e2df161c32dd4f4e5e47734f3d5bad2ce60fe9e718eb41582764",
+  "checkerContent": "{\"findings\":[{\"unitId\":\"content:1\",\"status\":\"analysis\",\"explanation\":\"The juror presents a permitted present assessment that the Crown has proved the supplied receipt condition beyond a reasonable doubt despite E-002's counteraccount. This is an inference within the accounts' permitted assessment use, not an assertion that either account is established as true.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"ballot_consistency\",\"status\":\"analysis\",\"explanation\":\"The current guilty-leaning standard represented by an affirmative finding of receipt beyond a reasonable doubt is coherent with the reason given. No express reasonable-doubt finding or competing outcome appears.\",\"citations\":[],\"recordCitations\":[]}]}"
+}

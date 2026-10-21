@@ -1,0 +1,201 @@
+{
+  "request": {
+    "courtroomProtocol": true,
+    "approvedPartyRoles": [
+      {
+        "id": "crown",
+        "name": "Fictional Crown",
+        "role": "crown"
+      },
+      {
+        "id": "accused-1",
+        "name": "Fictional Ellis",
+        "role": "accused"
+      }
+    ],
+    "courtroomEvents": [
+      {
+        "eventId": "75a19fa6-5f6c-4e3b-9c09-d43ced5ee9c8",
+        "type": "witness_answer",
+        "actorId": "w1",
+        "phase": "evidence",
+        "payload": {
+          "witnessId": "w1",
+          "examination": "direct"
+        }
+      },
+      {
+        "eventId": "110c23bc-03b7-450a-b4bd-115262ba0f6c",
+        "type": "witness_answer",
+        "actorId": "w2",
+        "phase": "evidence",
+        "payload": {
+          "witnessId": "w2",
+          "examination": "direct"
+        }
+      }
+    ],
+    "courtroomActor": {
+      "id": "crown",
+      "name": "Fictional Crown",
+      "roles": [
+        "crown"
+      ]
+    },
+    "courtroomState": {
+      "juryPresent": true,
+      "examination": "complete"
+    },
+    "courtroomAssessments": [],
+    "stage": "crown_rebuttal",
+    "packet": "Approved issue(s): issue-1: Fictional blue-token receipt condition\nPrivate theory for this advocate only: PRIVATE_JURY_917 private strategy; not proof.\nProof gaps: None recorded.\nActor: crown\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: Assess the fictional condition using the attributed disputed account.; Disclosure, oath and authentication status not supplied.\nE-002: admitted; permitted purposes: Assess the fictional condition using the attributed disputed account.; Disclosure, oath and authentication status not supplied.\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nE-002: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.\nPinned legal packet 6ba6cfb54ed07a2e2e89b9d8d6711b6586b8e3fd080fb4215a8503d04f89f60a: {\"issues\":[{\"issueId\":\"issue-1\",\"respondingPartyIds\":[\"accused-1\"],\"elements\":[{\"elementId\":\"fictional-receipt\",\"text\":\"Fictional Ellis received a blue token from Fictional Morgan at the desk.\",\"burdenPartyId\":\"crown\",\"standard\":\"beyond a reasonable doubt\",\"authorityIds\":[\"fixture\"]}],\"outcomes\":[\"guilty\",\"not_guilty\",\"no_verdict\"],\"alternatives\":[]}],\"instructions\":[{\"id\":\"duties\",\"kind\":\"duties\",\"text\":\"Fictional software exercise: assess only the supplied condition and permitted sources. No preferred verdict, actual-law certification, or invented dialogue.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"burden\",\"kind\":\"burden\",\"text\":\"Fictional Crown must establish the listed condition beyond a reasonable doubt; the opposing party need not establish innocence.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"elements\",\"kind\":\"elements\",\"text\":\"Only the listed fictional blue-token receipt condition is required. No actual offence or knowing-participation element is supplied.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"limited_use\",\"kind\":\"limited_use\",\"text\":\"Use permitted attributed accounts to assess the fictional condition. Accounts remain disputed; do not treat attribution as an established finding. Excluded sources and struck testimony are unavailable. Unknown envelope contents do not establish token receipt or the absence of a token.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"deliberation\",\"kind\":\"deliberation\",\"text\":\"Fictional software exercise: assess only the supplied condition and permitted sources. No preferred verdict, actual-law certification, or invented dialogue.\",\"authorityIds\":[\"fixture\"]}]}\nApproved evidence plan: []",
+    "evidence": [
+      {
+        "id": "ef5d80e9-e7b2-449c-9b64-32e5ccb2fe8f",
+        "matterId": "240608a8-3aca-4f7c-9fe1-be4d51b57480",
+        "exhibitId": "E-001",
+        "name": "fictional-account-1.txt",
+        "type": "text",
+        "mimeType": "text/plain",
+        "size": 85,
+        "text": "Mira states: I saw Fictional Morgan hand a blue token to Fictional Ellis at the desk.",
+        "summary": "Attributed disputed account; no established finding.",
+        "tags": [],
+        "uploadedAt": "2026-10-06T20:08:06.571Z",
+        "sha256": null,
+        "sourceAvailable": false,
+        "ingestionStatus": "stored",
+        "extractionWarning": null,
+        "archivedAt": null
+      },
+      {
+        "id": "2b390a2f-5c38-4900-9860-220addcf7600",
+        "matterId": "240608a8-3aca-4f7c-9fe1-be4d51b57480",
+        "exhibitId": "E-002",
+        "name": "fictional-account-2.txt",
+        "type": "text",
+        "mimeType": "text/plain",
+        "size": 145,
+        "text": "Tavi states: I saw Fictional Ellis standing at the desk. Fictional Morgan left with the blue token still in their hand. I did not see a handover. Morgan was also at the desk.",
+        "summary": "Attributed disputed account; no established finding.",
+        "tags": [],
+        "uploadedAt": "2026-10-06T20:08:06.614Z",
+        "sha256": null,
+        "sourceAvailable": false,
+        "ingestionStatus": "stored",
+        "extractionWarning": null,
+        "archivedAt": null
+      }
+    ],
+    "previousTurns": "e39db901-7ef5-4b57-ac90-3b04bac90492 procedure: {\"disclaimer\":\"Synthetic actors are a preparation and stress-testing tool, not a statistically representative panel or a prediction of a real outcome.\",\"actors\":[{\"id\":\"crown\",\"role\":\"crown\",\"partyId\":\"crown\"},{\"id\":\"accused-1\",\"role\":\"defence\",\"partyId\":\"accused-1\"},{\"id\":\"judge-1\",\"role\":\"judge\"},{\"id\":\"juror-01\",\"role\":\"juror\"},{\"id\":\"juror-02\",\"role\":\"juror\"},{\"id\":\"juror-03\",\"role\":\"foreperson\"},{\"id\":\"juror-04\",\"role\":\"juror\"},{\"id\":\"juror-05\",\"role\":\"juror\"},{\"id\":\"juror-06\",\"role\":\"juror\"},{\"id\":\"juror-07\",\"role\":\"juror\"},{\"id\":\"juror-08\",\"role\":\"juror\"},{\"id\":\"juror-09\",\"role\":\"juror\"},{\"id\":\"juror-10\",\"role\":\"juror\"},{\"id\":\"juror-11\",\"role\":\"juror\"},{\"id\":\"juror-12\",\"role\":\"juror\"}],\"initialAdmissionLedgerId\":\"d9aaea38-ff5b-4f85-96f5-5bb332e22a38\",\"procedureAdapter\":\"ontario_criminal_jury_v1\",\"decisionRule\":\"Every accused/count verdict-sheet item requires 12 valid, unanimous final ballots.\",\"legalSources\":[{\"title\":\"National Judicial Institute model jury instructions\",\"sourceKind\":\"official\",\"sourceUrl\":\"https://www.nji-inm.ca/index.cfm/publications/model-jury-instructions/?langSwitch=en\",\"jurisdiction\":\"Ontario, Canada\",\"revisionDate\":\"2026-07-18\",\"checkedAt\":\"2026-07-18T00:00:00.000Z\",\"legalReviewStatus\":\"requires-lawyer-review\",\"note\":\"Tailored instructions must be selected from the curated registry; the model must not invent the governing charge.\"},{\"title\":\"NJI Requirements for a Verdict\",\"sourceKind\":\"official\",\"sourceUrl\":\"https://www.nji-inm.ca/index.cfm/publications/model-jury-instructions/final-instructions/deliberations/requirements-for-a-verdict/?langSwitch=en\",\"jurisdiction\":\"Ontario, Canada\",\"revisionDate\":\"2026-07-18\",\"checkedAt\":\"2026-07-18T00:00:00.000Z\",\"legalReviewStatus\":\"requires-lawyer-review\",\"note\":\"Used for the per-item unanimity rule.\"}]}\n75a19fa6-5f6c-4e3b-9c09-d43ced5ee9c8 testimony: {\"witnessId\":\"w1\",\"answer\":\"Mira states: I saw Fictional Morgan hand a blue token to Fictional Ellis at the desk.\",\"examination\":\"direct\",\"preparedQaRecord\":true}\n110c23bc-03b7-450a-b4bd-115262ba0f6c testimony: {\"witnessId\":\"w2\",\"answer\":\"Tavi states: I saw Fictional Ellis standing at the desk. Fictional Morgan left with the blue token still in their hand. I did not see a handover.\",\"examination\":\"direct\",\"preparedQaRecord\":true}\n8a741bda-b774-4447-ae9f-2691bfdc64ab procedure: {\"move\":\"closings\",\"claimIds\":[\"809e8245-51fc-4767-8a70-2a1f9e07a912\",\"d2b165be-d779-4ea4-8294-ee01b09baa59\"]}",
+    "groundingRequired": true,
+    "groundingContext": "Source-use restrictions:\nE-001: admitted; permitted purposes: Assess the fictional condition using the attributed disputed account.; Disclosure, oath and authentication status not supplied.\nE-002: admitted; permitted purposes: Assess the fictional condition using the attributed disputed account.; Disclosure, oath and authentication status not supplied.\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nE-002: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "runConfig": {
+      "providerMode": "external",
+      "templateId": "criminal_defence",
+      "jurorCount": 12,
+      "deliberationMode": "independent",
+      "stages": [
+        "intake_normalization",
+        "issue_spotting",
+        "crown_opening",
+        "defence_opening",
+        "crown_rebuttal",
+        "defence_rebuttal",
+        "jury_instructions",
+        "jury_deliberation",
+        "judge_ruling"
+      ],
+      "retrievalDepth": 6,
+      "externalDisclosureConfirmed": true
+    },
+    "legalTemplate": {
+      "id": "criminal_defence",
+      "label": "Criminal Defence",
+      "description": "Charge-screening and trial-risk simulation focused on burden of proof, credibility, disclosure, mens rea, and reasonable doubt.",
+      "burdenLabel": "Crown must prove every element beyond a reasonable doubt.",
+      "defenceLabel": "Defence",
+      "crownLabel": "Crown",
+      "judgeLabel": "Judge",
+      "juryLabel": "Jury Panel",
+      "defaultJurorCount": 12,
+      "outcomeLabels": [
+        "Guilty (elements proven beyond a reasonable doubt)",
+        "Not guilty (reasonable doubt remains)",
+        "Hung jury - no verdict"
+      ],
+      "packetGuidance": [
+        "Keep actus reus, mens rea, identity, credibility, and admissibility separate.",
+        "Do not treat complainant allegations as proven unless exhibit support is identified.",
+        "Flag missing disclosure and Charter or evidentiary issues without inventing facts."
+      ],
+      "stagePrompts": {
+        "issue_spotting": "criminal elements actus reus mens rea identity credibility disclosure admissibility reasonable doubt",
+        "crown_opening": "crown proof elements witness reliability corroboration timeline motive opportunity",
+        "defence_opening": "defence reasonable doubt missing proof credibility inconsistency alternate innocent explanation",
+        "crown_rebuttal": "crown reply corroboration circumstantial proof witness reliability inference",
+        "defence_rebuttal": "defence closing inconsistencies disclosure gaps burden admissibility credibility",
+        "jury_instructions": "jury charge burden reasonable doubt elements credibility WD framework circumstantial evidence unanimity",
+        "jury_deliberation": "jury reasonable doubt credibility burden competing explanations reliability",
+        "judge_ruling": "judge charge screen elements proof reasonable doubt unresolved disclosure next steps"
+      }
+    }
+  },
+  "result": {
+    "title": "",
+    "content": "Tavi places both at the desk.",
+    "citations": [
+      "E-002"
+    ],
+    "jurors": []
+  },
+  "checkerResult": {
+    "id": "full-control-explicit-both-positive",
+    "state": "finished",
+    "review": {
+      "status": "failed",
+      "method": "source-quotes-and-model-review",
+      "findings": [
+        {
+          "unitId": "content:1",
+          "text": "Tavi places both at the desk.",
+          "status": "unsupported",
+          "explanation": "Tavi expressly places Ellis at the desk through personal observation, but the account only states that Morgan was also at the desk; it does not say Tavi observed Morgan there. The active phrasing \u201cTavi places both\u201d therefore attributes an observation Tavi\u2019s account does not supply.",
+          "citations": [
+            {
+              "exhibitId": "E-002",
+              "quote": "Tavi states: I saw Fictional Ellis standing at the desk. Fictional Morgan left with the blue token still in their hand. I did not see a handover. Morgan was also at the desk.",
+              "paragraph": 1,
+              "startOffset": 0,
+              "endOffset": 174,
+              "quoteMethod": "source-paragraph"
+            }
+          ]
+        }
+      ],
+      "errors": [
+        "content:1: unsupported \u2014 Tavi expressly places Ellis at the desk through personal observation, but the account only states that Morgan was also at the desk; it does not say Tavi observed Morgan there. The active phrasing \u201cTavi places both\u201d therefore attributes an observation Tavi\u2019s account does not supply."
+      ],
+      "validationErrors": [],
+      "citationCorrections": [],
+      "repairs": 0,
+      "verificationRetries": 0
+    },
+    "verificationAttempts": [],
+    "ballotContractErrors": [],
+    "effectiveStatus": "failed",
+    "expectedMatched": false,
+    "usage": {
+      "providerHttpCalls": 1,
+      "providerInputCharacters": 62291,
+      "actualTokens": 11386,
+      "actualCost": null,
+      "elapsedMs": 20306.969500000007
+    }
+  },
+  "resultFile": "tmp\\qa\\courtroom\\jury-v155-current-comparison\\live-c70f0587b06d232fdf0586ee07cf0d8b0d8690a1eef246bfe094c48469a398c6-1791785441023\\full-control-explicit-both-positive\\results.json",
+  "resultFileHash": "7357acf587f7a2fdc795206cbf45960e9a863d8e2396a50b730383eee453aefe",
+  "expected": "passed",
+  "independentStatus": "passed",
+  "reason": "The actual Tavi account explicitly places Ellis and Morgan at the desk. Attributing that placement to the account adds neither firsthand observation of Morgan nor simultaneous presence or proof of occurrence."
+}

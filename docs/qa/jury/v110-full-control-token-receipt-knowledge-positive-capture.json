@@ -1,0 +1,105 @@
+{
+  "job": {
+    "id": "full-control-token-receipt-knowledge-positive",
+    "expected": "passed",
+    "request": {
+      "stage": "defence_rebuttal",
+      "courtroomProtocol": true,
+      "groundingRequired": true,
+      "packet": "Approved scenario procedure: Assess only the supplied fictional receipt condition under the Crown beyond-a-reasonable-doubt burden. No actual law.",
+      "evidence": [
+        {
+          "id": "positive-witness-account",
+          "exhibitId": "E-101",
+          "name": "fictional-tavi-token-knowledge.txt",
+          "text": "Tavi states: I saw Fictional Ellis standing at the desk. I do not know whether Ellis received any token.",
+          "summary": "Fictional disputed eyewitness account.",
+          "tags": [],
+          "type": "text",
+          "mimeType": "text/plain",
+          "size": 147,
+          "ingestionStatus": "stored",
+          "matterId": "fictional-positive-control",
+          "uploadedAt": "2026-10-03T00:00:00Z",
+          "sha256": null,
+          "sourceAvailable": false,
+          "extractionWarning": null,
+          "archivedAt": null
+        }
+      ],
+      "previousTurns": "",
+      "groundingContext": "E-101: admitted; permitted purposes: Assess the fictional receipt condition using the disputed account. Unclassified; primary/documentary status is not supplied.",
+      "approvedPartyRoles": [
+        {
+          "id": "ellis",
+          "name": "Fictional Ellis",
+          "role": "accused"
+        },
+        {
+          "id": "crown",
+          "name": "Fictional Crown",
+          "role": "crown"
+        }
+      ],
+      "courtroomActor": {
+        "id": "ellis",
+        "name": "Fictional Ellis",
+        "roles": [
+          "defence"
+        ]
+      },
+      "courtroomEvents": []
+    },
+    "draft": {
+      "title": "",
+      "content": "Tavi disclaims knowledge of any token receipt.",
+      "citations": [],
+      "jurors": []
+    },
+    "fresh": false
+  },
+  "result": {
+    "id": "full-control-token-receipt-knowledge-positive",
+    "state": "finished",
+    "review": {
+      "status": "failed",
+      "method": "source-quotes-and-model-review",
+      "findings": [
+        {
+          "unitId": "content:1",
+          "text": "Tavi disclaims knowledge of any token receipt.",
+          "status": "unsupported",
+          "explanation": "E-101 supplies receipt uncertainty\u2014I do not know whether Ellis received any token\u2014not a disclaimer that Tavi lacks knowledge of any token receipt. The accurate wording must preserve the receipt and uncertainty qualifiers.",
+          "citations": [
+            {
+              "exhibitId": "E-101",
+              "quote": "Tavi states: I saw Fictional Ellis standing at the desk. I do not know whether Ellis received any token.",
+              "paragraph": 1,
+              "startOffset": 0,
+              "endOffset": 104,
+              "quoteMethod": "source-paragraph"
+            }
+          ]
+        }
+      ],
+      "errors": [
+        "content:1: unsupported \u2014 E-101 supplies receipt uncertainty\u2014I do not know whether Ellis received any token\u2014not a disclaimer that Tavi lacks knowledge of any token receipt. The accurate wording must preserve the receipt and uncertainty qualifiers."
+      ],
+      "validationErrors": [],
+      "citationCorrections": [],
+      "repairs": 0,
+      "verificationRetries": 0
+    },
+    "verificationAttempts": [],
+    "ballotContractErrors": [],
+    "effectiveStatus": "failed",
+    "expectedMatched": false,
+    "usage": {
+      "providerHttpCalls": 1,
+      "providerInputCharacters": 37861,
+      "actualTokens": 7111,
+      "actualCost": null,
+      "elapsedMs": 14565.417799999937
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "exchange": {
+    "caseId": "captured-documentary-corroboration-negative-2",
+    "planHash": "25f3d264c9a17408d9f97534dd3fb318351a8d33327cb13f3299cde2c2878b84",
+    "requestRole": "checker",
+    "id": 7,
+    "startedAt": "2026-10-12T04:30:19.400Z",
+    "requestHash": "e94af6c21ea439d1e0b5beb884a87b4551a20f206b17fc596db687d210711b30",
+    "requestCharacters": 67167,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "6f2bb3703e99cb122e2b3eea643758441057252741efcb64632859b246c9507c",
+    "responseBytes": 25586,
+    "reportedUsage": {
+      "total_tokens": 16756,
+      "total_characters": 0,
+      "prompt_tokens": 12181,
+      "completion_tokens": 4575,
+      "completion_tokens_details": {
+        "reasoning_tokens": 4195
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 192
+      }
+    },
+    "providerResponseId": "071b955f248eef14b5edc8424073be7d",
+    "finishedAt": "2026-10-12T04:30:47.992Z",
+    "elapsedMs": 28581.136299999984
+  },
+  "checkerContent": "{\"findings\":[{\"unitId\":\"title:1\",\"status\":\"analysis\",\"explanation\":\"Neutral juror-response title with no factual assertion.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"content:1\",\"status\":\"supported\",\"explanation\":\"The quoted accounts match E-001 and E-002, and the draft properly presents Mira's permitted assessment and Tavi's non-observation as creating doubt without denying receipt.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1},{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-0:1\",\"status\":\"supported\",\"explanation\":\"E-001 attributes to Mira an observed handover of the blue token to Ellis at the desk, which matches the supplied fictional condition; substantive assessment is permitted.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-0:2\",\"status\":\"supported\",\"explanation\":\"E-002 supports the departure account and handover-specific non-observation, and the draft correctly treats those statements as insufficient to negate receipt.\",\"citations\":[{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-change-0:1\",\"status\":\"analysis\",\"explanation\":\"This is a current stability assessment based on the supplied accounts, not a claim about a prior ballot or historical change.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"ballot-consistency-0:1\",\"status\":\"analysis\",\"explanation\":\"The Crown-leaning selection is coherent with the current reasoning crediting the permitted account as describing the sole required condition and finding Tavi's non-observation insufficient to negate it. No contradictory reasonable-doubt finding is stated.\",\"citations\":[],\"recordCitations\":[]}]}"
+}
