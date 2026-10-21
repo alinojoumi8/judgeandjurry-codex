@@ -1,0 +1,35 @@
+{
+  "checkerContent": "{\"findings\":[{\"unitId\":\"content:1\",\"status\":\"unsupported\",\"explanation\":\"Tavi expressly places Ellis at the desk through personal observation, but the account only states that Morgan was also at the desk; it does not say Tavi observed Morgan there. The active phrasing \u201cTavi places both\u201d therefore attributes an observation Tavi\u2019s account does not supply.\",\"citations\":[{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]}]}",
+  "exchange": {
+    "caseId": "full-control-explicit-both-positive",
+    "planHash": "c70f0587b06d232fdf0586ee07cf0d8b0d8690a1eef246bfe094c48469a398c6",
+    "requestRole": "checker",
+    "id": 1,
+    "startedAt": "2026-10-12T06:22:48.807Z",
+    "requestHash": "b6570012334c6bba95cd15c922aed57525edda289857300cbd6182322989a5d4",
+    "requestCharacters": 62291,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "1e3bd79efdf9acca97913a156b9de692c032c85a4bb37d762148ec9f77fcd4a4",
+    "responseBytes": 2060,
+    "reportedUsage": {
+      "total_tokens": 11386,
+      "total_characters": 0,
+      "prompt_tokens": 11087,
+      "completion_tokens": 299,
+      "completion_tokens_details": {
+        "reasoning_tokens": 200
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 178
+      }
+    },
+    "providerResponseId": "071bafbda83b14e208db67433357df57",
+    "finishedAt": "2026-10-12T06:22:59.050Z",
+    "elapsedMs": 10231.864799999981
+  },
+  "requestFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v155-current-comparison\\live-c70f0587b06d232fdf0586ee07cf0d8b0d8690a1eef246bfe094c48469a398c6-1791785441023\\full-control-explicit-both-positive\\http-0001\\request-body.txt",
+  "responseFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v155-current-comparison\\live-c70f0587b06d232fdf0586ee07cf0d8b0d8690a1eef246bfe094c48469a398c6-1791785441023\\full-control-explicit-both-positive\\http-0001\\response-body.raw"
+}

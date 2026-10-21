@@ -1,0 +1,33 @@
+{
+  "exchange": {
+    "caseId": "full-control-v135-burden-counterfactual",
+    "planHash": "25f3d264c9a17408d9f97534dd3fb318351a8d33327cb13f3299cde2c2878b84",
+    "requestRole": "checker",
+    "id": 1,
+    "startedAt": "2026-10-12T04:44:30.187Z",
+    "requestHash": "8103b48872b59eae6cd8051e50ac352237960101342f47fe2e60682e0e8933f2",
+    "requestCharacters": 65352,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "331f514a6128ca5aff62af03bc9a61982f1e67296a6cd01ae2851363e45165a2",
+    "responseBytes": 2139,
+    "reportedUsage": {
+      "total_tokens": 12015,
+      "total_characters": 0,
+      "prompt_tokens": 11751,
+      "completion_tokens": 264,
+      "completion_tokens_details": {
+        "reasoning_tokens": 196
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 10533
+      }
+    },
+    "providerResponseId": "071b98b2e682c115933f400b64a8f93c",
+    "finishedAt": "2026-10-12T04:44:31.798Z",
+    "elapsedMs": 1601.2907000000123
+  },
+  "checkerContent": "{\"findings\":[{\"unitId\":\"content:1\",\"status\":\"unsupported\",\"explanation\":\"The counterfactual is not supplied and does not follow from the actual Crown burden: assigning the burden to the Defence would not necessarily require the Defence to disprove receipt beyond a reasonable doubt.\",\"citations\":[],\"recordCitations\":[]}]}"
+}

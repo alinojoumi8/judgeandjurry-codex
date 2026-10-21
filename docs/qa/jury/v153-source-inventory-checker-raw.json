@@ -1,0 +1,35 @@
+{
+  "checkerContent": "{\"findings\":[{\"unitId\":\"content:1\",\"status\":\"contradicted\",\"explanation\":\"E-002 is also supplied to this run, as reflected in the visible Crown submission attributing an account to Tavi.\",\"citations\":[],\"recordCitations\":[{\"eventId\":\"f537063c-d174-45a9-b1d9-2d667c546dee\"}]}]}",
+  "exchange": {
+    "caseId": "full-control-v153-bounded-one-source-inventory-positive",
+    "planHash": "ac0876a2d27751f306c21d3e7cc51ebdc6c1ac8ceaa50e56fdfb834f564eef1c",
+    "requestRole": "checker",
+    "id": 1,
+    "startedAt": "2026-10-12T05:27:10.037Z",
+    "requestHash": "0cbcaf80254a7a829a785e91712e87bf0cfe8a27ae330710ff59864af250c750",
+    "requestCharacters": 65091,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "3457b9df5272da880ec8a71cea11bd0de697d9dad3fefcc413ee5c56f0c27002",
+    "responseBytes": 2761,
+    "reportedUsage": {
+      "total_tokens": 12153,
+      "total_characters": 0,
+      "prompt_tokens": 11679,
+      "completion_tokens": 474,
+      "completion_tokens_details": {
+        "reasoning_tokens": 392
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 199
+      }
+    },
+    "providerResponseId": "071ba2b2e5efa8bbf6523ea4ecc3d8a8",
+    "finishedAt": "2026-10-12T05:27:13.756Z",
+    "elapsedMs": 3708.0777999998536
+  },
+  "responseFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v153-current-comparison\\live-ac0876a2d27751f306c21d3e7cc51ebdc6c1ac8ceaa50e56fdfb834f564eef1c-1791781463033\\full-control-v153-bounded-one-source-inventory-positive\\http-0001\\response-body.raw",
+  "requestFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v153-current-comparison\\live-ac0876a2d27751f306c21d3e7cc51ebdc6c1ac8ceaa50e56fdfb834f564eef1c-1791781463033\\full-control-v153-bounded-one-source-inventory-positive\\http-0001\\request-body.txt"
+}

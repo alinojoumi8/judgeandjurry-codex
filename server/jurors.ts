@@ -339,8 +339,8 @@ export function formatJurorProfilesForPrompt(profiles: JurorProfile[]): string {
     .map((profile) => {
       return [
         `${profile.juror}: ${profile.role}`,
-        `Skepticism: ${profile.skepticismLevel}/100`,
-        `Burden sensitivity: ${profile.burdenSensitivity}/100`,
+        `Skepticism: ${profile.skepticismLevel}/100 (${profile.skepticismLevel <= 30 ? 'low' : profile.skepticismLevel >= 70 ? 'high' : 'moderate'})`,
+        `Burden sensitivity: ${profile.burdenSensitivity}/100 (${profile.burdenSensitivity <= 30 ? 'low' : profile.burdenSensitivity >= 70 ? 'high' : 'moderate'})`,
         `Default leaning: ${profile.bias}`,
         `Evidence focus: ${profile.evidenceFocus}`,
         `Reasoning style: ${profile.reasoningStyle}`,

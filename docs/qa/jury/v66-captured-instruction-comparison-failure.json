@@ -1,0 +1,374 @@
+{
+  "run": "tmp\\qa\\courtroom\\jury-v66-mixed-record-source\\live-a4daa366bfb50473b0e609c739b7c228dd8742d5b5e93a0b34107509f4b63106-1791354149605",
+  "jobId": "captured-authentication-negative",
+  "request": {
+    "courtroomProtocol": true,
+    "approvedPartyRoles": [
+      {
+        "id": "crown",
+        "name": "Fictional Crown",
+        "role": "crown"
+      },
+      {
+        "id": "accused-1",
+        "name": "Fictional Ellis",
+        "role": "accused"
+      }
+    ],
+    "courtroomEvents": [
+      {
+        "eventId": "0c9cac24-3bb3-48a3-9491-6de3f811e6c9",
+        "type": "witness_answer",
+        "actorId": "w1",
+        "phase": "evidence",
+        "payload": {
+          "witnessId": "w1",
+          "examination": "direct"
+        }
+      },
+      {
+        "eventId": "f486afe0-44a5-4ca8-b2f3-64d53682b2fd",
+        "type": "witness_answer",
+        "actorId": "w2",
+        "phase": "evidence",
+        "payload": {
+          "witnessId": "w2",
+          "examination": "direct"
+        }
+      },
+      {
+        "eventId": "cbbae70e-7c5c-4a6b-af40-424c5e66b45e",
+        "type": "public_submission",
+        "actorId": "crown",
+        "phase": "closings",
+        "payload": {
+          "text": "The Crown notes the divergent accounts. E-001 records Mira describing Fictional Morgan handing a blue token to Fictional Ellis at the desk. E-002 records Tavi stating Fictional Morgan left with the token still in hand; Tavi states no handover seen. Both are attributed, disputed accounts. Mira's account, if accepted, addresses the listed receipt condition; Tavi's, if accepted, does not. The burden beyond a reasonable doubt rests on the Crown, and disputed attribution alone does not establish receipt."
+        }
+      },
+      {
+        "eventId": "5a6a220c-894e-4212-a6a0-c7ef7be4e7e9",
+        "type": "public_submission",
+        "actorId": "accused-1",
+        "phase": "closings",
+        "payload": {
+          "text": "Defence agrees with the Crown: the supplied record contains only attributed accounts. E-001 records Mira describing Fictional Morgan handing a blue token to Fictional Ellis at the desk. E-002 records Tavi stating Fictional Morgan left with the token still in hand and that no handover was seen. Neither account is established proof. Attribution alone cannot satisfy the Crown's burden beyond a reasonable doubt on the listed receipt element, and no further evidence is offered."
+        }
+      },
+      {
+        "eventId": "e40ed8fc-19b3-46ae-9e67-b21495221496",
+        "type": "judicial_instruction",
+        "actorId": "judge-1",
+        "phase": "instructions",
+        "payload": {
+          "text": "Fictional software exercise: assess only the supplied condition and permitted sources. No preferred verdict, actual-law certification, or invented dialogue.\nFictional Crown must establish the listed condition beyond a reasonable doubt; the opposing party need not establish innocence.\nOnly the listed fictional blue-token receipt condition is required. No actual offence or knowing-participation element is supplied.\nUse permitted attributed accounts to assess the fictional condition. Accounts remain disputed; do not treat attribution as an established finding. Excluded sources and struck testimony are unavailable. Unknown envelope contents do not establish token receipt or the absence of a token.\nFictional software exercise: assess only the supplied condition and permitted sources. No preferred verdict, actual-law certification, or invented dialogue."
+        }
+      }
+    ],
+    "courtroomActor": {
+      "id": "juror-01",
+      "name": "juror-01",
+      "roles": [
+        "juror"
+      ]
+    },
+    "courtroomState": {
+      "juryPresent": true,
+      "examination": "complete"
+    },
+    "courtroomAssessments": [],
+    "stage": "juror_ballot",
+    "packet": "You are juror-01. Decide only issue-1: Fictional blue-token receipt condition. Permitted outcomes: guilty, not_guilty, no_verdict. This is a private initial ballot.\nControlling issue elements and burdens: {\"issueId\":\"issue-1\",\"respondingPartyIds\":[\"accused-1\"],\"elements\":[{\"elementId\":\"fictional-receipt\",\"text\":\"Fictional Ellis received a blue token from Fictional Morgan at the desk.\",\"burdenPartyId\":\"crown\",\"standard\":\"beyond a reasonable doubt\",\"authorityIds\":[\"fixture\"]}],\"outcomes\":[\"guilty\",\"not_guilty\",\"no_verdict\"],\"alternatives\":[]}\nAcknowledge the current instruction by returning instructionEventId: e40ed8fc-19b3-46ae-9e67-b21495221496. Your initial ballot: null. If your position changes, return changedByEventId naming one visible deliberation event ID, mindChangedBecause explaining its relevance, and a permitted citation shared with that event.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: Assess the fictional condition using the attributed disputed account.; Disclosure, oath and authentication status not supplied.\nE-002: admitted; permitted purposes: Assess the fictional condition using the attributed disputed account.; Disclosure, oath and authentication status not supplied.\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nE-002: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.\nPinned legal packet 6ba6cfb54ed07a2e2e89b9d8d6711b6586b8e3fd080fb4215a8503d04f89f60a: {\"issues\":[{\"issueId\":\"issue-1\",\"respondingPartyIds\":[\"accused-1\"],\"elements\":[{\"elementId\":\"fictional-receipt\",\"text\":\"Fictional Ellis received a blue token from Fictional Morgan at the desk.\",\"burdenPartyId\":\"crown\",\"standard\":\"beyond a reasonable doubt\",\"authorityIds\":[\"fixture\"]}],\"outcomes\":[\"guilty\",\"not_guilty\",\"no_verdict\"],\"alternatives\":[]}],\"instructions\":[{\"id\":\"duties\",\"kind\":\"duties\",\"text\":\"Fictional software exercise: assess only the supplied condition and permitted sources. No preferred verdict, actual-law certification, or invented dialogue.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"burden\",\"kind\":\"burden\",\"text\":\"Fictional Crown must establish the listed condition beyond a reasonable doubt; the opposing party need not establish innocence.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"elements\",\"kind\":\"elements\",\"text\":\"Only the listed fictional blue-token receipt condition is required. No actual offence or knowing-participation element is supplied.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"limited_use\",\"kind\":\"limited_use\",\"text\":\"Use permitted attributed accounts to assess the fictional condition. Accounts remain disputed; do not treat attribution as an established finding. Excluded sources and struck testimony are unavailable. Unknown envelope contents do not establish token receipt or the absence of a token.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"deliberation\",\"kind\":\"deliberation\",\"text\":\"Fictional software exercise: assess only the supplied condition and permitted sources. No preferred verdict, actual-law certification, or invented dialogue.\",\"authorityIds\":[\"fixture\"]}]}\nApproved evidence plan: []\nBallot metadata contract: {\"permittedOutcomes\":[\"guilty\",\"not_guilty\",\"no_verdict\"],\"instructionEventId\":\"e40ed8fc-19b3-46ae-9e67-b21495221496\",\"events\":[]}. Put the shared permitted exhibit ID in this juror object's citations, not only top-level citations. Choose only an eligible deliberation event when changing position.",
+    "evidence": [
+      {
+        "id": "ecb9dd9c-363a-4a8b-92ce-a0da566203b9",
+        "matterId": "e56a39d6-ce2a-49c1-ab49-b6f90eb52adb",
+        "exhibitId": "E-001",
+        "name": "fictional-account-1.txt",
+        "type": "text",
+        "mimeType": "text/plain",
+        "size": 85,
+        "text": "Mira states: I saw Fictional Morgan hand a blue token to Fictional Ellis at the desk.",
+        "summary": "Attributed disputed account; no established finding.",
+        "tags": [],
+        "uploadedAt": "2026-10-06T22:14:41.494Z",
+        "sha256": null,
+        "sourceAvailable": false,
+        "ingestionStatus": "stored",
+        "extractionWarning": null,
+        "archivedAt": null
+      },
+      {
+        "id": "93bef8e8-5e94-43bb-9bc4-0c5c5e669e34",
+        "matterId": "e56a39d6-ce2a-49c1-ab49-b6f90eb52adb",
+        "exhibitId": "E-002",
+        "name": "fictional-account-2.txt",
+        "type": "text",
+        "mimeType": "text/plain",
+        "size": 145,
+        "text": "Tavi states: I saw Fictional Ellis standing at the desk. Fictional Morgan left with the blue token still in their hand. I did not see a handover.",
+        "summary": "Attributed disputed account; no established finding.",
+        "tags": [],
+        "uploadedAt": "2026-10-06T22:14:41.533Z",
+        "sha256": null,
+        "sourceAvailable": false,
+        "ingestionStatus": "stored",
+        "extractionWarning": null,
+        "archivedAt": null
+      }
+    ],
+    "previousTurns": "c8062af6-25ad-4414-a830-bdeeae6d6fdc procedure: {\"disclaimer\":\"Synthetic actors are a preparation and stress-testing tool, not a statistically representative panel or a prediction of a real outcome.\",\"actors\":[{\"id\":\"crown\",\"role\":\"crown\",\"partyId\":\"crown\"},{\"id\":\"accused-1\",\"role\":\"defence\",\"partyId\":\"accused-1\"},{\"id\":\"judge-1\",\"role\":\"judge\"},{\"id\":\"juror-01\",\"role\":\"juror\"},{\"id\":\"juror-02\",\"role\":\"juror\"},{\"id\":\"juror-03\",\"role\":\"foreperson\"},{\"id\":\"juror-04\",\"role\":\"juror\"},{\"id\":\"juror-05\",\"role\":\"juror\"},{\"id\":\"juror-06\",\"role\":\"juror\"},{\"id\":\"juror-07\",\"role\":\"juror\"},{\"id\":\"juror-08\",\"role\":\"juror\"},{\"id\":\"juror-09\",\"role\":\"juror\"},{\"id\":\"juror-10\",\"role\":\"juror\"},{\"id\":\"juror-11\",\"role\":\"juror\"},{\"id\":\"juror-12\",\"role\":\"juror\"}],\"initialAdmissionLedgerId\":\"a0e784d1-1e64-4be8-90f0-0923930a508b\",\"procedureAdapter\":\"ontario_criminal_jury_v1\",\"decisionRule\":\"Every accused/count verdict-sheet item requires 12 valid, unanimous final ballots.\",\"legalSources\":[{\"title\":\"National Judicial Institute model jury instructions\",\"sourceKind\":\"official\",\"sourceUrl\":\"https://www.nji-inm.ca/index.cfm/publications/model-jury-instructions/?langSwitch=en\",\"jurisdiction\":\"Ontario, Canada\",\"revisionDate\":\"2026-07-18\",\"checkedAt\":\"2026-07-18T00:00:00.000Z\",\"legalReviewStatus\":\"requires-lawyer-review\",\"note\":\"Tailored instructions must be selected from the curated registry; the model must not invent the governing charge.\"},{\"title\":\"NJI Requirements for a Verdict\",\"sourceKind\":\"official\",\"sourceUrl\":\"https://www.nji-inm.ca/index.cfm/publications/model-jury-instructions/final-instructions/deliberations/requirements-for-a-verdict/?langSwitch=en\",\"jurisdiction\":\"Ontario, Canada\",\"revisionDate\":\"2026-07-18\",\"checkedAt\":\"2026-07-18T00:00:00.000Z\",\"legalReviewStatus\":\"requires-lawyer-review\",\"note\":\"Used for the per-item unanimity rule.\"}]}\n0c9cac24-3bb3-48a3-9491-6de3f811e6c9 testimony: {\"witnessId\":\"w1\",\"answer\":\"Mira states: I saw Fictional Morgan hand a blue token to Fictional Ellis at the desk.\",\"examination\":\"direct\",\"preparedQaRecord\":true}\nf486afe0-44a5-4ca8-b2f3-64d53682b2fd testimony: {\"witnessId\":\"w2\",\"answer\":\"Tavi states: I saw Fictional Ellis standing at the desk. Fictional Morgan left with the blue token still in their hand. I did not see a handover.\",\"examination\":\"direct\",\"preparedQaRecord\":true}\ncbbae70e-7c5c-4a6b-af40-424c5e66b45e submission: {\"title\":\"Crown Rebuttal\",\"text\":\"The Crown notes the divergent accounts. E-001 records Mira describing Fictional Morgan handing a blue token to Fictional Ellis at the desk. E-002 records Tavi stating Fictional Morgan left with the token still in hand; Tavi states no handover seen. Both are attributed, disputed accounts. Mira's account, if accepted, addresses the listed receipt condition; Tavi's, if accepted, does not. The burden beyond a reasonable doubt rests on the Crown, and disputed attribution alone does not establish receipt.\"}\n5a6a220c-894e-4212-a6a0-c7ef7be4e7e9 submission: {\"title\":\"Defence Rebuttal\",\"text\":\"Defence agrees with the Crown: the supplied record contains only attributed accounts. E-001 records Mira describing Fictional Morgan handing a blue token to Fictional Ellis at the desk. E-002 records Tavi stating Fictional Morgan left with the token still in hand and that no handover was seen. Neither account is established proof. Attribution alone cannot satisfy the Crown's burden beyond a reasonable doubt on the listed receipt element, and no further evidence is offered.\"}\ne65789c9-2015-4c0d-9d6d-dc056f24fecc procedure: {\"phase\":\"closings\"}\ne809cf45-95ed-4c24-a8da-41a6a8258461 procedure: {\"phase\":\"closings\",\"checkpointId\":\"23829701-63b4-4273-b4f5-ff972e4fb543\"}\n671d8fce-c655-4737-91eb-a3225649cc3e procedure: {\"note\":\"Prepared fictional QA closing boundary.\"}\n5173e805-f6cb-4c11-91eb-86730f266277 procedure: {\"phase\":\"instructions\"}\n3d5dc9ee-0eea-4c5c-81b4-cbf326e0c541 procedure: {\"packetHash\":\"6ba6cfb54ed07a2e2e89b9d8d6711b6586b8e3fd080fb4215a8503d04f89f60a\",\"instructions\":[{\"id\":\"duties\",\"kind\":\"duties\",\"text\":\"Fictional software exercise: assess only the supplied condition and permitted sources. No preferred verdict, actual-law certification, or invented dialogue.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"burden\",\"kind\":\"burden\",\"text\":\"Fictional Crown must establish the listed condition beyond a reasonable doubt; the opposing party need not establish innocence.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"elements\",\"kind\":\"elements\",\"text\":\"Only the listed fictional blue-token receipt condition is required. No actual offence or knowing-participation element is supplied.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"limited_use\",\"kind\":\"limited_use\",\"text\":\"Use permitted attributed accounts to assess the fictional condition. Accounts remain disputed; do not treat attribution as an established finding. Excluded sources and struck testimony are unavailable. Unknown envelope contents do not establish token receipt or the absence of a token.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"deliberation\",\"kind\":\"deliberation\",\"text\":\"Fictional software exercise: assess only the supplied condition and permitted sources. No preferred verdict, actual-law certification, or invented dialogue.\",\"authorityIds\":[\"fixture\"]}],\"issues\":[{\"issueId\":\"issue-1\",\"respondingPartyIds\":[\"accused-1\"],\"elements\":[{\"elementId\":\"fictional-receipt\",\"text\":\"Fictional Ellis received a blue token from Fictional Morgan at the desk.\",\"burdenPartyId\":\"crown\",\"standard\":\"beyond a reasonable doubt\",\"authorityIds\":[\"fixture\"]}],\"outcomes\":[\"guilty\",\"not_guilty\",\"no_verdict\"],\"alternatives\":[]}]}\nadc2cf0a-85ce-476c-91af-311415c1fc4c procedure: {\"note\":\"Prepared QA approval of unchanged fictional charge; no actual-law certification.\"}\ne40ed8fc-19b3-46ae-9e67-b21495221496 instruction: {\"packetHash\":\"6ba6cfb54ed07a2e2e89b9d8d6711b6586b8e3fd080fb4215a8503d04f89f60a\",\"reviewedInstructions\":[{\"id\":\"duties\",\"kind\":\"duties\",\"text\":\"Fictional software exercise: assess only the supplied condition and permitted sources. No preferred verdict, actual-law certification, or invented dialogue.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"burden\",\"kind\":\"burden\",\"text\":\"Fictional Crown must establish the listed condition beyond a reasonable doubt; the opposing party need not establish innocence.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"elements\",\"kind\":\"elements\",\"text\":\"Only the listed fictional blue-token receipt condition is required. No actual offence or knowing-participation element is supplied.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"limited_use\",\"kind\":\"limited_use\",\"text\":\"Use permitted attributed accounts to assess the fictional condition. Accounts remain disputed; do not treat attribution as an established finding. Excluded sources and struck testimony are unavailable. Unknown envelope contents do not establish token receipt or the absence of a token.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"deliberation\",\"kind\":\"deliberation\",\"text\":\"Fictional software exercise: assess only the supplied condition and permitted sources. No preferred verdict, actual-law certification, or invented dialogue.\",\"authorityIds\":[\"fixture\"]}],\"reviewedIssues\":[{\"issueId\":\"issue-1\",\"respondingPartyIds\":[\"accused-1\"],\"elements\":[{\"elementId\":\"fictional-receipt\",\"text\":\"Fictional Ellis received a blue token from Fictional Morgan at the desk.\",\"burdenPartyId\":\"crown\",\"standard\":\"beyond a reasonable doubt\",\"authorityIds\":[\"fixture\"]}],\"outcomes\":[\"guilty\",\"not_guilty\",\"no_verdict\"],\"alternatives\":[]}],\"text\":\"Fictional software exercise: assess only the supplied condition and permitted sources. No preferred verdict, actual-law certification, or invented dialogue.\\nFictional Crown must establish the listed condition beyond a reasonable doubt; the opposing party need not establish innocence.\\nOnly the listed fictional blue-token receipt condition is required. No actual offence or knowing-participation element is supplied.\\nUse permitted attributed accounts to assess the fictional condition. Accounts remain disputed; do not treat attribution as an established finding. Excluded sources and struck testimony are unavailable. Unknown envelope contents do not establish token receipt or the absence of a token.\\nFictional software exercise: assess only the supplied condition and permitted sources. No preferred verdict, actual-law certification, or invented dialogue.\",\"sourceNotice\":\"Instructions are deterministically assembled from source-linked adapter sections and the approved case model; they are not model-written law and still require lawyer review.\"}",
+    "ballotContract": {
+      "permittedOutcomes": [
+        "guilty",
+        "not_guilty",
+        "no_verdict"
+      ],
+      "instructionEventId": "e40ed8fc-19b3-46ae-9e67-b21495221496",
+      "events": []
+    },
+    "jurorProfiles": [
+      {
+        "id": "77678abf-0635-476c-bab0-06d60d35a7bd",
+        "sessionId": "e570ca31-1d1c-4d35-b44d-d0ae896a3217",
+        "juror": "juror-01",
+        "role": "Cognitive profile juror-01",
+        "skepticismLevel": 1,
+        "burdenSensitivity": 3,
+        "bias": "neutral",
+        "evidenceFocus": "Chronology, credibility, and corroboration.",
+        "reasoningStyle": "Concrete exhibit-by-exhibit review.",
+        "doubtTriggers": "Missing foundations, unsupported inferences, and contradictions.",
+        "trustAnchors": "Admitted source segments and judicial instructions.",
+        "emotionalPosture": "Calibrated and evidence-led.",
+        "evidenceHierarchy": "Admitted primary sources, corroborated testimony, then inference.",
+        "whatWouldChangeMind": "A specific admitted exhibit or deliberation challenge that changes an element assessment."
+      }
+    ],
+    "ballotRound": "initial",
+    "groundingRequired": true,
+    "groundingContext": "Source-use restrictions:\nE-001: admitted; permitted purposes: Assess the fictional condition using the attributed disputed account.; Disclosure, oath and authentication status not supplied.\nE-002: admitted; permitted purposes: Assess the fictional condition using the attributed disputed account.; Disclosure, oath and authentication status not supplied.\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nE-002: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "runConfig": {
+      "providerMode": "external",
+      "templateId": "criminal_defence",
+      "jurorCount": 12,
+      "deliberationMode": "independent",
+      "stages": [
+        "intake_normalization",
+        "issue_spotting",
+        "crown_opening",
+        "defence_opening",
+        "crown_rebuttal",
+        "defence_rebuttal",
+        "jury_instructions",
+        "jury_deliberation",
+        "judge_ruling"
+      ],
+      "retrievalDepth": 6,
+      "externalDisclosureConfirmed": true
+    },
+    "legalTemplate": {
+      "id": "criminal_defence",
+      "label": "Criminal Defence",
+      "description": "Charge-screening and trial-risk simulation focused on burden of proof, credibility, disclosure, mens rea, and reasonable doubt.",
+      "burdenLabel": "Crown must prove every element beyond a reasonable doubt.",
+      "defenceLabel": "Defence",
+      "crownLabel": "Crown",
+      "judgeLabel": "Judge",
+      "juryLabel": "Jury Panel",
+      "defaultJurorCount": 12,
+      "outcomeLabels": [
+        "Guilty (elements proven beyond a reasonable doubt)",
+        "Not guilty (reasonable doubt remains)",
+        "Hung jury - no verdict"
+      ],
+      "packetGuidance": [
+        "Keep actus reus, mens rea, identity, credibility, and admissibility separate.",
+        "Do not treat complainant allegations as proven unless exhibit support is identified.",
+        "Flag missing disclosure and Charter or evidentiary issues without inventing facts."
+      ],
+      "stagePrompts": {
+        "issue_spotting": "criminal elements actus reus mens rea identity credibility disclosure admissibility reasonable doubt",
+        "crown_opening": "crown proof elements witness reliability corroboration timeline motive opportunity",
+        "defence_opening": "defence reasonable doubt missing proof credibility inconsistency alternate innocent explanation",
+        "crown_rebuttal": "crown reply corroboration circumstantial proof witness reliability inference",
+        "defence_rebuttal": "defence closing inconsistencies disclosure gaps burden admissibility credibility",
+        "jury_instructions": "jury charge burden reasonable doubt elements credibility WD framework circumstantial evidence unanimity",
+        "jury_deliberation": "jury reasonable doubt credibility burden competing explanations reliability",
+        "judge_ruling": "judge charge screen elements proof reasonable doubt unresolved disclosure next steps"
+      }
+    }
+  },
+  "result": {
+    "title": "Juror response",
+    "content": "I vote guilty on issue-1, as Mira's direct first-person account in E-001, uncontradicted by E-002's non-observation, meets the Crown's burden on the receipt element.",
+    "citations": [
+      "E-001",
+      "E-002"
+    ],
+    "jurors": [
+      {
+        "juror": "juror-01",
+        "leaning": "crown",
+        "confidence": 72,
+        "rationale": "E-001 quotes Mira: 'I saw Fictional Morgan hand a blue token to Fictional Ellis at the desk.' E-002 records Tavi's non-observation. Per the limited-use instruction, Tavi's non-observation does not directly contradict the handover. I credit the direct account and find the Crown met its burden.",
+        "instructionEventId": "e40ed8fc-19b3-46ae-9e67-b21495221496",
+        "citations": [
+          "E-001",
+          "E-002"
+        ],
+        "beliefTrail": [],
+        "deliberationRounds": [],
+        "mindChangedBecause": "This is my initial ballot; my position is stable based on the supplied record showing Mira's direct account in E-001 and Tavi's non-observation in E-002.",
+        "consistencyWarnings": []
+      }
+    ],
+    "grounding": {
+      "status": "passed",
+      "method": "source-quotes-and-model-review",
+      "findings": [
+        {
+          "unitId": "title:1",
+          "text": "Juror response",
+          "status": "analysis",
+          "explanation": "Neutral procedural title for the ballot response.",
+          "citations": []
+        },
+        {
+          "unitId": "content:1",
+          "text": "I vote guilty on issue-1, as Mira's direct first-person account in E-001, uncontradicted by E-002's non-observation, meets the Crown's burden on the receipt element.",
+          "status": "analysis",
+          "explanation": "Juror assessment/opinion concluding guilty. The characterization that Mira's direct first-person account in E-001 is 'uncontradicted by E-002's non-observation' is a faithful, narrow claim (a non-observation is not a direct event negation); the broader conclusion that the Crown's burden beyond a reasonable doubt is met on this disputed, attributed record is the juror's own inference and permissible assessment under the limited-use instruction.",
+          "citations": []
+        },
+        {
+          "unitId": "juror-0:1",
+          "text": "E-001 quotes Mira: 'I saw Fictional Morgan hand a blue token to Fictional Ellis at the desk.'",
+          "status": "supported",
+          "explanation": "Accurate verbatim quotation of Mira's statement in E-001 paragraph 1.",
+          "citations": [
+            {
+              "exhibitId": "E-001",
+              "quote": "Mira states: I saw Fictional Morgan hand a blue token to Fictional Ellis at the desk.",
+              "paragraph": 1,
+              "startOffset": 0,
+              "endOffset": 85,
+              "quoteMethod": "source-paragraph"
+            }
+          ]
+        },
+        {
+          "unitId": "juror-0:2",
+          "text": "E-002 records Tavi's non-observation.",
+          "status": "supported",
+          "explanation": "Faithful summary: E-002 paragraph 1 records Tavi stating 'I did not see a handover,' a non-observation of a handover.",
+          "citations": [
+            {
+              "exhibitId": "E-002",
+              "quote": "Tavi states: I saw Fictional Ellis standing at the desk. Fictional Morgan left with the blue token still in their hand. I did not see a handover.",
+              "paragraph": 1,
+              "startOffset": 0,
+              "endOffset": 145,
+              "quoteMethod": "source-paragraph"
+            }
+          ]
+        },
+        {
+          "unitId": "juror-0:3",
+          "text": "Per the limited-use instruction, Tavi's non-observation does not directly contradict the handover.",
+          "status": "analysis",
+          "explanation": "Logical inference grounded in the limited-use instruction and the distinction between non-observation and direct contradiction; no unsupported factual premise.",
+          "citations": []
+        },
+        {
+          "unitId": "juror-0:4",
+          "text": "I credit the direct account and find the Crown met its burden.",
+          "status": "analysis",
+          "explanation": "Juror's own weighing/assessment; no independent factual premise requiring source support.",
+          "citations": []
+        },
+        {
+          "unitId": "juror-change-0:1",
+          "text": "This is my initial ballot; my position is stable based on the supplied record showing Mira's direct account in E-001 and Tavi's non-observation in E-002.",
+          "status": "analysis",
+          "explanation": "Author's own present statement about their ballot position and stability; the cited record content (Mira's direct account in E-001, Tavi's non-observation in E-002) is supported, but the stability/position claim itself is the author's own assessment.",
+          "citations": []
+        }
+      ],
+      "errors": [],
+      "validationErrors": [],
+      "citationCorrections": [],
+      "repairs": 1,
+      "verificationRetries": 0,
+      "priorFailures": [
+        {
+          "findings": [
+            {
+              "unitId": "title:1",
+              "text": "Juror response",
+              "status": "analysis",
+              "explanation": "Neutral procedural title for the juror response.",
+              "citations": []
+            },
+            {
+              "unitId": "content:1",
+              "text": "Mira in E-001 states she saw Fictional Morgan hand a blue token to Fictional Ellis at the desk; Tavi in E-002 states no handover was seen and Fictional Morgan left with the token still in hand.",
+              "status": "unsupported",
+              "explanation": "The approved source quotations do not supply gendered pronouns. Preserve first-person wording or the supplied name; a name alone does not supply gender.",
+              "citations": [
+                {
+                  "exhibitId": "E-001",
+                  "quote": "Mira states: I saw Fictional Morgan hand a blue token to Fictional Ellis at the desk.",
+                  "paragraph": 1,
+                  "startOffset": 0,
+                  "endOffset": 85,
+                  "quoteMethod": "source-paragraph"
+                },
+                {
+                  "exhibitId": "E-002",
+                  "quote": "Tavi states: I saw Fictional Ellis standing at the desk. Fictional Morgan left with the blue token still in their hand. I did not see a handover.",
+                  "paragraph": 1,
+                  "startOffset": 0,
+                  "endOffset": 145,
+                  "quoteMethod": "source-paragraph"
+                }
+              ]
+            },
+            {
+              "unitId": "content:2",
+              "text": "The two attributed accounts conflict, and on this record the Crown has not established the listed condition beyond a reasonable doubt.",
+              "status": "analysis",
+              "explanation": "Assessment that the two attributed accounts conflict and that the Crown has not established the listed condition on this record; a permitted inference under the assessment purpose.",
+              "citations": []
+            },
+            {
+              "unitId": "juror-0:1",
+              "text": "E-001 and E-002 are attributed, disputed accounts that directly conflict on the handover.",
+              "status": "unsupported",
+              "explanation": "Not seeing a handover or describing later departure with a token does not directly deny or contradict the handover. Preserve the observed/seen and departure qualifiers; current doubt or possible conflict does not supply directly incompatible event propositions or uninterrupted possession.",
+              "citations": []
+            },
+            {
+              "unitId": "juror-0:2",
+              "text": "The contradicting account (E-002) leaves reasonable doubt, so the Crown has not met its burden on the receipt element.",
+              "status": "unsupported",
+              "explanation": "Not seeing a handover or describing later departure with a token does not directly deny or contradict the handover. Preserve the observed/seen and departure qualifiers; current doubt or possible conflict does not supply directly incompatible event propositions or uninterrupted possession.",
+              "citations": []
+            },
+            {
+              "unitId": "juror-change-0:1",
+              "text": "Initial private ballot; the conflicting attributed accounts leave reasonable doubt and the Crown has not met the supplied burden.",
+              "status": "analysis",
+              "explanation": "Description of own ballot combined with the same evidentiary assessment; the juror's own assessment is permitted analysis.",
+              "citations": []
+            }
+          ],
+          "errors": [
+            "content:1: unsupported \u2014 The approved source quotations do not supply gendered pronouns. Preserve first-person wording or the supplied name; a name alone does not supply gender.",
+            "juror-0:1: unsupported \u2014 Not seeing a handover or describing later departure with a token does not directly deny or contradict the handover. Preserve the observed/seen and departure qualifiers; current doubt or possible conflict does not supply directly incompatible event propositions or uninterrupted possession.",
+            "juror-0:2: unsupported \u2014 Not seeing a handover or describing later departure with a token does not directly deny or contradict the handover. Preserve the observed/seen and departure qualifiers; current doubt or possible conflict does not supply directly incompatible event propositions or uninterrupted possession."
+          ]
+        }
+      ]
+    }
+  }
+}

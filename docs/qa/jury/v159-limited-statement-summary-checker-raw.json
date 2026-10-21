@@ -1,0 +1,35 @@
+{
+  "checkerContent": "{\"findings\":[{\"unitId\":\"title:1\",\"status\":\"analysis\",\"explanation\":\"Neutral response title; it makes no factual assertion.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"content:1\",\"status\":\"supported\",\"explanation\":\"Accurately quotes Mira\u2019s attributed account of Rowan handing the blue token to Ellis at the desk.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"content:2\",\"status\":\"supported\",\"explanation\":\"The quoted non-observation is accurate and does not directly contradict receipt. The stated credit and burden conclusion are permitted present assessments of the attributed accounts under the supplied source-use instructions and burden.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1},{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-0:1\",\"status\":\"supported\",\"explanation\":\"Mira\u2019s account directly describes Rowan handing a blue token to Ellis at the desk.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-0:2\",\"status\":\"supported\",\"explanation\":\"Tavi expressly reports only personal non-observation, which does not directly contradict receipt. Crediting Mira\u2019s permitted account and finding the burden met are coherent present assessments.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1},{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-change-0:1\",\"status\":\"supported\",\"explanation\":\"The supplied ballot is initial, the approved own-assessment history is empty, and no deliberation event changing this juror\u2019s position is supplied.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"ballot-consistency-0:1\",\"status\":\"analysis\",\"explanation\":\"The Crown selection is coherent with the express finding that the Crown met its burden beyond a reasonable doubt and the rationale crediting Mira\u2019s permitted account. The treatment of Tavi\u2019s non-observation as non-contradictory is also coherent.\",\"citations\":[],\"recordCitations\":[]}]}",
+  "exchange": {
+    "caseId": "v73-fresh-affirmative-corrob-2",
+    "planHash": "c3bc6153bfabf1380145853fed5a2a8f3c305de0ea0d6c6dabf414a9c95cdd7a",
+    "requestRole": "checker",
+    "id": 5,
+    "startedAt": "2026-10-14T00:14:06.165Z",
+    "requestHash": "f2b7adf95a8ed4235379178f0fa5303e1ecb85bcd858c4d10a674eb89e02548e",
+    "requestCharacters": 69059,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "570c57b15d4046cfe6693f3dda8bdf1673b0f4358c3b07843a0fd8b06d262d3a",
+    "responseBytes": 6123,
+    "reportedUsage": {
+      "total_tokens": 13561,
+      "total_characters": 0,
+      "prompt_tokens": 12501,
+      "completion_tokens": 1060,
+      "completion_tokens_details": {
+        "reasoning_tokens": 610
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 199
+      }
+    },
+    "providerResponseId": "071dfc5753a5fdd22d2f5a77454b9fd3",
+    "finishedAt": "2026-10-14T00:14:12.633Z",
+    "elapsedMs": 6458.207500000019
+  },
+  "requestFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v159-current-comparison\\live-c3bc6153bfabf1380145853fed5a2a8f3c305de0ea0d6c6dabf414a9c95cdd7a-1791936486912\\v73-fresh-affirmative-corrob-2\\http-0005\\request-body.txt",
+  "responseFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v159-current-comparison\\live-c3bc6153bfabf1380145853fed5a2a8f3c305de0ea0d6c6dabf414a9c95cdd7a-1791936486912\\v73-fresh-affirmative-corrob-2\\http-0005\\response-body.raw"
+}

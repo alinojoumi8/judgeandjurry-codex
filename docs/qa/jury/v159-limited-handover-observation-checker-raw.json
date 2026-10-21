@@ -1,0 +1,35 @@
+{
+  "checkerContent": "{\"findings\":[{\"unitId\":\"title:1\",\"status\":\"analysis\",\"explanation\":\"Neutral response title with no factual assertion.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"content:1\",\"status\":\"supported\",\"explanation\":\"The quotations accurately reproduce the attributed accounts. Crediting and weighing them is permitted, and Tavi\u2019s non-observation is correctly characterized as a limit on observation rather than a denial that receipt occurred.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1},{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-0:1\",\"status\":\"supported\",\"explanation\":\"The quotation accurately states E-001, and the permitted assessment that it describes the sole required fictional receipt condition is coherent.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-0:2\",\"status\":\"supported\",\"explanation\":\"E-002 supplies departure and personal non-observation without a relative time or an express denial that a handover occurred; those propositions support the stated limited comparison.\",\"citations\":[{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-0:3\",\"status\":\"analysis\",\"explanation\":\"This is the juror\u2019s present weighing of the permitted account in light of the supplied assessment profile, not a source-fact claim.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"juror-change-0:1\",\"status\":\"analysis\",\"explanation\":\"No deliberation event appears in the supplied visible events. The statement that this is the initial position and identifies its present basis does not claim a prior ballot or change.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1},{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"ballot-consistency-0:1\",\"status\":\"analysis\",\"explanation\":\"The Crown-leaning selection coherently matches the current rationale crediting E-001 as describing the sole required condition and treating E-002 as non-observation rather than direct contradiction. No field expressly makes a contrary reasonable-doubt or proof finding.\",\"citations\":[],\"recordCitations\":[]}]}",
+  "exchange": {
+    "caseId": "captured-documentary-corroboration-negative-3",
+    "planHash": "c3bc6153bfabf1380145853fed5a2a8f3c305de0ea0d6c6dabf414a9c95cdd7a",
+    "requestRole": "checker",
+    "id": 5,
+    "startedAt": "2026-10-14T00:11:07.057Z",
+    "requestHash": "098605aa81b44dd6c09f204e04f33600ffe373c785aef6e5f5e6faf9690c07b2",
+    "requestCharacters": 69463,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "e64a2c9e933a2883db9e877bda8894db555cbf737b562b7919fedeebf5f862b1",
+    "responseBytes": 8026,
+    "reportedUsage": {
+      "total_tokens": 13982,
+      "total_characters": 0,
+      "prompt_tokens": 12582,
+      "completion_tokens": 1400,
+      "completion_tokens_details": {
+        "reasoning_tokens": 930
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 256
+      }
+    },
+    "providerResponseId": "071dfba4f00c86d94ee2e519b7582204",
+    "finishedAt": "2026-10-14T00:11:14.835Z",
+    "elapsedMs": 7759.779300000024
+  },
+  "requestFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v159-current-comparison\\live-c3bc6153bfabf1380145853fed5a2a8f3c305de0ea0d6c6dabf414a9c95cdd7a-1791936486912\\captured-documentary-corroboration-negative-3\\http-0005\\request-body.txt",
+  "responseFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v159-current-comparison\\live-c3bc6153bfabf1380145853fed5a2a8f3c305de0ea0d6c6dabf414a9c95cdd7a-1791936486912\\captured-documentary-corroboration-negative-3\\http-0005\\response-body.raw"
+}

@@ -83,7 +83,10 @@ const fallbackRunConfig: RunConfig = {
 function App() {
   const [state, setState] = useState<WorkspaceState | null>(null)
   const [workspaceMode, setWorkspaceMode] = useState<'decision' | 'trialforge' | 'workflow'>(
-    'decision',
+    () => {
+      const saved = localStorage.getItem('judge-jury:workspace-mode')
+      return saved === 'workflow' || saved === 'trialforge' ? saved : 'decision'
+    },
   )
   const [selectedMatterId, setSelectedMatterId] = useState<string | undefined>()
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | undefined>()
@@ -99,6 +102,10 @@ function App() {
   const [isRunning, setIsRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const eventSourceRef = useRef<{ sessionId: string; source: EventSource } | null>(null)
+
+  useEffect(() => {
+    localStorage.setItem('judge-jury:workspace-mode', workspaceMode)
+  }, [workspaceMode])
 
   useEffect(() => {
     let cancelled = false
@@ -901,11 +908,11 @@ function App() {
           </div>
         </header>
 
-        <ProviderBanner
+        {workspaceMode !== 'workflow' && <ProviderBanner
           provider={runOptions?.provider ?? null}
           runConfig={runConfig}
           onOpenSettings={() => setIsSettingsOpen(true)}
-        />
+        />}
 
         {error && <div className="error-banner">{error}</div>}
         {activeSession?.status === 'failed' && activeSession.error && (
@@ -971,9 +978,11 @@ function App() {
           </div>
         ) : (
           <FullWorkflowWorkspace
+            key={activeMatter.id}
             matterId={activeMatter.id}
             matterTitle={activeMatter.title}
             onEvidenceImported={() => refreshState(activeMatter.id)}
+            provider={runOptions?.provider ?? null}
           />
         )}
       </main>

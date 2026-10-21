@@ -1,0 +1,91 @@
+{
+  "request": {
+    "stage": "defence_rebuttal",
+    "courtroomProtocol": true,
+    "groundingRequired": true,
+    "packet": "Approved scenario procedure: Assess only the supplied fictional receipt condition under the Crown beyond-a-reasonable-doubt burden. No actual law.",
+    "evidence": [
+      {
+        "id": "positive-witness-account",
+        "exhibitId": "E-101",
+        "name": "fictional-account.txt",
+        "text": "Tavi states: I saw Fictional Ellis standing at the desk. I do not know whether Ellis received any token.",
+        "summary": "Fictional disputed eyewitness account.",
+        "tags": [],
+        "type": "text",
+        "mimeType": "text/plain",
+        "size": 147,
+        "ingestionStatus": "stored",
+        "matterId": "fictional-positive-control",
+        "uploadedAt": "2026-10-03T00:00:00Z",
+        "sha256": null,
+        "sourceAvailable": false,
+        "extractionWarning": null,
+        "archivedAt": null
+      }
+    ],
+    "previousTurns": "",
+    "groundingContext": "E-101: admitted; permitted purposes: Assess the fictional receipt condition using the disputed account. Unclassified; primary/documentary status is not supplied.",
+    "approvedPartyRoles": [
+      {
+        "id": "ellis",
+        "name": "Fictional Ellis",
+        "role": "accused"
+      },
+      {
+        "id": "crown",
+        "name": "Fictional Crown",
+        "role": "crown"
+      }
+    ],
+    "courtroomActor": {
+      "id": "ellis",
+      "name": "Fictional Ellis",
+      "roles": [
+        "defence"
+      ]
+    },
+    "courtroomEvents": []
+  },
+  "draft": {
+    "title": "",
+    "content": "No source is classified as a primary document in the supplied record.",
+    "citations": [],
+    "jurors": []
+  },
+  "checkerResult": {
+    "id": "full-control-aggregate-classification-positive",
+    "state": "finished",
+    "review": {
+      "status": "failed",
+      "method": "source-quotes-and-model-review",
+      "findings": [
+        {
+          "unitId": "content:1",
+          "text": "No source is classified as a primary document in the supplied record.",
+          "status": "unsupported",
+          "explanation": "This qualified classification statement requires unknown classification coverage for every actual source and no conflicting known status. Missing inventory, conflicting rows or a supplied known status cannot be replaced by an analysis label.",
+          "citations": []
+        }
+      ],
+      "errors": [
+        "content:1: unsupported \u2014 This qualified classification statement requires unknown classification coverage for every actual source and no conflicting known status. Missing inventory, conflicting rows or a supplied known status cannot be replaced by an analysis label."
+      ],
+      "validationErrors": [],
+      "citationCorrections": [],
+      "repairs": 0,
+      "verificationRetries": 0
+    },
+    "verificationAttempts": [],
+    "ballotContractErrors": [],
+    "effectiveStatus": "failed",
+    "expectedMatched": false,
+    "usage": {
+      "providerHttpCalls": 1,
+      "providerInputCharacters": 54922,
+      "actualTokens": 9754,
+      "actualCost": null,
+      "elapsedMs": 13012.741200000048
+    }
+  }
+}

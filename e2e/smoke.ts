@@ -1,13 +1,11 @@
 import {
   spawn,
-  spawnSync,
   type ChildProcessWithoutNullStreams,
 } from 'node:child_process'
 import { mkdirSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { chromium, type Page } from 'playwright'
 
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 const apiUrl = 'http://127.0.0.1:4174'
 const clientUrl = 'http://127.0.0.1:4173'
 const dbPath = resolve('data/e2e-smoke.sqlite')
@@ -17,7 +15,9 @@ async function main(): Promise<void> {
   await removeFile(dbPath)
   mkdirSync(resolve('tmp/qa'), { recursive: true })
 
-  const api = spawnProcess(['run', 'api'], {
+  // Direct Node children can be stopped using their owned process handles.
+  // npm/cmd wrapper trees previously survived Windows sandbox cleanup.
+  const api = spawnProcess(['--import', 'tsx', 'server/index.ts'], {
     PORT: '4174',
     JUDGE_JURY_DB_PATH: dbPath,
     MODEL_PROVIDER: 'openai-compatible',
@@ -26,7 +26,7 @@ async function main(): Promise<void> {
     OPENAI_COMPATIBLE_MODEL: 'qwen2.5:14b',
   })
   const client = spawnProcess(
-    ['run', 'dev:client', '--', '--port', '4173', '--strictPort'],
+      ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '4173', '--strictPort'],
     {
       VITE_API_TARGET: apiUrl,
     },
@@ -38,6 +38,7 @@ async function main(): Promise<void> {
 
     const browser = await chromium.launch()
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await startBrowserCoverage(page)
     await page.goto(clientUrl)
     await page.getByText(/No matters yet/i).waitFor()
     await expectHidden(page, /Smith v\. Northbridge Properties/i)
@@ -120,6 +121,7 @@ async function main(): Promise<void> {
     await page.getByRole('button', { name: /preview/i }).click()
     await page.getByText(/Case packet text/i).waitFor()
     await page.screenshot({ path: screenshotPath, fullPage: true })
+    await saveBrowserCoverage(page, 'smoke')
     await browser.close()
   } finally {
     stopProcess(client)
@@ -141,10 +143,9 @@ function spawnProcess(
   args: string[],
   env: Record<string, string>,
 ): ChildProcessWithoutNullStreams {
-  const child = spawn([npmCommand, ...args].join(' '), {
+  const child = spawn(process.execPath, args, {
     cwd: process.cwd(),
     env: cleanEnv({ ...process.env, ...env }),
-    shell: true,
   })
 
   child.stdout.on('data', (chunk) => {
@@ -187,13 +188,6 @@ function stopProcess(child: ChildProcessWithoutNullStreams): void {
     return
   }
 
-  if (process.platform === 'win32' && child.pid) {
-    spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], {
-      stdio: 'ignore',
-    })
-    return
-  }
-
   child.kill()
 }
 
@@ -215,3 +209,4 @@ async function removeFile(path: string): Promise<void> {
 }
 
 await main()
+import { startBrowserCoverage, saveBrowserCoverage } from './browserCoverage'

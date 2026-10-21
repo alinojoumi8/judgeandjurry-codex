@@ -148,6 +148,8 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     logger.child({ component: 'trial-engine' }),
     providerStatusFromConfig(config),
   )
+  const interruptedRuns = store.workflow.recoverInterruptedTrialRuns()
+  if (interruptedRuns) logger.warn('trial_engine.runs.interrupted', { count: interruptedRuns })
 
   logger.info('app.create', {
     provider: config.provider,

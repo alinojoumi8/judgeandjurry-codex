@@ -6,6 +6,7 @@ export type ProcedureAdapterId =
 export type SourceAttribution = 'source' | 'manual' | 'inferred' | 'unresolved'
 
 export interface SourceSegmentRef {
+  purpose?: string
   artifactId?: string
   evidenceId?: string
   exhibitId?: string
@@ -57,7 +58,67 @@ export interface DisputedFact {
   attribution: SourceAttribution
 }
 
+export interface ElementEvidenceRow {
+  issueId: string
+  elementId: string
+  links: Array<{
+    evidenceId: string
+    paragraph: number
+    stance: 'supporting' | 'contrary' | 'disputed'
+    note: string
+    // Resolved from preserved extracted text by the server on save.
+    quote?: string
+  }>
+  questions: string[]
+}
+
+export interface SourcePassage {
+  paragraph: number
+  text: string
+  startOffset: number
+  endOffset: number
+  page?: number
+}
+
+export interface SourceDocument {
+  evidenceId: string
+  exhibitId: string
+  name: string
+  mimeType: string
+  sha256: string | null
+  extractionWarning: string | null
+  ingestionStatus: string
+  sourceAvailable: boolean
+  passages: SourcePassage[]
+}
+
+export interface TraceReference extends SourceSegmentRef {
+  name?: string
+  sha256?: string | null
+  status: 'located' | 'unlocated' | 'restricted'
+  warning?: string
+  use?: Pick<EvidenceUse, 'status' | 'purposes' | 'hiddenFrom' | 'note'>
+}
+
+export interface DecisionTrace {
+  version: 1
+  caseModelId: string
+  modelVersion: number
+  admissionLedgerId?: string
+  elements: Array<{
+    elementId: string
+    label: string
+    burden: string
+    links: Array<{ stance: 'supporting' | 'contrary' | 'disputed'; note: string; source: TraceReference }>
+    questions: string[]
+  }>
+  disputedFacts: Array<{ proposition: string; attribution: SourceAttribution; supporting: TraceReference[]; contrary: TraceReference[] }>
+  questions: string[]
+  ballots: Array<IssueBallot & { eventId?: string; sourceCheck: 'passed' | 'failed' | 'not_checked'; passages: TraceReference[] }>
+}
+
 export interface CaseModelV1 {
+  legalPacket?: import('./courtroomTypes').ReviewedLegalPacket
   schemaVersion: 1
   id: string
   matterId: string
@@ -72,8 +133,25 @@ export interface CaseModelV1 {
   remedies: Array<{ label: string; sourceRefs: SourceSegmentRef[] }>
   juryNotice?: { valid: boolean; note: string; sourceRefs: SourceSegmentRef[] }
   unresolved: string[]
+  recordScope?: RecordScope
+  evidenceMatrix?: ElementEvidenceRow[]
   createdAt: string
   approvedAt?: string
+}
+
+export interface RecordScope {
+  description: string
+  documents: Array<{
+    evidenceId: string
+    kind: 'primary' | 'summary' | 'advocacy' | 'legal_authority' | 'unclassified'
+    coverage: 'whole_document' | 'selected_extracts' | 'unknown'
+    note: string
+  }>
+  missingMaterials: Array<{
+    label: string
+    status: 'not_supplied' | 'not_located_in_disclosure' | 'not_applicable'
+    note: string
+  }>
 }
 
 export interface TheoryClaim {
@@ -198,6 +276,7 @@ export type TrialRole =
   | 'user'
 
 export interface EvidenceUse {
+  scope?: { paragraphs?: number[]; issueIds?: string[]; partyIds?: string[]; prohibitedPurposes?: string[] }
   id: string
   ledgerVersionId: string
   evidenceId: string
@@ -243,6 +322,8 @@ export interface CheckpointPolicy {
 }
 
 export interface TrialRunConfig {
+  courtroomProtocol?: 'courtroom_v1'
+  legalPacketHash?: string
   mode: 'screen' | 'full'
   procedureAdapter: ProcedureAdapterId
   seed: string
@@ -257,6 +338,8 @@ export interface TrialRunConfig {
 }
 
 export interface ModelAudit {
+  importProvenance?: { executionHashesPreserved: boolean; originalRunId: string; remappedReferences: boolean }
+  contextManifest?: import('./courtroomTypes').ActorContextManifest
   provider: string
   model: string
   promptHash: string
@@ -266,6 +349,7 @@ export interface ModelAudit {
   durationMs: number
   status: 'ok' | 'failed' | 'repaired'
   error?: string
+  grounding?: import('./grounding').GroundingReview
 }
 
 export interface TrialEvent {
@@ -325,6 +409,7 @@ export interface JurorCognitiveProfile {
 }
 
 export interface IssueBallot {
+  instructionEventId?: string
   id: string
   trialRunId: string
   issueId: string
@@ -347,6 +432,7 @@ export interface IssueDecision {
   rule: string
   voteCounts?: Record<string, number>
   warnings: string[]
+  trace?: DecisionTrace
 }
 
 export interface DecisionSheet {
@@ -357,6 +443,34 @@ export interface DecisionSheet {
   complete: boolean
   validationWarnings: string[]
   createdAt: string
+}
+
+export interface ScenarioComparison {
+  runId: string
+  seed: string
+  status: TrialRun['status']
+  isBaseline: boolean
+  startingAdmissionVersion?: number
+  finalAdmissionVersion?: number
+  changes: Array<{ setting: string; before: string; after: string }>
+  decisions: Array<{
+    issueId: string
+    outcome?: string
+    baselineOutcome?: string
+    changed: boolean | null
+    warnings: string[]
+    ballotChanges: Array<{ actorId: string; before: string; after: string; rationale: string }>
+  }>
+}
+
+export interface RobustnessReport {
+  baseRunId: string
+  runIds: string[]
+  completeRuns: number
+  scenarioSensitivity: Array<{ issueId: string; outcomes: Record<string, number>; sensitive: boolean }>
+  recurringProofGaps: string[]
+  comparisons: ScenarioComparison[]
+  disclaimer: string
 }
 
 export interface TrialRun {
@@ -435,6 +549,7 @@ export interface CorpusJob {
 }
 
 export interface ManifestEntry extends CorpusPreviewEntry {
+  expectedSha256?: string
   id: string
   jobId: string
   matterId: string

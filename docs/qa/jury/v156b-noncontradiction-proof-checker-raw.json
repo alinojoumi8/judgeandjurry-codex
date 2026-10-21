@@ -1,0 +1,35 @@
+{
+  "checkerContent": "{\"findings\":[{\"unitId\":\"content:1\",\"status\":\"analysis\",\"explanation\":\"E-001 describes a handover to Ellis, while E-002 merely asks whether a handover occurred and asserts no opposing fact. The accounts therefore do not directly contradict each other on receipt.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1},{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"content:2\",\"status\":\"analysis\",\"explanation\":\"Within the supplied assessment permission, the juror may weigh E-001's direct account against the absence of an opposing factual assertion and conclude that the sole receipt condition is proved beyond a reasonable doubt. This is a permissible present assessment, not a fact independently established by an exhibit.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1},{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]}]}",
+  "exchange": {
+    "caseId": "full-control-v152-question-added-proof-negative",
+    "planHash": "9a0330692fe3863c7fd893796ed56ea49205643d5a250ddebd01dd0b358f898d",
+    "requestRole": "checker",
+    "id": 1,
+    "startedAt": "2026-10-13T22:17:51.720Z",
+    "requestHash": "f4a855d91a7e5fca4826f9370d43185a8eedd3fb4a0039be477e323217a01bfc",
+    "requestCharacters": 65326,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "ef962aa71ed46f644710abe61d58d84b3882781aa5671432c5b9583c2568b13c",
+    "responseBytes": 6565,
+    "reportedUsage": {
+      "total_tokens": 12859,
+      "total_characters": 0,
+      "prompt_tokens": 11731,
+      "completion_tokens": 1128,
+      "completion_tokens_details": {
+        "reasoning_tokens": 934
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 300
+      }
+    },
+    "providerResponseId": "071de1182f0f7ed216a6a4c3001e7667",
+    "finishedAt": "2026-10-13T22:18:00.100Z",
+    "elapsedMs": 8369.89879999985
+  },
+  "requestFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v156b-current-comparison\\live-9a0330692fe3863c7fd893796ed56ea49205643d5a250ddebd01dd0b358f898d-1791928592740\\full-control-v152-question-added-proof-negative\\http-0001\\request-body.txt",
+  "responseFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v156b-current-comparison\\live-9a0330692fe3863c7fd893796ed56ea49205643d5a250ddebd01dd0b358f898d-1791928592740\\full-control-v152-question-added-proof-negative\\http-0001\\response-body.raw"
+}

@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-export const currentSchemaVersion = 5
+export const currentSchemaVersion = 8
 
 export function applySchemaMigrations(db: DatabaseSync): void {
   createBaseSchema(db)
@@ -17,6 +17,9 @@ export function applySchemaMigrations(db: DatabaseSync): void {
     migrateCorpusIngestion,
     migrateCaseWorkflow,
     migrateTrialEngine,
+    migrateCourtroomProtocol,
+    db => ensureColumn(db, 'evidence_uses', 'scope_json', 'TEXT'),
+    db => ensureColumn(db, 'corpus_manifest_entries', 'preview_sha256', 'TEXT'),
   ]
   for (let version = current + 1; version <= currentSchemaVersion; version += 1) {
     db.exec('BEGIN IMMEDIATE')
@@ -34,6 +37,22 @@ export function applySchemaMigrations(db: DatabaseSync): void {
 function databaseVersion(db: DatabaseSync): number {
   const row = db.prepare('PRAGMA user_version').get() as { user_version: number }
   return Number(row.user_version ?? 0)
+}
+
+function migrateCourtroomProtocol(db: DatabaseSync): void {
+  ensureColumn(db, 'issue_ballots', 'instruction_event_id', 'TEXT REFERENCES trial_events(id) ON DELETE SET NULL')
+  db.exec(`
+    CREATE TABLE courtroom_states (trial_run_id TEXT PRIMARY KEY REFERENCES trial_runs(id) ON DELETE CASCADE, state_json TEXT NOT NULL);
+    CREATE TABLE actor_context_inputs (
+      id TEXT PRIMARY KEY, trial_run_id TEXT NOT NULL REFERENCES trial_runs(id) ON DELETE CASCADE,
+      actor_id TEXT NOT NULL, input_json TEXT NOT NULL, manifest_json TEXT NOT NULL
+    );
+    CREATE TABLE courtroom_command_receipts (
+      id TEXT PRIMARY KEY, trial_run_id TEXT NOT NULL REFERENCES trial_runs(id) ON DELETE CASCADE,
+      command_id TEXT NOT NULL, input_hash TEXT NOT NULL, result_json TEXT NOT NULL, command_json TEXT NOT NULL,
+      UNIQUE(trial_run_id, command_id)
+    );
+  `)
 }
 
 function createBaseSchema(db: DatabaseSync): void {

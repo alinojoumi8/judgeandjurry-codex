@@ -1,0 +1,33 @@
+{
+  "exchange": {
+    "caseId": "full-control-v150-final-task-initial-history-negative",
+    "planHash": "b7fc5ab3146a42aa60ef364a86eec1b43ff8c82991632567b4feafe906ad2b2c",
+    "requestRole": "checker",
+    "id": 1,
+    "startedAt": "2026-10-12T04:09:16.738Z",
+    "requestHash": "9acf5c01b58a039e6737c1f4c23625da28329924a44c1e44923d505b73730291",
+    "requestCharacters": 65942,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "2b090a3d349b5545864fc1cafca2bf51fd5562b7d4168f00b6bebf345b4f0840",
+    "responseBytes": 4374,
+    "reportedUsage": {
+      "total_tokens": 12611,
+      "total_characters": 0,
+      "prompt_tokens": 11906,
+      "completion_tokens": 705,
+      "completion_tokens_details": {
+        "reasoning_tokens": 440
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 188
+      }
+    },
+    "providerResponseId": "071b9071b4e5eaf84c8aacc981b03e01",
+    "finishedAt": "2026-10-12T04:09:21.871Z",
+    "elapsedMs": 5122.687099999981
+  },
+  "checkerContent": "{\"findings\":[{\"unitId\":\"title:1\",\"status\":\"analysis\",\"explanation\":\"Neutral juror-response title with no factual assertion.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"content:1\",\"status\":\"analysis\",\"explanation\":\"The no-verdict selection corresponds to the supplied mixed ballot outcome and does not require evidence support.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"juror-0:1\",\"status\":\"supported\",\"explanation\":\"The rationale accurately identifies the two supplied attributed accounts and adopts the supplied instruction to assess them.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1},{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-change-0:1\",\"status\":\"analysis\",\"explanation\":\"The approved juror history is empty, so this accurately presents the ballot as initial and identifies no supplied prior position to change.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"ballot-consistency-0:1\",\"status\":\"analysis\",\"explanation\":\"The mixed leaning coherently corresponds to no_verdict; the rationale reflects assessment of the two supplied accounts under the instructions and contains no conflicting proof or doubt finding.\",\"citations\":[],\"recordCitations\":[]}]}"
+}

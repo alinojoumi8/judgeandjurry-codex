@@ -18,6 +18,9 @@ import type { EvidenceItem } from '../server/types'
 let store: CaseStore | null = null
 let logDir: string | null = null
 
+// Instrumented full simulations verify log contents/recovery, not a latency SLO.
+const simulationLoggingTimeoutMs = process.env.RUN_BROWSER_COVERAGE === '1' ? 30_000 : 5_000
+
 afterEach(() => {
   store?.close()
   store = null
@@ -143,7 +146,7 @@ describe('local logging', () => {
     expect(appLog).toContain('matter.delete')
     expect(appLog).not.toContain('Sensitive client facts')
     expect(appLog).not.toContain('private repair notice')
-  })
+  }, simulationLoggingTimeoutMs)
 
   it('records model retry metadata without prompt or evidence text', async () => {
     logDir = mkdtempSync(join(tmpdir(), 'judge-jury-model-logs-'))
@@ -281,7 +284,7 @@ describe('local logging', () => {
     expect(appLog).toContain('simulation.stage.skip_completed')
     expect(appLog).toContain('simulation.execute.finish')
     expect(errorLog).toContain('simulation.execute.failed')
-  })
+  }, simulationLoggingTimeoutMs)
 
   it('records expected API failure branches with useful metadata', async () => {
     logDir = mkdtempSync(join(tmpdir(), 'judge-jury-failure-logs-'))

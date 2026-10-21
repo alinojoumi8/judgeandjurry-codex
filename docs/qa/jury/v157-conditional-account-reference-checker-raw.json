@@ -1,0 +1,35 @@
+{
+  "checkerContent": "{\"findings\":[{\"unitId\":\"content:1\",\"status\":\"unsupported\",\"explanation\":\"The unit does not identify which account it means. E-001 could support receipt if credited, but E-002 does not establish the supplied receipt condition; its handover observation is expressly limited to Tavi's personal non-observation.\",\"citations\":[],\"recordCitations\":[]}]}",
+  "exchange": {
+    "caseId": "full-control-v123-proof-actual-assessment-positive",
+    "planHash": "f98f790539dcec930d4c200935d76d858aa1d0869848e4b24d866103030ce52a",
+    "requestRole": "checker",
+    "id": 1,
+    "startedAt": "2026-10-13T23:07:23.867Z",
+    "requestHash": "bfc7cb25ad71f81cebbdcbdbf1dc80657d65f0cdc15a886695793066a3767a4b",
+    "requestCharacters": 65292,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "359fbd2353e4e010835391bc0d7e942806e3e7455f884bd49d060557e877c9ac",
+    "responseBytes": 3518,
+    "reportedUsage": {
+      "total_tokens": 12258,
+      "total_characters": 0,
+      "prompt_tokens": 11729,
+      "completion_tokens": 529,
+      "completion_tokens_details": {
+        "reasoning_tokens": 451
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 300
+      }
+    },
+    "providerResponseId": "071decb45affdb2509cbc8c9f77b258c",
+    "finishedAt": "2026-10-13T23:07:27.400Z",
+    "elapsedMs": 3522.844800000079
+  },
+  "requestFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v157-current-comparison\\live-f98f790539dcec930d4c200935d76d858aa1d0869848e4b24d866103030ce52a-1791932007777\\full-control-v123-proof-actual-assessment-positive\\http-0001\\request-body.txt",
+  "responseFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v157-current-comparison\\live-f98f790539dcec930d4c200935d76d858aa1d0869848e4b24d866103030ce52a-1791932007777\\full-control-v123-proof-actual-assessment-positive\\http-0001\\response-body.raw"
+}

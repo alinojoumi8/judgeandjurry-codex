@@ -11,9 +11,11 @@ import { TrialEngineService } from '../server/trialEngine'
 import type { TrialRunConfig } from '../server/trialEngineTypes'
 
 const roots: string[] = []
+const stores: CaseStore[] = []
 const previousCorpusRoot = process.env.CORPUS_STORAGE_DIR
 
 afterEach(() => {
+  for (const store of stores.splice(0)) store.close()
   process.env.CORPUS_STORAGE_DIR = previousCorpusRoot
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
@@ -28,6 +30,7 @@ describe('matter archive format v2', () => {
     writeFileSync(join(packet, 'disclosure.txt'), 'Preserved disclosure for archive v2.')
 
     const store = new CaseStore(join(root, 'case.db'))
+    stores.push(store)
     const matter = store.createMatter({ title: 'Archive v2 fixture', narrative: 'Claim 1: Contract issue.' })
     const corpus = new CorpusService(store, undefined, process.env.CORPUS_STORAGE_DIR)
     const preview = await corpus.previewFolder(packet)
@@ -35,7 +38,11 @@ describe('matter archive format v2', () => {
     await corpus.runToCompletion(job.id)
 
     const workflow = new CaseWorkflowService(store)
-    const draft = workflow.draftCaseModel(matter.id, 'ontario_civil_v1')
+    const source = store.listEvidence(matter.id)[0]
+    const draft = workflow.draftCaseModel(matter.id, 'ontario_civil_v1', { evidenceMatrix: [{
+      issueId: 'issue-1', elementId: 'issue-1-element-1',
+      links: [{ evidenceId: source.id, paragraph: 1, stance: 'supporting', note: 'Archive fixture passage.' }], questions: ['Open archive question.'],
+    }] })
     const model = workflow.approveCaseModel(draft.id)
     workflow.saveTheoryBrief({ caseModelId: model.id, partyId: 'plaintiff', side: 'plaintiff', narrative: 'Private archive theory.' })
     const engine = new TrialEngineService(store)
@@ -61,7 +68,7 @@ describe('matter archive format v2', () => {
       type: 'record_ballot',
       ballot: {
         issueId: model.decisionIssues[0].id, actorId: 'judge-1', round: 'final', choice: 'proved',
-        confidence: 70, rationale: 'Fixture judge-alone finding.', sourceRefs: [], valid: true,
+        confidence: 70, rationale: 'Fixture judge-alone finding.', sourceRefs: [{ evidenceId: source.id, locator: { paragraph: 1 }, attribution: 'source' }], valid: true,
         changedByEventId: anchorEvent.id,
       },
     })
@@ -86,6 +93,13 @@ describe('matter archive format v2', () => {
     const importedEvents = store.workflow.listTrialEvents(importedRun.id)
     expect(importedEvents.some((event) => event.type === 'decision_sheet_completed')).toBe(true)
     const importedBallots = store.workflow.listBallots(importedRun.id)
+    const trace = store.workflow.getDecisionSheet(importedRun.id)?.decisions[0].trace!
+    expect(trace.caseModelId).toBe(importedRun.caseModelId)
+    expect(trace.admissionLedgerId).toBe(importedRun.admissionLedgerId)
+    expect(trace.elements[0].links[0].source.evidenceId).toBe(store.listEvidence(imported.id)[0].id)
+    expect(trace.elements[0].links[0].source.quote).toBe('Preserved disclosure for archive v2.')
+    expect(trace.ballots.find((ballot) => ballot.round === 'final')?.id).toBe(importedBallots.find((ballot) => ballot.round === 'final')?.id)
+    expect(trace.ballots.find((ballot) => ballot.round === 'final')?.changedByEventId).toBe(importedEvents[0].id)
     expect(importedBallots).toHaveLength(2)
     const importedFinal = importedBallots.find((ballot) => ballot.round === 'final')!
     expect(importedFinal.changedByEventId).toBeTruthy()
@@ -94,6 +108,5 @@ describe('matter archive format v2', () => {
     expect(store.workflow.getDecisionSheet(importedRun.id)).toMatchObject({ complete: true })
     const importedEvidence = store.listEvidence(imported.id)[0]
     expect(store.getEvidenceSource(importedEvidence.id).sha256).toBe(importedEvidence.sha256)
-    store.close()
   })
 })

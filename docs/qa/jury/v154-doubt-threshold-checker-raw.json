@@ -1,0 +1,35 @@
+{
+  "checkerContent": "{\"findings\":[{\"unitId\":\"title:1\",\"status\":\"analysis\",\"explanation\":\"Neutral response title; it asserts no factual proposition.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"content:1\",\"status\":\"supported\",\"explanation\":\"The quoted handover account matches E-001, and E-002 supports only Tavi\u2019s personal non-observation. The permitted source-use instruction allows the juror to assess and credit these disputed accounts when finding the sole condition proved beyond a reasonable doubt.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1},{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-0:1\",\"status\":\"supported\",\"explanation\":\"Accurately attributes the quoted observation to Mira.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-0:2\",\"status\":\"supported\",\"explanation\":\"This is a permitted present assessment of Mira\u2019s account, and Tavi\u2019s statement supports only non-observation, not a denial or proof of non-receipt.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1},{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-0:3\",\"status\":\"analysis\",\"explanation\":\"A permissible present burden assessment; it does not create a historical claim or express a finding of reasonable doubt against the Crown.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"juror-change-0:1\",\"status\":\"analysis\",\"explanation\":\"This explains present stability without asserting an earlier ballot. E-001 describes the receipt condition, while E-002\u2019s non-observation does not prove non-receipt.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"ballot-consistency-0:1\",\"status\":\"analysis\",\"explanation\":\"The Crown selection, affirmative finding beyond a reasonable doubt, and credit of the disputed account are coherent. The supplied use restriction permits assessment of the fictional condition, and the rationale does not express reasonable doubt against the Crown.\",\"citations\":[],\"recordCitations\":[]}]}",
+  "exchange": {
+    "caseId": "captured-handover-conflict-negative-3",
+    "planHash": "57ddbbca812b02c38cea5a0fa47a87e543456c36c05b3ab6621700fa2e3295ab",
+    "requestRole": "checker",
+    "id": 5,
+    "startedAt": "2026-10-12T05:41:26.463Z",
+    "requestHash": "d998444214aa35f4cfb9aa44dea0449e1c953b16e8dd0053e2d6503bad6a40f7",
+    "requestCharacters": 67037,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "a0ae29a3db5a10fa8dc4c2578f2f958b95c5f018210e93311939bceaebd2586c",
+    "responseBytes": 9669,
+    "reportedUsage": {
+      "total_tokens": 13910,
+      "total_characters": 0,
+      "prompt_tokens": 12171,
+      "completion_tokens": 1739,
+      "completion_tokens_details": {
+        "reasoning_tokens": 1286
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 300
+      }
+    },
+    "providerResponseId": "071ba60b61544f9d36224ef97c5eccdf",
+    "finishedAt": "2026-10-12T05:41:37.041Z",
+    "elapsedMs": 10563.890899999999
+  },
+  "requestFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v154-current-comparison\\live-57ddbbca812b02c38cea5a0fa47a87e543456c36c05b3ab6621700fa2e3295ab-1791783504304\\captured-handover-conflict-negative-3\\http-0005\\request-body.txt",
+  "responseFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v154-current-comparison\\live-57ddbbca812b02c38cea5a0fa47a87e543456c36c05b3ab6621700fa2e3295ab-1791783504304\\captured-handover-conflict-negative-3\\http-0005\\response-body.raw"
+}

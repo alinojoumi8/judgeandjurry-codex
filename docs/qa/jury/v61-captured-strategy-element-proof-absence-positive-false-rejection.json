@@ -1,0 +1,94 @@
+{
+  "control": {
+    "id": "strategy-element-proof-absence-positive",
+    "expected": "passed",
+    "request": {
+      "stage": "defence_rebuttal",
+      "courtroomProtocol": true,
+      "groundingRequired": true,
+      "packet": "Approved scenario procedure: Assess only the supplied fictional receipt condition under the Crown beyond-a-reasonable-doubt burden. No actual law.\nPinned legal packet fictional-control: {\"issues\":[{\"elements\":[{\"elementId\":\"receipt\",\"text\":\"Fictional Ellis received the blue token.\",\"burdenPartyId\":\"crown\",\"standard\":\"Beyond a reasonable doubt\"}]}]}",
+      "evidence": [
+        {
+          "id": "positive-witness-account",
+          "exhibitId": "E-101",
+          "name": "fictional-account.txt",
+          "text": "Tavi states: I saw Fictional Ellis standing at the desk. I do not know whether Ellis received any token.",
+          "summary": "Fictional disputed eyewitness account.",
+          "tags": [],
+          "type": "text",
+          "mimeType": "text/plain",
+          "size": 147,
+          "ingestionStatus": "stored",
+          "matterId": "fictional-positive-control",
+          "uploadedAt": "2026-10-03T00:00:00Z",
+          "sha256": null,
+          "sourceAvailable": false,
+          "extractionWarning": null,
+          "archivedAt": null
+        }
+      ],
+      "previousTurns": "",
+      "groundingContext": "E-101: admitted; permitted purposes: Assess the fictional receipt condition using the disputed account. Unclassified; primary/documentary status is not supplied.",
+      "approvedPartyRoles": [
+        {
+          "id": "ellis",
+          "name": "Fictional Ellis",
+          "role": "accused"
+        },
+        {
+          "id": "crown",
+          "name": "Fictional Crown",
+          "role": "crown"
+        }
+      ],
+      "courtroomActor": {
+        "id": "ellis",
+        "name": "Fictional Ellis",
+        "roles": [
+          "defence"
+        ]
+      },
+      "courtroomEvents": []
+    },
+    "draft": {
+      "title": "",
+      "content": "The Defence will test the supplied condition and rely on the absence of proof of that condition.",
+      "citations": [],
+      "jurors": []
+    }
+  },
+  "result": {
+    "id": "strategy-element-proof-absence-positive",
+    "expected": "passed",
+    "review": {
+      "status": "failed",
+      "method": "source-quotes-and-model-review",
+      "findings": [
+        {
+          "unitId": "content:1",
+          "text": "The Defence will test the supplied condition and rely on the absence of proof of that condition.",
+          "status": "unsupported",
+          "explanation": "The unit promises a future Defence litigation strategy (testing the condition and relying on absence of proof) without a supplied evidence plan or party position. The structured setup arrays for partyPositions and evidencePlans are both empty. Future assertions about argument strategy require a supplied plan or prior record, which is absent here. Although the approved author may adopt its own present stance, the future tense ('will test', 'will rely') and the lack of any supplied Defence position or evidence plan leaves this promise unsupported.",
+          "citations": []
+        }
+      ],
+      "errors": [
+        "content:1: unsupported \u2014 The unit promises a future Defence litigation strategy (testing the condition and relying on absence of proof) without a supplied evidence plan or party position. The structured setup arrays for partyPositions and evidencePlans are both empty. Future assertions about argument strategy require a supplied plan or prior record, which is absent here. Although the approved author may adopt its own present stance, the future tense ('will test', 'will rely') and the lack of any supplied Defence position or evidence plan leaves this promise unsupported."
+      ],
+      "validationErrors": [],
+      "citationCorrections": [],
+      "repairs": 0,
+      "verificationRetries": 0
+    },
+    "transportRetries": [],
+    "verificationAttempts": [],
+    "matchesExpected": false,
+    "usage": {
+      "providerHttpCalls": 1,
+      "providerInputCharacters": 36071,
+      "actualTokens": 12760,
+      "actualCost": null,
+      "elapsedMs": 98274.7433
+    }
+  }
+}

@@ -69,7 +69,7 @@ describe('Judge & Jury API', () => {
     const created = await request(app)
       .post('/api/matters')
       .send({
-        title: 'OSC Smart Prime Matter',
+        title: 'Fictional securities matter',
         narrative:
           'OSC investor allegations, Crown fraud theory, complainant reliance, MT4 trading records, and defence rebuttal.',
       })

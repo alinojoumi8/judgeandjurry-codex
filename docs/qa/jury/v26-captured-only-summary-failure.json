@@ -1,0 +1,218 @@
+{
+  "request": {
+    "courtroomProtocol": true,
+    "groundingRequired": true,
+    "stage": "objection_submission",
+    "evidence": [
+      {
+        "id": "b7dd12cd-e8ea-4e25-b186-0f9283b5a251",
+        "matterId": "abfeafc6-b23c-47d2-aa02-9a601c0ba237",
+        "exhibitId": "E-001",
+        "name": "fictional-mira.txt",
+        "type": "text",
+        "mimeType": "text/plain",
+        "size": 141,
+        "text": "Fictional witness Mira states: I saw Fictional Morgan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.",
+        "summary": "Disputed fictional account; contents unknown.",
+        "tags": [],
+        "uploadedAt": "2026-10-06T21:31:54.761Z",
+        "sha256": null,
+        "sourceAvailable": false,
+        "ingestionStatus": "stored",
+        "extractionWarning": null,
+        "archivedAt": null
+      }
+    ],
+    "previousTurns": "2f037886-ead8-4a56-956e-4d6af6f9f9f4 procedure: {\"disclaimer\":\"Synthetic actors are a preparation and stress-testing tool, not a statistically representative panel or a prediction of a real outcome.\",\"actors\":[{\"id\":\"crown\",\"role\":\"crown\",\"partyId\":\"crown\"},{\"id\":\"accused-1\",\"role\":\"defence\",\"partyId\":\"accused-1\"},{\"id\":\"judge-1\",\"role\":\"judge\"},{\"id\":\"juror-01\",\"role\":\"juror\"},{\"id\":\"juror-02\",\"role\":\"juror\"},{\"id\":\"juror-03\",\"role\":\"juror\"},{\"id\":\"juror-04\",\"role\":\"juror\"},{\"id\":\"juror-05\",\"role\":\"juror\"},{\"id\":\"juror-06\",\"role\":\"juror\"},{\"id\":\"juror-07\",\"role\":\"juror\"},{\"id\":\"juror-08\",\"role\":\"juror\"},{\"id\":\"juror-09\",\"role\":\"juror\"},{\"id\":\"juror-10\",\"role\":\"juror\"},{\"id\":\"juror-11\",\"role\":\"foreperson\"},{\"id\":\"juror-12\",\"role\":\"juror\"}],\"initialAdmissionLedgerId\":\"c22d80e6-dd51-48b7-b0f0-bfffc5164a54\",\"procedureAdapter\":\"ontario_criminal_jury_v1\",\"decisionRule\":\"Every accused/count verdict-sheet item requires 12 valid, unanimous final ballots.\",\"legalSources\":[{\"title\":\"National Judicial Institute model jury instructions\",\"sourceKind\":\"official\",\"sourceUrl\":\"https://www.nji-inm.ca/index.cfm/publications/model-jury-instructions/?langSwitch=en\",\"jurisdiction\":\"Ontario, Canada\",\"revisionDate\":\"2026-07-18\",\"checkedAt\":\"2026-07-18T00:00:00.000Z\",\"legalReviewStatus\":\"requires-lawyer-review\",\"note\":\"Tailored instructions must be selected from the curated registry; the model must not invent the governing charge.\"},{\"title\":\"NJI Requirements for a Verdict\",\"sourceKind\":\"official\",\"sourceUrl\":\"https://www.nji-inm.ca/index.cfm/publications/model-jury-instructions/final-instructions/deliberations/requirements-for-a-verdict/?langSwitch=en\",\"jurisdiction\":\"Ontario, Canada\",\"revisionDate\":\"2026-07-18\",\"checkedAt\":\"2026-07-18T00:00:00.000Z\",\"legalReviewStatus\":\"requires-lawyer-review\",\"note\":\"Used for the per-item unanimity rule.\"}]}\n8b66ca8f-ce21-4ecd-b1e9-fec15be313c0 procedure: {\"phase\":\"setup\"}\n8ccb3269-22e6-4dc5-9a4b-80bac5d668be procedure: {\"phase\":\"setup\"}\nf387b578-92ed-4d9f-b26c-6fa4bb98d347 procedure: {\"phase\":\"motions\"}\n388dc061-d898-4b5d-91c6-c4be45218318 procedure: {\"motions\":[]}\n9a4beb49-9680-4d02-9702-bb82e6a66c19 procedure: {\"phase\":\"motions\"}\ne29f6f2b-d892-4adc-a684-211fff41f07b procedure: {\"phase\":\"jury_selection\"}\nc7abbeda-fa36-469c-9d90-db9e3fd673ee procedure: {\"phase\":\"jury_selection\"}\n60abd3b7-930f-4ad9-a207-42875ed31b53 procedure: {\"phase\":\"openings\"}\n9945ebee-e51b-464c-95f2-9286f7339a1a submission: {\"title\":\"Crown Opening Statement\",\"text\":\"The Crown must prove the supplied condition: that Fictional Ellis received a sealed envelope from Fictional Morgan. The supplied account (E-001) records Mira stating: 'I saw Fictional Morgan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.' E-001 may be used only to attribute Mira's account; it does not prove contents or guilt. The Crown bears the burden beyond a reasonable doubt. No actual offence is defined in this exercise.\"}\nfb988aaa-cef5-4cf6-8a42-aa4b8079c413 procedure: {\"move\":\"openings\",\"claimIds\":[\"56e3cdb5-0214-41ce-8d96-b0aef36fd61b\",\"7f7f379b-e2d4-4ace-95c7-27fa42d35888\"]}\n0dc6b077-0687-4da7-8e74-e9f9f0c04012 submission: {\"title\":\"Defence Opening Statement\",\"text\":\"The Crown's submission acknowledges E-001 may be used only to attribute Mira's account, not to prove contents or guilt, and that the Crown bears the burden beyond a reasonable doubt with no actual offence defined. Mira states: \\\"I saw Fictional Morgan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.\\\" Attribution establishes only what the account says, not that the event happened. The listed fictional condition is sealed-envelope receipt; no knowing-participation element is supplied.\"}\nac2b5be5-32f1-4a2b-9e98-ce13f1d732a5 procedure: {\"phase\":\"openings\"}\n78679c4e-8b92-4d30-a25a-5cb064c0be67 procedure: {\"phase\":\"openings\",\"checkpointId\":\"e0d704c4-1d5f-4bee-a2e8-ac627f87ba8e\"}\n61a26025-2140-4404-b78b-45a2129e8ed7 procedure: {\"note\":\"Fictional QA phase boundary only.\"}\n1d069b7e-cd71-4b85-8183-219aebc3f0b3 procedure: {\"type\":\"present\",\"evidenceId\":\"b7dd12cd-e8ea-4e25-b186-0f9283b5a251\",\"examination\":\"complete\"}\n739d3bf7-56c1-4def-804d-759b3c0406f5 procedure: {\"type\":\"call_witness\",\"witnessId\":\"w1\",\"calledByPartyId\":\"crown\",\"examination\":\"complete\"}\n816723d1-b95b-4724-bf59-1da42ec3ccbd question: {\"type\":\"question\",\"witnessId\":\"w1\",\"text\":\"Which cash did Ellis knowingly receive in the sealed envelope? BAD_QUESTION_HEARING_321\",\"examination\":\"direct\"}\nee05e1a8-1b07-496d-a68d-6a853a867ff7 procedure: {\"type\":\"jury_depart\",\"reason\":\"Fictional question-scope hearing.\",\"questionEventId\":\"816723d1-b95b-4724-bf59-1da42ec3ccbd\",\"examination\":\"direct\",\"witnessId\":\"w1\"}\n2c6f0cd0-bb5e-4acf-a3af-404b70ac2118 submission: {\"text\":\"JURY_OUT_HEARING_941\"}",
+    "approvedPartyRoles": [
+      {
+        "id": "crown",
+        "name": "Fictional Crown",
+        "role": "crown"
+      },
+      {
+        "id": "accused-1",
+        "name": "Fictional Ellis",
+        "role": "accused"
+      }
+    ],
+    "courtroomActor": {
+      "id": "accused-1",
+      "name": "accused-1",
+      "roles": [
+        "defence"
+      ]
+    },
+    "courtroomEvents": [
+      {
+        "eventId": "9945ebee-e51b-464c-95f2-9286f7339a1a",
+        "type": "public_submission",
+        "actorId": "crown",
+        "phase": "openings",
+        "payload": {
+          "text": "The Crown must prove the supplied condition: that Fictional Ellis received a sealed envelope from Fictional Morgan. The supplied account (E-001) records Mira stating: 'I saw Fictional Morgan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.' E-001 may be used only to attribute Mira's account; it does not prove contents or guilt. The Crown bears the burden beyond a reasonable doubt. No actual offence is defined in this exercise."
+        }
+      },
+      {
+        "eventId": "0dc6b077-0687-4da7-8e74-e9f9f0c04012",
+        "type": "public_submission",
+        "actorId": "accused-1",
+        "phase": "openings",
+        "payload": {
+          "text": "The Crown's submission acknowledges E-001 may be used only to attribute Mira's account, not to prove contents or guilt, and that the Crown bears the burden beyond a reasonable doubt with no actual offence defined. Mira states: \"I saw Fictional Morgan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.\" Attribution establishes only what the account says, not that the event happened. The listed fictional condition is sealed-envelope receipt; no knowing-participation element is supplied."
+        }
+      },
+      {
+        "eventId": "1d069b7e-cd71-4b85-8183-219aebc3f0b3",
+        "type": "exhibit_presented",
+        "actorId": "judge-1",
+        "phase": "evidence",
+        "payload": {
+          "evidenceId": "b7dd12cd-e8ea-4e25-b186-0f9283b5a251",
+          "examination": "complete"
+        }
+      },
+      {
+        "eventId": "739d3bf7-56c1-4def-804d-759b3c0406f5",
+        "type": "witness_called",
+        "actorId": "judge-1",
+        "phase": "evidence",
+        "payload": {
+          "witnessId": "w1",
+          "calledByPartyId": "crown",
+          "examination": "complete"
+        }
+      },
+      {
+        "eventId": "816723d1-b95b-4724-bf59-1da42ec3ccbd",
+        "type": "witness_question",
+        "actorId": "crown",
+        "phase": "evidence",
+        "payload": {
+          "witnessId": "w1",
+          "text": "Which cash did Ellis knowingly receive in the sealed envelope? BAD_QUESTION_HEARING_321",
+          "examination": "direct"
+        }
+      },
+      {
+        "eventId": "2c6f0cd0-bb5e-4acf-a3af-404b70ac2118",
+        "type": "public_submission",
+        "actorId": "crown",
+        "phase": "evidence",
+        "payload": {
+          "text": "JURY_OUT_HEARING_941"
+        }
+      }
+    ],
+    "courtroomState": {
+      "juryPresent": false,
+      "examination": "direct"
+    },
+    "courtroomAssessments": [],
+    "packet": "State one objection to the actual pending question under the supplied fictional scope instruction; do not assert its premise as true.\nActor: accused-1\nApproved issue(s): Fictional disputed envelope account; no actual offence defined\nPinned legal packet 9cae9dd2624f451ad6e6a5de67cd2d949f49d02621a94d6740cd3c480eb0582c: {\"issues\":[{\"issueId\":\"issue-1\",\"respondingPartyIds\":[\"accused-1\"],\"elements\":[{\"elementId\":\"issue-1-element-1\",\"text\":\"Fictional Ellis received the sealed envelope from Fictional Morgan.\",\"burdenPartyId\":\"crown\",\"standard\":\"Beyond a reasonable doubt\",\"authorityIds\":[\"fixture\"]}],\"outcomes\":[\"guilty\",\"not_guilty\",\"no_verdict\"],\"alternatives\":[]}],\"instructions\":[{\"id\":\"duties\",\"kind\":\"duties\",\"text\":\"Fictional exercise: distinguish attributed accounts, submissions and proof. No actual law or preferred verdict is supplied.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"burden\",\"kind\":\"burden\",\"text\":\"Fictional exercise only: Crown bears the supplied burden and standard; the opposing party does not have to establish innocence.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"elements\",\"kind\":\"elements\",\"text\":\"Apply the listed fictional sealed-envelope receipt condition. No fraud, theft, cash transfer, loss, purpose or knowing participation element is supplied.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"limited_use\",\"kind\":\"limited_use\",\"text\":\"Fictional exercise: sustain an objection to a question that assumes cash contents or knowing receipt, because Mira's approved account supplies neither. Such questions are prohibited; neutral questions remain permitted. Strike that question only; do not exclude E-001. Deliver this exact instruction before jury return: E-001 may be used only to attribute Mira's account; it does not prove contents or guilt.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"deliberation\",\"kind\":\"deliberation\",\"text\":\"Fictional exercise: assess each account with its uncertainty and permitted use; independently apply only the supplied fictional conditions. No preferred verdict or actual-law certification.\",\"authorityIds\":[\"fixture\"]}]}",
+    "groundingContext": "E-001 is limited to attributing Mira's disputed account; not proof of contents or guilt. Disclosure, oath and authentication status are not supplied.",
+    "legalTemplate": {
+      "id": "criminal_defence",
+      "label": "Criminal Defence",
+      "description": "Charge-screening and trial-risk simulation focused on burden of proof, credibility, disclosure, mens rea, and reasonable doubt.",
+      "burdenLabel": "Crown must prove every element beyond a reasonable doubt.",
+      "defenceLabel": "Defence",
+      "crownLabel": "Crown",
+      "judgeLabel": "Judge",
+      "juryLabel": "Jury Panel",
+      "defaultJurorCount": 12,
+      "outcomeLabels": [
+        "Guilty (elements proven beyond a reasonable doubt)",
+        "Not guilty (reasonable doubt remains)",
+        "Hung jury - no verdict"
+      ],
+      "packetGuidance": [
+        "Keep actus reus, mens rea, identity, credibility, and admissibility separate.",
+        "Do not treat complainant allegations as proven unless exhibit support is identified.",
+        "Flag missing disclosure and Charter or evidentiary issues without inventing facts."
+      ],
+      "stagePrompts": {
+        "issue_spotting": "criminal elements actus reus mens rea identity credibility disclosure admissibility reasonable doubt",
+        "crown_opening": "crown proof elements witness reliability corroboration timeline motive opportunity",
+        "defence_opening": "defence reasonable doubt missing proof credibility inconsistency alternate innocent explanation",
+        "crown_rebuttal": "crown reply corroboration circumstantial proof witness reliability inference",
+        "defence_rebuttal": "defence closing inconsistencies disclosure gaps burden admissibility credibility",
+        "jury_instructions": "jury charge burden reasonable doubt elements credibility WD framework circumstantial evidence unanimity",
+        "jury_deliberation": "jury reasonable doubt credibility burden competing explanations reliability",
+        "judge_ruling": "judge charge screen elements proof reasonable doubt unresolved disclosure next steps"
+      }
+    }
+  },
+  "result": {
+    "title": "Defence Objection to Pending Question",
+    "content": "Defence objects to the pending direct question. It assumes cash contents and knowing receipt; E-001 (fictional-mira.txt) states only that the envelope was sealed and that Mira \"do[es] not know what the envelope contained.\" No knowing-participation element is supplied in the pinned packet, and no actual offence is defined. Neutral questions about Mira's observation remain permitted. We ask the Court to sustain the objection and strike the question only; E-001 is not sought to be excluded.",
+    "citations": [
+      "E-001"
+    ],
+    "grounding": {
+      "status": "passed",
+      "method": "source-quotes-and-model-review",
+      "findings": [
+        {
+          "unitId": "title:1",
+          "text": "Defence Objection to Pending Question",
+          "status": "analysis",
+          "explanation": "Procedural title for the Defence objection submission; no factual premise asserted.",
+          "citations": []
+        },
+        {
+          "unitId": "content:1",
+          "text": "Defence objects to the pending direct question.",
+          "status": "analysis",
+          "explanation": "Procedural act of the Defence registering an objection to the pending direct question; consistent with the approved defence role and current direct-examination state.",
+          "citations": []
+        },
+        {
+          "unitId": "content:2",
+          "text": "It assumes cash contents and knowing receipt; E-001 (fictional-mira.txt) states only that the envelope was sealed and that Mira \"do[es] not know what the envelope contained.\"",
+          "status": "supported",
+          "explanation": "The pending question ('Which cash did Ellis knowingly receive in the sealed envelope?') structurally assumes cash contents and knowing receipt (characterization of the question's presuppositions, visible in the procedural events). E-001 paragraph 1 confirms the envelope was sealed and that Mira states she does not know what it contained. The 'only' scopes to what E-001 supplies about the envelope's contents/properties.",
+          "citations": [
+            {
+              "exhibitId": "E-001",
+              "quote": "Fictional witness Mira states: I saw Fictional Morgan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.",
+              "paragraph": 1,
+              "startOffset": 0,
+              "endOffset": 141,
+              "quoteMethod": "source-paragraph"
+            }
+          ]
+        },
+        {
+          "unitId": "content:3",
+          "text": "No knowing-participation element is supplied in the pinned packet, and no actual offence is defined.",
+          "status": "analysis",
+          "explanation": "Restates the supplied legal packet context: the elements instruction states no knowing-participation element is supplied, and the duties instruction and approved issue label state no actual offence or law is defined.",
+          "citations": []
+        },
+        {
+          "unitId": "content:4",
+          "text": "Neutral questions about Mira's observation remain permitted.",
+          "status": "analysis",
+          "explanation": "Restates the supplied limited_use instruction that 'neutral questions remain permitted.'",
+          "citations": []
+        },
+        {
+          "unitId": "content:5",
+          "text": "We ask the Court to sustain the objection and strike the question only; E-001 is not sought to be excluded.",
+          "status": "analysis",
+          "explanation": "Procedural request to the Court restating the supplied limited_use instruction: 'Strike that question only; do not exclude E-001.'",
+          "citations": []
+        }
+      ],
+      "errors": [],
+      "validationErrors": [],
+      "citationCorrections": [],
+      "repairs": 0,
+      "verificationRetries": 1,
+      "priorFailures": []
+    }
+  },
+  "inputFileHash": "e4c0cce65a3e971dec40503babe60bafe76c21a91d29a28b8ccbe073c27fa8d6",
+  "resultHash": "248fc5cf8fe964eedee300e09afd69f5a74a56f654ee0220d7cc14b8c685eb16"
+}

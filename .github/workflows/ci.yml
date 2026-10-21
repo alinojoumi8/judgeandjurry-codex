@@ -24,9 +24,13 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - run: npm run coverage:all
       - run: npm run test:ui
       - run: npm run test:sim
-      - run: npm audit --omit=dev
+      - run: npm run test:arguments
+      - run: npm run test:courtroom
+      - run: npm run eval:courtroom
+      - run: npm audit
 
   authority-links:
     runs-on: ubuntu-latest

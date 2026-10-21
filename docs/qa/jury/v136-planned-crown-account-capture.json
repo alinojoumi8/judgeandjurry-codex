@@ -1,0 +1,111 @@
+{
+  "request": {
+    "stage": "crown_opening",
+    "courtroomProtocol": true,
+    "groundingRequired": true,
+    "packet": "Approved scenario procedure: In this fictional exercise, sustain objections to questions that assume cash contents or knowing receipt; Mira's account supplies neither. Such questions are prohibited; neutral questions remain permitted. No actual law is supplied.\nPinned legal packet abc123: {\"issues\":[{\"label\":\"Fictional account issue; no actual offence defined\",\"elements\":[{\"label\":\"One fictional fixture condition; no statement of applicable law\",\"standard\":\"beyond a reasonable doubt\"}]}],\"instructions\":[{\"text\":\"Fictional Crown must establish the listed condition beyond a reasonable doubt.\"},{\"kind\":\"limited_use\",\"text\":\"Account only; no contents or guilt proof.\"}]}\nApproved evidence plan: Fictional Mira will present her attributed account in E-101 within its attribution-only use limit.",
+    "evidence": [
+      {
+        "id": "positive-witness-account",
+        "exhibitId": "E-101",
+        "name": "fictional-account.txt",
+        "text": "Fictional witness Mira states: I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.",
+        "summary": "Fictional disputed eyewitness account.",
+        "tags": [],
+        "type": "text",
+        "mimeType": "text/plain",
+        "size": 147,
+        "ingestionStatus": "stored",
+        "matterId": "fictional-positive-control",
+        "uploadedAt": "2026-10-03T00:00:00Z",
+        "sha256": null,
+        "sourceAvailable": false,
+        "extractionWarning": null,
+        "archivedAt": null
+      }
+    ],
+    "previousTurns": "",
+    "groundingContext": "E-101: permitted for accurately attributing Mira's account and previewing that account; not proof of envelope contents or guilt. The account is disputed. No assertion of complete disclosure is authorized.",
+    "approvedPartyRoles": [
+      {
+        "id": "crown",
+        "name": "Fictional Crown",
+        "role": "crown"
+      },
+      {
+        "id": "ellis",
+        "name": "Fictional Ellis",
+        "role": "accused"
+      }
+    ],
+    "courtroomActor": {
+      "id": "crown",
+      "name": "Fictional Crown",
+      "roles": [
+        "crown"
+      ]
+    },
+    "courtroomEvents": [
+      {
+        "eventId": "q1",
+        "type": "witness_question",
+        "payload": {
+          "witnessId": "w1",
+          "text": "Which cash did Ellis knowingly receive?"
+        }
+      }
+    ],
+    "courtroomState": {
+      "juryPresent": true,
+      "examination": "complete"
+    }
+  },
+  "result": {
+    "title": "",
+    "content": "The Crown bears the supplied burden. It will present the planned account within its attribution-only use limit.",
+    "citations": [],
+    "jurors": []
+  },
+  "checkerResult": {
+    "id": "full-control-v116-burden-actual-instruction",
+    "state": "finished",
+    "review": {
+      "status": "failed",
+      "method": "source-quotes-and-model-review",
+      "findings": [
+        {
+          "unitId": "content:1",
+          "text": "The Crown bears the supplied burden.",
+          "status": "analysis",
+          "explanation": "The actual pinned packet expressly allocates a burden to the approved Crown party. This whole-unit setup statement adds no offence element or promise of future proof.",
+          "citations": []
+        },
+        {
+          "unitId": "content:2",
+          "text": "It will present the planned account within its attribution-only use limit.",
+          "status": "unsupported",
+          "explanation": "The supplied evidence plan states that Mira will present the attributed account; it does not establish that the Crown itself will present it. The attribution-only use restriction is accurate, but the actor-specific assertion is unsupported.",
+          "citations": []
+        }
+      ],
+      "errors": [
+        "content:2: unsupported \u2014 The supplied evidence plan states that Mira will present the attributed account; it does not establish that the Crown itself will present it. The attribution-only use restriction is accurate, but the actor-specific assertion is unsupported."
+      ],
+      "validationErrors": [],
+      "citationCorrections": [],
+      "repairs": 0,
+      "verificationRetries": 0
+    },
+    "verificationAttempts": [],
+    "ballotContractErrors": [],
+    "effectiveStatus": "failed",
+    "expectedMatched": false,
+    "usage": {
+      "providerHttpCalls": 1,
+      "providerInputCharacters": 53814,
+      "actualTokens": 9941,
+      "actualCost": null,
+      "elapsedMs": 13452.05170000007
+    }
+  }
+}

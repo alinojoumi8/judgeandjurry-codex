@@ -1,0 +1,35 @@
+{
+  "checkerContent": "{\"findings\":[{\"unitId\":\"title:1\",\"status\":\"analysis\",\"explanation\":\"Neutral response title with no factual assertion.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"content:1\",\"status\":\"supported\",\"explanation\":\"Mira\u2019s account is accurately quoted and expressly permitted for assessment of the sole receipt condition. The guilty vote reflects the juror\u2019s present assessment that the account meets that condition beyond a reasonable doubt. Tavi\u2019s statement is accurately characterized as non-observation rather than denial.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1},{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-0:1\",\"status\":\"supported\",\"explanation\":\"Accurately attributes the quoted observation to Mira in E-001 paragraph 1.\",\"citations\":[{\"exhibitId\":\"E-001\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-0:2\",\"status\":\"analysis\",\"explanation\":\"This is the juror\u2019s present assessment of the attributed account under its permitted assessment purpose, not an independently established event.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"juror-0:3\",\"status\":\"supported\",\"explanation\":\"E-002 attributes non-observation to Tavi and supplies no timing connecting Tavi\u2019s narrated departure to that non-observation.\",\"citations\":[{\"exhibitId\":\"E-002\",\"paragraph\":1}],\"recordCitations\":[]},{\"unitId\":\"juror-change-0:1\",\"status\":\"analysis\",\"explanation\":\"A present stability assessment based on the visible procedural record; it does not assert a prior ballot or invented deliberation.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"ballot-consistency-0:1\",\"status\":\"analysis\",\"explanation\":\"The guilty Crown selection coherently matches the juror\u2019s express assessment that Mira\u2019s permitted disputed account establishes the sole receipt condition beyond a reasonable doubt. The rationale and stability explanation do not conflict with that selection.\",\"citations\":[],\"recordCitations\":[]}]}",
+  "exchange": {
+    "caseId": "captured-documentary-corroboration-negative-2",
+    "planHash": "43b8a3c1e7bea33052e2630b05886fc07d42e6b72ad82f1f27a7cabc6f0f5222",
+    "requestRole": "checker",
+    "id": 5,
+    "startedAt": "2026-10-13T23:37:26.464Z",
+    "requestHash": "e2ae7438b187e438b5f219addda9f641de7adbe7873a5c3faf058d33748723b5",
+    "requestCharacters": 68572,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "4c03e62faaa57b17f095fd8770840b9b037794e5903b5e3f2017db630bda086b",
+    "responseBytes": 6046,
+    "reportedUsage": {
+      "total_tokens": 13443,
+      "total_characters": 0,
+      "prompt_tokens": 12408,
+      "completion_tokens": 1035,
+      "completion_tokens_details": {
+        "reasoning_tokens": 608
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 256
+      }
+    },
+    "providerResponseId": "071df3bf6f0cc31be323688cd30b540d",
+    "finishedAt": "2026-10-13T23:37:32.024Z",
+    "elapsedMs": 5545.404500000004
+  },
+  "requestFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v158-current-comparison\\live-43b8a3c1e7bea33052e2630b05886fc07d42e6b72ad82f1f27a7cabc6f0f5222-1791934464641\\captured-documentary-corroboration-negative-2\\http-0005\\request-body.txt",
+  "responseFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v158-current-comparison\\live-43b8a3c1e7bea33052e2630b05886fc07d42e6b72ad82f1f27a7cabc6f0f5222-1791934464641\\captured-documentary-corroboration-negative-2\\http-0005\\response-body.raw"
+}

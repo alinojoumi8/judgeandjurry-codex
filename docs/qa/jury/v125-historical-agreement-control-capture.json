@@ -1,0 +1,149 @@
+{
+  "control": {
+    "id": "full-control-v115-historical-agreement-actual-records",
+    "expected": "passed",
+    "request": {
+      "stage": "crown_rebuttal",
+      "courtroomProtocol": true,
+      "groundingRequired": true,
+      "packet": "Approved scenario procedure: In this fictional exercise, sustain objections to questions that assume cash contents or knowing receipt; Mira's account supplies neither. Such questions are prohibited; neutral questions remain permitted. No actual law is supplied.\nPinned legal packet abc123: {\"issues\":[{\"label\":\"Fictional account issue; no actual offence defined\",\"elements\":[{\"label\":\"One fictional fixture condition; no statement of applicable law\",\"standard\":\"beyond a reasonable doubt\"}]}],\"instructions\":[{\"kind\":\"limited_use\",\"text\":\"Account only; no contents or guilt proof.\"}]}",
+      "evidence": [
+        {
+          "id": "positive-witness-account",
+          "exhibitId": "E-101",
+          "name": "fictional-account.txt",
+          "text": "Fictional witness Mira states: I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.",
+          "summary": "Fictional disputed eyewitness account.",
+          "tags": [],
+          "type": "text",
+          "mimeType": "text/plain",
+          "size": 147,
+          "ingestionStatus": "stored",
+          "matterId": "fictional-positive-control",
+          "uploadedAt": "2026-10-03T00:00:00Z",
+          "sha256": null,
+          "sourceAvailable": false,
+          "extractionWarning": null,
+          "archivedAt": null
+        }
+      ],
+      "previousTurns": "",
+      "groundingContext": "E-101: permitted for accurately attributing Mira's account and previewing that account; not proof of envelope contents or guilt. The account is disputed. No assertion of complete disclosure is authorized.",
+      "approvedPartyRoles": [
+        {
+          "id": "ellis",
+          "name": "Fictional Ellis",
+          "role": "accused"
+        },
+        {
+          "id": "crown",
+          "name": "Fictional Crown",
+          "role": "crown"
+        }
+      ],
+      "courtroomActor": {
+        "id": "crown",
+        "name": "Crown",
+        "roles": [
+          "crown"
+        ]
+      },
+      "courtroomEvents": [
+        {
+          "eventId": "q1",
+          "type": "witness_question",
+          "payload": {
+            "witnessId": "w1",
+            "text": "Which cash did Ellis knowingly receive?"
+          }
+        },
+        {
+          "eventId": "s1",
+          "type": "public_submission",
+          "actorId": "crown",
+          "payload": {
+            "text": "E-101 is limited to attributing Mira's account. The Crown has not promised corroboration that is not in the supplied record, and will not promise it."
+          }
+        },
+        {
+          "eventId": "a1",
+          "type": "witness_answer",
+          "actorId": "w1",
+          "payload": {
+            "text": "Within E-101, my account records no personal observation of what happened before or after the handover."
+          }
+        },
+        {
+          "eventId": "d1",
+          "type": "public_submission",
+          "actorId": "ellis",
+          "payload": {
+            "text": "The Defence will not ask you to infer what is absent from the record, and you must not either. Where proof stops, guilt cannot begin."
+          }
+        },
+        {
+          "eventId": "actual-crown",
+          "type": "public_submission",
+          "actorId": "crown",
+          "payload": {
+            "text": "The Crown agrees that uncertainty is not proof of absence."
+          }
+        }
+      ]
+    },
+    "draft": {
+      "title": "",
+      "content": "The Defence expressly rejects inferring absence from missing proof; the Crown agreed that uncertainty is not proof of absence.",
+      "citations": [],
+      "jurors": []
+    },
+    "fresh": false
+  },
+  "actual": {
+    "id": "full-control-v115-historical-agreement-actual-records",
+    "state": "finished",
+    "review": {
+      "status": "failed",
+      "method": "source-quotes-and-model-review",
+      "findings": [
+        {
+          "unitId": "content:1",
+          "text": "The Defence expressly rejects inferring absence from missing proof; the Crown agreed that uncertainty is not proof of absence.",
+          "status": "unsupported",
+          "explanation": "The Crown\u2019s present agreement is supported by actual-crown. However, d1 rejects asking the witness to infer what is absent from the record; it does not expressly state the broader claim attributed to the Defence about inferring absence from missing proof.",
+          "citations": [],
+          "recordCitations": [
+            {
+              "eventId": "d1",
+              "actorId": "ellis",
+              "quote": "The Defence will not ask you to infer what is absent from the record, and you must not either. Where proof stops, guilt cannot begin."
+            },
+            {
+              "eventId": "actual-crown",
+              "actorId": "crown",
+              "quote": "The Crown agrees that uncertainty is not proof of absence."
+            }
+          ]
+        }
+      ],
+      "errors": [
+        "content:1: unsupported \u2014 The Crown\u2019s present agreement is supported by actual-crown. However, d1 rejects asking the witness to infer what is absent from the record; it does not expressly state the broader claim attributed to the Defence about inferring absence from missing proof."
+      ],
+      "validationErrors": [],
+      "citationCorrections": [],
+      "repairs": 0,
+      "verificationRetries": 0
+    },
+    "verificationAttempts": [],
+    "ballotContractErrors": [],
+    "effectiveStatus": "failed",
+    "expectedMatched": false,
+    "usage": {
+      "providerHttpCalls": 1,
+      "providerInputCharacters": 43684,
+      "actualTokens": 8176,
+      "actualCost": null,
+      "elapsedMs": 26464.337800000096
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "exchange": {
+    "caseId": "full-control-v149-matching-name-defence-account-negative",
+    "planHash": "fad9fb3c25de67486c06474b951a91512380394591c8b4bdf23bd468b00929ad",
+    "requestRole": "checker",
+    "id": 1,
+    "startedAt": "2026-10-11T18:40:26.709Z",
+    "requestHash": "b1f731ca3a06e29ba0d4ad4ace2479e0f58194e86c0b178be6b6dda27ccca8c9",
+    "requestCharacters": 58440,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "e34e6036ab09ff7aa1ca6f6932454036fc51a74922b49e2704babb499e07e729",
+    "responseBytes": 1419,
+    "reportedUsage": {
+      "total_tokens": 10424,
+      "total_characters": 0,
+      "prompt_tokens": 10258,
+      "completion_tokens": 166,
+      "completion_tokens_details": {
+        "reasoning_tokens": 95
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 196
+      }
+    },
+    "providerResponseId": "071b0b1e831d8906853c91447870019c",
+    "finishedAt": "2026-10-11T18:40:28.297Z",
+    "elapsedMs": 1579.1067000001203
+  },
+  "checkerContent": "{\"findings\":[{\"unitId\":\"content:1\",\"status\":\"supported\",\"explanation\":\"E-101 paragraph 1 identifies Mira as the speaker and records both the sealed-envelope handover and her stated lack of knowledge about its contents.\",\"citations\":[{\"exhibitId\":\"E-101\",\"paragraph\":1}],\"recordCitations\":[]}]}"
+}

@@ -1,0 +1,325 @@
+{
+  "request": {
+    "courtroomProtocol": true,
+    "approvedPartyRoles": [
+      {
+        "id": "crown",
+        "name": "Fictional Crown",
+        "role": "crown"
+      },
+      {
+        "id": "accused-1",
+        "name": "Fictional Ellis",
+        "role": "accused"
+      }
+    ],
+    "courtroomEvents": [
+      {
+        "eventId": "11c5cf0d-3759-48e4-9c10-a7c3ee6b850a",
+        "type": "public_submission",
+        "actorId": "crown",
+        "phase": "openings",
+        "payload": {
+          "text": "Members of the jury, the issue is whether the accused received a sealed envelope from Fictional Rowan. E-001 records Fictional witness Mira's account: \"I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.\" The Crown bears the burden of proving this receipt condition beyond a reasonable doubt. E-001 may be used only to attribute Mira's account; it does not prove contents or guilt. No knowing-participation element is supplied."
+        }
+      }
+    ],
+    "courtroomActor": {
+      "id": "accused-1",
+      "name": "Fictional Ellis",
+      "roles": [
+        "defence"
+      ]
+    },
+    "courtroomState": {
+      "juryPresent": true,
+      "examination": "complete"
+    },
+    "courtroomAssessments": [],
+    "stage": "defence_opening",
+    "packet": "Approved issue(s): issue-1: Fictional disputed envelope account; no actual offence defined\nPrivate theory for this advocate only: DEFENCE_HEARING_829 private advocacy; not evidence.\nProof gaps: None recorded.\nActor: accused-1\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: limited; permitted purposes: Accurately attribute Mira's disputed account; not proof of contents or guilt.; Disclosure, oath and authentication status are not supplied.\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.\nPinned legal packet 371f1ccaf3cdd422baa7d114bfc8c3806ba1bcd37bd827d2c364bec1d939036b: {\"issues\":[{\"issueId\":\"issue-1\",\"respondingPartyIds\":[\"accused-1\"],\"elements\":[{\"elementId\":\"issue-1-element-1\",\"text\":\"Fictional Ellis received the sealed envelope from Fictional Rowan.\",\"burdenPartyId\":\"crown\",\"standard\":\"Beyond a reasonable doubt\",\"authorityIds\":[\"fixture\"]}],\"outcomes\":[\"guilty\",\"not_guilty\",\"no_verdict\"],\"alternatives\":[]}],\"instructions\":[{\"id\":\"duties\",\"kind\":\"duties\",\"text\":\"Fictional exercise: distinguish attributed accounts, submissions and proof. No actual law or preferred verdict is supplied.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"burden\",\"kind\":\"burden\",\"text\":\"Fictional exercise only: Crown bears the supplied burden and standard; the opposing party does not have to establish innocence.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"elements\",\"kind\":\"elements\",\"text\":\"Apply the listed fictional sealed-envelope receipt condition. No fraud, theft, cash transfer, loss, purpose or knowing participation element is supplied.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"limited_use\",\"kind\":\"limited_use\",\"text\":\"Fictional exercise: sustain an objection to a question that assumes cash contents or knowing receipt, because Mira's approved account supplies neither. Such questions are prohibited; neutral questions remain permitted. Strike that question only; do not exclude E-001. Deliver this exact instruction before jury return: E-001 may be used only to attribute Mira's account; it does not prove contents or guilt.\",\"authorityIds\":[\"fixture\"]},{\"id\":\"deliberation\",\"kind\":\"deliberation\",\"text\":\"Fictional exercise: assess each account with its uncertainty and permitted use; independently apply only the supplied fictional conditions. No preferred verdict or actual-law certification.\",\"authorityIds\":[\"fixture\"]}]}\nApproved evidence plan: [{\"witnessId\":\"w1\",\"name\":\"Fictional Mira\",\"calledByPartyId\":\"crown\",\"scope\":\"Own approved passages only; no promise of facts outside that account.\"}]",
+    "evidence": [
+      {
+        "id": "28187a32-c612-4862-b4c7-5784bff00557",
+        "matterId": "ff861eea-943f-4323-b1f0-fc392e72a55e",
+        "exhibitId": "E-001",
+        "name": "fictional-mira.txt",
+        "type": "text",
+        "mimeType": "text/plain",
+        "size": 140,
+        "text": "Fictional witness Mira states: I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.",
+        "summary": "Disputed fictional account; contents unknown.",
+        "tags": [],
+        "uploadedAt": "2026-10-06T21:31:54.028Z",
+        "sha256": null,
+        "sourceAvailable": false,
+        "ingestionStatus": "stored",
+        "extractionWarning": null,
+        "archivedAt": null
+      }
+    ],
+    "previousTurns": "22b83ffe-d534-46ed-a8fc-9a3958de83a9 procedure: {\"disclaimer\":\"Synthetic actors are a preparation and stress-testing tool, not a statistically representative panel or a prediction of a real outcome.\",\"actors\":[{\"id\":\"crown\",\"role\":\"crown\",\"partyId\":\"crown\"},{\"id\":\"accused-1\",\"role\":\"defence\",\"partyId\":\"accused-1\"},{\"id\":\"judge-1\",\"role\":\"judge\"},{\"id\":\"juror-01\",\"role\":\"juror\"},{\"id\":\"juror-02\",\"role\":\"juror\"},{\"id\":\"juror-03\",\"role\":\"juror\"},{\"id\":\"juror-04\",\"role\":\"juror\"},{\"id\":\"juror-05\",\"role\":\"juror\"},{\"id\":\"juror-06\",\"role\":\"foreperson\"},{\"id\":\"juror-07\",\"role\":\"juror\"},{\"id\":\"juror-08\",\"role\":\"juror\"},{\"id\":\"juror-09\",\"role\":\"juror\"},{\"id\":\"juror-10\",\"role\":\"juror\"},{\"id\":\"juror-11\",\"role\":\"juror\"},{\"id\":\"juror-12\",\"role\":\"juror\"}],\"initialAdmissionLedgerId\":\"14d7e64e-c645-48e6-8281-3876f9779647\",\"procedureAdapter\":\"ontario_criminal_jury_v1\",\"decisionRule\":\"Every accused/count verdict-sheet item requires 12 valid, unanimous final ballots.\",\"legalSources\":[{\"title\":\"National Judicial Institute model jury instructions\",\"sourceKind\":\"official\",\"sourceUrl\":\"https://www.nji-inm.ca/index.cfm/publications/model-jury-instructions/?langSwitch=en\",\"jurisdiction\":\"Ontario, Canada\",\"revisionDate\":\"2026-07-18\",\"checkedAt\":\"2026-07-18T00:00:00.000Z\",\"legalReviewStatus\":\"requires-lawyer-review\",\"note\":\"Tailored instructions must be selected from the curated registry; the model must not invent the governing charge.\"},{\"title\":\"NJI Requirements for a Verdict\",\"sourceKind\":\"official\",\"sourceUrl\":\"https://www.nji-inm.ca/index.cfm/publications/model-jury-instructions/final-instructions/deliberations/requirements-for-a-verdict/?langSwitch=en\",\"jurisdiction\":\"Ontario, Canada\",\"revisionDate\":\"2026-07-18\",\"checkedAt\":\"2026-07-18T00:00:00.000Z\",\"legalReviewStatus\":\"requires-lawyer-review\",\"note\":\"Used for the per-item unanimity rule.\"}]}\nb8b0b0d3-0a8f-490c-a94b-b09bbf059d88 procedure: {\"phase\":\"setup\"}\nc1daaf1d-7a7d-4681-b582-69be091c5af3 procedure: {\"phase\":\"setup\"}\n8404e03f-365a-4456-8ec1-6ce1cdfdccc4 procedure: {\"phase\":\"motions\"}\n6abd4074-0e40-4375-8244-0383aabaca5b procedure: {\"motions\":[]}\nbd455608-d415-44a1-a27b-3d122391c2e9 procedure: {\"phase\":\"motions\"}\n6eefb01b-82dd-4a3e-a31a-073a34fde3d6 procedure: {\"phase\":\"jury_selection\"}\n954dcbd8-b9b9-4523-aa57-585dd5e357c5 procedure: {\"phase\":\"jury_selection\"}\n5bc0717a-59dc-4acf-bede-5cfdad18fb8c procedure: {\"phase\":\"openings\"}\n11c5cf0d-3759-48e4-9c10-a7c3ee6b850a submission: {\"title\":\"Crown Opening\",\"text\":\"Members of the jury, the issue is whether the accused received a sealed envelope from Fictional Rowan. E-001 records Fictional witness Mira's account: \\\"I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.\\\" The Crown bears the burden of proving this receipt condition beyond a reasonable doubt. E-001 may be used only to attribute Mira's account; it does not prove contents or guilt. No knowing-participation element is supplied.\"}\nf63ec217-1018-4678-af55-7a2a96d2e6f1 procedure: {\"move\":\"openings\",\"claimIds\":[\"0280e08a-5c9e-41f4-9c06-a01aa30953eb\",\"a41a5895-84fc-4a68-8b07-528f9ea240f4\"]}",
+    "groundingRequired": true,
+    "groundingContext": "Source-use restrictions:\nE-001: limited; permitted purposes: Accurately attribute Mira's disputed account; not proof of contents or guilt.; Disclosure, oath and authentication status are not supplied.\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "runConfig": {
+      "providerMode": "external",
+      "templateId": "criminal_defence",
+      "jurorCount": 12,
+      "deliberationMode": "independent",
+      "stages": [
+        "intake_normalization",
+        "issue_spotting",
+        "crown_opening",
+        "defence_opening",
+        "crown_rebuttal",
+        "defence_rebuttal",
+        "jury_instructions",
+        "jury_deliberation",
+        "judge_ruling"
+      ],
+      "retrievalDepth": 6,
+      "externalDisclosureConfirmed": true
+    },
+    "legalTemplate": {
+      "id": "criminal_defence",
+      "label": "Criminal Defence",
+      "description": "Charge-screening and trial-risk simulation focused on burden of proof, credibility, disclosure, mens rea, and reasonable doubt.",
+      "burdenLabel": "Crown must prove every element beyond a reasonable doubt.",
+      "defenceLabel": "Defence",
+      "crownLabel": "Crown",
+      "judgeLabel": "Judge",
+      "juryLabel": "Jury Panel",
+      "defaultJurorCount": 12,
+      "outcomeLabels": [
+        "Guilty (elements proven beyond a reasonable doubt)",
+        "Not guilty (reasonable doubt remains)",
+        "Hung jury - no verdict"
+      ],
+      "packetGuidance": [
+        "Keep actus reus, mens rea, identity, credibility, and admissibility separate.",
+        "Do not treat complainant allegations as proven unless exhibit support is identified.",
+        "Flag missing disclosure and Charter or evidentiary issues without inventing facts."
+      ],
+      "stagePrompts": {
+        "issue_spotting": "criminal elements actus reus mens rea identity credibility disclosure admissibility reasonable doubt",
+        "crown_opening": "crown proof elements witness reliability corroboration timeline motive opportunity",
+        "defence_opening": "defence reasonable doubt missing proof credibility inconsistency alternate innocent explanation",
+        "crown_rebuttal": "crown reply corroboration circumstantial proof witness reliability inference",
+        "defence_rebuttal": "defence closing inconsistencies disclosure gaps burden admissibility credibility",
+        "jury_instructions": "jury charge burden reasonable doubt elements credibility WD framework circumstantial evidence unanimity",
+        "jury_deliberation": "jury reasonable doubt credibility burden competing explanations reliability",
+        "judge_ruling": "judge charge screen elements proof reasonable doubt unresolved disclosure next steps"
+      }
+    }
+  },
+  "result": {
+    "title": "Defence Opening",
+    "content": "Members of the jury, the Defence agrees with the Crown on the stated burden and the limited use of E-001. Mira's first-person account in E-001 reads: \"I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.\" That is the full supplied record. E-001 may attribute what Mira describes; it does not prove the handover. The Defence will address what the source does and does not establish.",
+    "citations": [
+      "E-001"
+    ],
+    "grounding": {
+      "status": "passed",
+      "method": "source-quotes-and-model-review",
+      "findings": [
+        {
+          "unitId": "title:1",
+          "text": "Defence Opening",
+          "status": "analysis",
+          "explanation": "Procedural title for the Defence opening; no factual premise requiring source support.",
+          "citations": []
+        },
+        {
+          "unitId": "content:1",
+          "text": "Members of the jury, the Defence agrees with the Crown on the stated burden and the limited use of E-001.",
+          "status": "analysis",
+          "explanation": "Accurately attributes the Crown's stated burden and limited-use position from the Crown's opening (public_submission) and records the Defence's present agreement as its own current stance. No unsupported premise.",
+          "citations": [],
+          "recordCitations": [
+            {
+              "eventId": "11c5cf0d-3759-48e4-9c10-a7c3ee6b850a",
+              "actorId": "crown",
+              "quote": "Members of the jury, the issue is whether the accused received a sealed envelope from Fictional Rowan. E-001 records Fictional witness Mira's account: \"I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.\" The Crown bears the burden of proving this receipt condition beyond a reasonable doubt. E-001 may be used only to attribute Mira's account; it does not prove contents or guilt. No knowing-participation element is supplied."
+            }
+          ]
+        },
+        {
+          "unitId": "content:2",
+          "text": "Mira's first-person account in E-001 reads: \"I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.\"",
+          "status": "supported",
+          "explanation": "Direct first-person quotation of Mira's account as recorded in E-001.",
+          "citations": [
+            {
+              "exhibitId": "E-001",
+              "quote": "Fictional witness Mira states: I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.",
+              "paragraph": 1,
+              "startOffset": 0,
+              "endOffset": 140,
+              "quoteMethod": "source-paragraph"
+            }
+          ]
+        },
+        {
+          "unitId": "content:3",
+          "text": "That is the full supplied record.",
+          "status": "analysis",
+          "explanation": "Accurate description of the supplied record coverage: E-001 is the only exhibit in the permitted source record. Setup/record-coverage observation.",
+          "citations": []
+        },
+        {
+          "unitId": "content:4",
+          "text": "E-001 may attribute what Mira describes; it does not prove the handover.",
+          "status": "analysis",
+          "explanation": "Correctly restates the limited-use restriction: E-001 attributes Mira's account but does not prove the underlying event. Consistent with the pinned limited_use instruction and the Crown's stated position.",
+          "citations": []
+        },
+        {
+          "unitId": "content:5",
+          "text": "The Defence will address what the source does and does not establish.",
+          "status": "analysis",
+          "explanation": "Generic procedural preview of the Defence's argument approach; no unsupported factual premise.",
+          "citations": []
+        }
+      ],
+      "errors": [],
+      "validationErrors": [],
+      "citationCorrections": [],
+      "repairs": 2,
+      "verificationRetries": 0,
+      "priorFailures": [
+        {
+          "findings": [
+            {
+              "unitId": "title:1",
+              "text": "Defence Opening",
+              "status": "analysis",
+              "explanation": "Neutral procedural title for the defence opening.",
+              "citations": []
+            },
+            {
+              "unitId": "content:1",
+              "text": "Members of the jury, the only listed fictional condition is whether Fictional Ellis received the sealed envelope from Fictional Rowan, and the Crown bears that burden beyond a reasonable doubt.",
+              "status": "analysis",
+              "explanation": "Restates the supplied issue (issue-1) and the Crown's burden and standard from the pinned legal packet. Setup analysis, not a source fact.",
+              "citations": []
+            },
+            {
+              "unitId": "content:2",
+              "text": "E-001 records Mira's account that she saw the handover and that she does not know what the envelope contained.",
+              "status": "unsupported",
+              "explanation": "The approved source quotations do not supply gendered pronouns. Preserve first-person wording or the supplied name; a name alone does not supply gender.",
+              "citations": [
+                {
+                  "exhibitId": "E-001",
+                  "quote": "Fictional witness Mira states: I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.",
+                  "paragraph": 1,
+                  "startOffset": 0,
+                  "endOffset": 140,
+                  "quoteMethod": "source-paragraph"
+                }
+              ]
+            },
+            {
+              "unitId": "content:3",
+              "text": "That account is attributed to Mira; it is not proof of the handover itself, contents, or any knowing participation.",
+              "status": "analysis",
+              "explanation": "Restates the limited-use instruction (attribution only; not proof of contents or guilt) and the absence of a knowing-participation element. This is an accurate description of the source-use restriction, not a new factual claim.",
+              "citations": []
+            },
+            {
+              "unitId": "content:4",
+              "text": "No knowing-participation element is supplied.",
+              "status": "analysis",
+              "explanation": "Directly restates the elements instruction: 'No fraud, theft, cash transfer, loss, purpose or knowing participation element is supplied.'",
+              "citations": []
+            },
+            {
+              "unitId": "content:5",
+              "text": "Absent proof beyond reasonable doubt of the receipt condition, the verdict must be not guilty.",
+              "status": "analysis",
+              "explanation": "Conditional legal argument: if the Crown fails to prove the supplied receipt condition beyond a reasonable doubt, the not_guilty outcome follows from the supplied burden framework. Not a preferred-verdict assertion; it states the logical consequence of the supplied burden and standard, with 'not_guilty' listed as an outcome.",
+              "citations": []
+            }
+          ],
+          "errors": [
+            "content:2: unsupported \u2014 The approved source quotations do not supply gendered pronouns. Preserve first-person wording or the supplied name; a name alone does not supply gender."
+          ]
+        },
+        {
+          "findings": [
+            {
+              "unitId": "title:1",
+              "text": "Defence Opening",
+              "status": "analysis",
+              "explanation": "Neutral procedural title; not a factual claim.",
+              "citations": []
+            },
+            {
+              "unitId": "content:1",
+              "text": "Members of the jury, the defence agrees with the Crown on the source limits.",
+              "status": "analysis",
+              "explanation": "Defence author's own present stance expressing agreement with the Crown's source-use position; the Crown's visible public submission does acknowledge the same source limits. This is the Defence's current opinion, not a claim of a prior concession.",
+              "citations": [],
+              "recordCitations": [
+                {
+                  "eventId": "11c5cf0d-3759-48e4-9c10-a7c3ee6b850a",
+                  "actorId": "crown",
+                  "quote": "Members of the jury, the issue is whether the accused received a sealed envelope from Fictional Rowan. E-001 records Fictional witness Mira's account: \"I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.\" The Crown bears the burden of proving this receipt condition beyond a reasonable doubt. E-001 may be used only to attribute Mira's account; it does not prove contents or guilt. No knowing-participation element is supplied."
+                }
+              ]
+            },
+            {
+              "unitId": "content:2",
+              "text": "E-001 records Fictional witness Mira's account that, in her own words, \"I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.\"",
+              "status": "unsupported",
+              "explanation": "The approved source quotations do not supply gendered pronouns. Preserve first-person wording or the supplied name; a name alone does not supply gender.",
+              "citations": [
+                {
+                  "exhibitId": "E-001",
+                  "quote": "Fictional witness Mira states: I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.",
+                  "paragraph": 1,
+                  "startOffset": 0,
+                  "endOffset": 140,
+                  "quoteMethod": "source-paragraph"
+                }
+              ]
+            },
+            {
+              "unitId": "content:3",
+              "text": "That account is attribution only; it does not prove the handover actually occurred, nor does it identify any contents.",
+              "status": "analysis",
+              "explanation": "Assessment of the limited-use restriction and Mira's expressed receipt/contents uncertainty; grounded in the source-use instructions and E-001 paragraph 1's 'I do not know what the envelope contained.'",
+              "citations": []
+            },
+            {
+              "unitId": "content:4",
+              "text": "The single listed condition is whether a sealed envelope was handed from Fictional Rowan to Fictional Ellis.",
+              "status": "analysis",
+              "explanation": "Restates the single supplied element from the pinned legal packet: 'Fictional Ellis received the sealed envelope from Fictional Rowan.' Setup restatement of the issue/element, not a new factual claim.",
+              "citations": []
+            },
+            {
+              "unitId": "content:5",
+              "text": "No knowing-participation element is supplied.",
+              "status": "analysis",
+              "explanation": "Directly restates the pinned legal packet's elements instruction that 'No fraud, theft, cash transfer, loss, purpose or knowing participation element is supplied.'",
+              "citations": []
+            },
+            {
+              "unitId": "content:6",
+              "text": "The Crown bears the burden of proof beyond a reasonable doubt on that condition, and the defence need not establish anything.",
+              "status": "analysis",
+              "explanation": "Restates the pinned legal packet's burden instruction: the Crown bears the supplied burden and standard, and the opposing party does not have to establish innocence.",
+              "citations": []
+            }
+          ],
+          "errors": [
+            "content:2: unsupported \u2014 The approved source quotations do not supply gendered pronouns. Preserve first-person wording or the supplied name; a name alone does not supply gender."
+          ]
+        }
+      ]
+    }
+  },
+  "inputFileHash": "057f1acfd4ba32f550954321822c7a191d16a77ff961c065c1ea4292a66722de",
+  "resultHash": "6aba3f713c7cef3ddf24307eefa77540e5f3325a85f1347f84fec99a4c9cbef8"
+}

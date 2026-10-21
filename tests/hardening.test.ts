@@ -15,6 +15,7 @@ import { TrialForgeService } from '../server/trialforge'
 
 const tempRoot = mkdtempSync(join(tmpdir(), 'judge-jury-hardening-'))
 const previousEvidenceRoot = process.env.EVIDENCE_STORAGE_DIR
+const sourceLifecycleTimeout = process.env.RUN_BROWSER_COVERAGE === '1' ? 120_000 : 5_000
 
 beforeAll(() => {
   process.env.EVIDENCE_STORAGE_DIR = join(tempRoot, 'evidence')
@@ -68,7 +69,7 @@ describe('release hardening', () => {
       evidence.id,
     )
     store.close()
-  })
+  }, sourceLifecycleTimeout)
 
   it('preserves invalid PDF sources and exposes extraction failure metadata', async () => {
     const store = new CaseStore(':memory:')
@@ -123,7 +124,7 @@ describe('release hardening', () => {
     const sourcePath = String(snapshot.evidence[0].source_path)
     expect(await readFile(sourcePath, 'utf8')).toBe('portable evidence')
     store.close()
-  })
+  }, sourceLifecycleTimeout)
 
   it('creates a consistent SQLite backup that can be reopened', async () => {
     const databasePath = join(tempRoot, 'live.sqlite')
@@ -166,7 +167,7 @@ describe('release hardening', () => {
     const counter = check
       .prepare('SELECT next_exhibit_number FROM matter_counters WHERE matter_id = ?')
       .get('m1') as { next_exhibit_number: number }
-    expect(version.user_version).toBe(5)
+    expect(version.user_version).toBe(8)
     expect(counter.next_exhibit_number).toBe(5)
     for (const table of [
       'corpus_jobs',

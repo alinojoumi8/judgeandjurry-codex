@@ -1,0 +1,80 @@
+{
+  "planHash": "c6d1b0573c568d0be95c9849082bf15168ee961c8daac9862ff3305d6193d520",
+  "run": "tmp\\qa\\jury-contract-matrix-v42\\tmp\\qa\\courtroom\\full-jury\\live-c6d1b0573c568d0be95c9849082bf15168ee961c8daac9862ff3305d6193d520-1791334588495",
+  "control": "independent-proof-negation-positive",
+  "request": {
+    "stage": "defence_rebuttal",
+    "courtroomProtocol": true,
+    "groundingRequired": true,
+    "packet": "Approved scenario procedure: Assess only the supplied fictional receipt condition under the Crown beyond-a-reasonable-doubt burden. No actual law.",
+    "evidence": [
+      {
+        "id": "positive-witness-account",
+        "exhibitId": "E-101",
+        "name": "fictional-account.txt",
+        "text": "Fictional witness Mira states: I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.",
+        "summary": "Fictional disputed eyewitness account.",
+        "tags": [],
+        "type": "text",
+        "mimeType": "text/plain",
+        "size": 147,
+        "ingestionStatus": "stored",
+        "matterId": "fictional-positive-control",
+        "uploadedAt": "2026-10-03T00:00:00Z",
+        "sha256": null,
+        "sourceAvailable": false,
+        "extractionWarning": null,
+        "archivedAt": null
+      }
+    ],
+    "previousTurns": "",
+    "groundingContext": "E-101: limited; permitted purposes: Accurately attribute the disputed account; not proof of contents or guilt.",
+    "approvedPartyRoles": [
+      {
+        "id": "ellis",
+        "name": "Fictional Ellis",
+        "role": "accused"
+      },
+      {
+        "id": "crown",
+        "name": "Fictional Crown",
+        "role": "crown"
+      }
+    ],
+    "courtroomActor": {
+      "id": "ellis",
+      "name": "Fictional Ellis",
+      "roles": [
+        "defence"
+      ]
+    },
+    "courtroomEvents": []
+  },
+  "draft": {
+    "title": "",
+    "content": "This attribution-only material cannot independently establish the receipt element.",
+    "citations": [],
+    "jurors": []
+  },
+  "review": {
+    "status": "failed",
+    "method": "source-quotes-and-model-review",
+    "findings": [
+      {
+        "unitId": "content:1",
+        "text": "This attribution-only material cannot independently establish the receipt element.",
+        "status": "unsupported",
+        "explanation": "The unit asserts a categorical rule that attribution-only material cannot independently establish the receipt element. The source (E-101 \u00b61) records Mira's attributed account of a handover but does not state, and the limited-use notice does not establish, a categorical rule that attributed accounts cannot meet a receipt element. The policy distinguishes an individual opinion that proof is insufficient from a categorical rule and warns against paraphrasing source-use restrictions as categorical rules that attributed statements alone cannot meet the burden; individual weighing of the current accounts must be preserved.",
+        "citations": []
+      }
+    ],
+    "errors": [
+      "content:1: unsupported \u2014 The unit asserts a categorical rule that attribution-only material cannot independently establish the receipt element. The source (E-101 \u00b61) records Mira's attributed account of a handover but does not state, and the limited-use notice does not establish, a categorical rule that attributed accounts cannot meet a receipt element. The policy distinguishes an individual opinion that proof is insufficient from a categorical rule and warns against paraphrasing source-use restrictions as categorical rules that attributed statements alone cannot meet the burden; individual weighing of the current accounts must be preserved."
+    ],
+    "validationErrors": [],
+    "citationCorrections": [],
+    "repairs": 0,
+    "verificationRetries": 0
+  },
+  "matchesExpected": false
+}

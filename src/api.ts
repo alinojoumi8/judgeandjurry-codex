@@ -27,6 +27,7 @@ import type {
   TheoryBrief,
   TrialRunConfig,
   TrialRunView,
+  WorkflowState,
 } from './trialEngineTypes'
 
 async function parseResponse<T>(response: Response): Promise<T> {
@@ -466,13 +467,42 @@ export async function fetchAdmissionLedgers(matterId: string): Promise<Admission
   return parseResponse(response)
 }
 
-export async function createTrialRun(matterId: string, caseModelId: string, config: TrialRunConfig): Promise<TrialRunView> {
+export async function preflightTrialRun(matterId: string, caseModelId: string, config: TrialRunConfig, admissionLedgerId: string): Promise<{
+  fits: boolean; characterBudget: number; characters: number; actorId: string
+  sources: Array<{ exhibitId: string; characters: number }>; message: string
+}> {
+  return parseResponse(await apiFetch(`/api/matters/${matterId}/trials/preflight`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caseModelId, config, admissionLedgerId }),
+  }, 'client.api.trial_preflight', { matterId, caseModelId }))
+}
+
+export async function createTrialRun(matterId: string, caseModelId: string, config: TrialRunConfig, admissionLedgerId?: string): Promise<TrialRunView> {
   const response = await apiFetch(
     `/api/matters/${matterId}/trials`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caseModelId, config }) },
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caseModelId, config, admissionLedgerId }) },
     'client.api.trial_create', { matterId, caseModelId, mode: config.mode },
   )
   return parseResponse(response)
+}
+
+export async function fetchWorkflowState(matterId: string): Promise<WorkflowState> {
+  return parseResponse(await apiFetch(`/api/matters/${matterId}/workflow`, undefined, 'client.api.workflow_restore', { matterId }))
+}
+
+export async function fetchTheoryBriefs(modelId: string): Promise<TheoryBrief[]> {
+  return parseResponse(await apiFetch(`/api/case-models/${modelId}/theories`, undefined, 'client.api.theories', { modelId }))
+}
+
+export async function saveCaseModelVersion(modelId: string, input: Partial<CaseModel>): Promise<CaseModel> {
+  return parseResponse(await apiFetch(`/api/case-models/${modelId}/versions`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
+  }, 'client.api.case_model_revision', { modelId }))
+}
+
+export async function saveAdmissionLedger(matterId: string, input: { parentVersionId?: string; reason: string; evidenceUses: AdmissionLedger['evidenceUses'] }): Promise<AdmissionLedger> {
+  return parseResponse(await apiFetch(`/api/matters/${matterId}/admission-ledgers`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
+  }, 'client.api.admission_settings', { matterId }))
 }
 
 export async function startAutonomousTrial(runId: string): Promise<TrialRunView> {
@@ -494,10 +524,10 @@ export async function fetchTrialRun(runId: string): Promise<TrialRunView> {
   return parseResponse(response)
 }
 
-export async function createRobustnessVariants(runId: string, seeds: string[]): Promise<{ report: RobustnessReport }> {
+export async function createRobustnessVariants(runId: string, seeds: string[], admissionLedgerIds?: string[]): Promise<{ report: RobustnessReport }> {
   const response = await apiFetch(
     `/api/trials/${runId}/robustness`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seeds, start: true }) },
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seeds, admissionLedgerIds, start: true }) },
     'client.api.robustness_create', { runId, seedCount: seeds.length },
   )
   return parseResponse(response)
@@ -506,4 +536,14 @@ export async function createRobustnessVariants(runId: string, seeds: string[]): 
 export async function fetchRobustnessReport(runId: string): Promise<RobustnessReport> {
   const response = await apiFetch(`/api/trials/${runId}/robustness`, undefined, 'client.api.robustness_fetch', { runId })
   return parseResponse(response)
+}
+
+export async function fetchSourcePassages(matterId: string, evidenceId: string): Promise<import('../server/trialEngineTypes').SourceDocument> {
+  return parseResponse(await apiFetch(`/api/matters/${matterId}/sources/${evidenceId}/passages`, undefined, 'client.api.source_passages', { matterId, evidenceId }))
+}
+
+export async function fetchOriginalSource(evidenceId: string): Promise<Blob> {
+  const response = await apiFetch(`/api/evidence/${evidenceId}/file`, undefined, 'client.api.source_preview', { evidenceId })
+  if (!response.ok) await parseResponse(response)
+  return response.blob()
 }

@@ -1,0 +1,33 @@
+{
+  "exchange": {
+    "caseId": "full-control-v148-hypothetical-no-verdict-positive",
+    "planHash": "25f3d264c9a17408d9f97534dd3fb318351a8d33327cb13f3299cde2c2878b84",
+    "requestRole": "checker",
+    "id": 1,
+    "startedAt": "2026-10-12T04:48:47.042Z",
+    "requestHash": "cf76e6545955c9e528579b7f166894b037b0181839be8f2320cdd63e7ae095f2",
+    "requestCharacters": 74064,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "10d2341bb6a106f298a00278565aea434a8256bd7710493a660f9cfb7be11638",
+    "responseBytes": 5107,
+    "reportedUsage": {
+      "total_tokens": 14742,
+      "total_characters": 0,
+      "prompt_tokens": 13949,
+      "completion_tokens": 793,
+      "completion_tokens_details": {
+        "reasoning_tokens": 614
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 196
+      }
+    },
+    "providerResponseId": "071b99b3728654853e6208d3761c7ea8",
+    "finishedAt": "2026-10-12T04:49:01.541Z",
+    "elapsedMs": 14490.006499999901
+  },
+  "checkerContent": "{\"findings\":[{\"unitId\":\"juror-0:1\",\"status\":\"analysis\",\"explanation\":\"This is an explicit conditional preference for no verdict if proof remains insufficient; it asserts no unsupported factual premise.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"juror-change-0:1\",\"status\":\"analysis\",\"explanation\":\"The supplied ballot round is initial, so accurately identifying this as the author's initial assessment is supported by the setup.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"ballot-consistency-0:1\",\"status\":\"contradicted\",\"explanation\":\"The Defence selection represents the opposing not-guilty outcome, while the only rationale says the author would support no verdict if proof remains insufficient. The ballot needs a clear alignment between the selected outcome and the no-verdict assessment.\",\"citations\":[],\"recordCitations\":[]}]}"
+}

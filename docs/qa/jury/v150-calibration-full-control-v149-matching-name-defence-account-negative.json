@@ -1,0 +1,111 @@
+{
+  "request": {
+    "stage": "defence_rebuttal",
+    "courtroomProtocol": true,
+    "groundingRequired": true,
+    "packet": "Approved scenario procedure: In this fictional exercise, sustain objections to questions that assume cash contents or knowing receipt; Mira's account supplies neither. Such questions are prohibited; neutral questions remain permitted. No actual law is supplied.\nPinned legal packet abc123: {\"issues\":[{\"label\":\"Fictional account issue; no actual offence defined\",\"elements\":[{\"label\":\"One fictional fixture condition; no statement of applicable law\",\"standard\":\"beyond a reasonable doubt\"}]}],\"instructions\":[{\"kind\":\"limited_use\",\"text\":\"Account only; no contents or guilt proof.\"}]}",
+    "evidence": [
+      {
+        "id": "positive-witness-account",
+        "exhibitId": "E-101",
+        "name": "fictional-account.txt",
+        "text": "Fictional witness Mira states: I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.",
+        "summary": "Fictional disputed eyewitness account.",
+        "tags": [],
+        "type": "text",
+        "mimeType": "text/plain",
+        "size": 147,
+        "ingestionStatus": "stored",
+        "matterId": "fictional-positive-control",
+        "uploadedAt": "2026-10-03T00:00:00Z",
+        "sha256": null,
+        "sourceAvailable": false,
+        "extractionWarning": null,
+        "archivedAt": null
+      }
+    ],
+    "previousTurns": "",
+    "groundingContext": "E-101: permitted for accurately attributing Mira's account and previewing that account; not proof of envelope contents or guilt. The account is disputed. No assertion of complete disclosure is authorized.",
+    "approvedPartyRoles": [
+      {
+        "id": "ellis",
+        "name": "Fictional Ellis",
+        "role": "accused"
+      },
+      {
+        "id": "crown",
+        "name": "Fictional Crown",
+        "role": "crown"
+      }
+    ],
+    "courtroomActor": {
+      "id": "w1",
+      "name": "Fictional Mira",
+      "roles": [
+        "defence"
+      ]
+    },
+    "courtroomEvents": [
+      {
+        "eventId": "q1",
+        "type": "witness_question",
+        "payload": {
+          "witnessId": "w1",
+          "text": "Which cash did Ellis knowingly receive?"
+        }
+      }
+    ],
+    "courtroomState": {
+      "juryPresent": true,
+      "examination": "complete"
+    }
+  },
+  "result": {
+    "title": "",
+    "content": "My approved account records the sealed handover and my statement that I do not know what the envelope contained.",
+    "citations": [],
+    "jurors": []
+  },
+  "checkerResult": {
+    "id": "full-control-v149-matching-name-defence-account-negative",
+    "state": "finished",
+    "review": {
+      "status": "passed",
+      "method": "source-quotes-and-model-review",
+      "findings": [
+        {
+          "unitId": "content:1",
+          "text": "My approved account records the sealed handover and my statement that I do not know what the envelope contained.",
+          "status": "supported",
+          "explanation": "E-101 paragraph 1 identifies Mira as the speaker and records both the sealed-envelope handover and her stated lack of knowledge about its contents.",
+          "citations": [
+            {
+              "exhibitId": "E-101",
+              "quote": "Fictional witness Mira states: I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.",
+              "paragraph": 1,
+              "startOffset": 0,
+              "endOffset": 140,
+              "quoteMethod": "source-paragraph"
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "validationErrors": [],
+      "citationCorrections": [],
+      "repairs": 0,
+      "verificationRetries": 0
+    },
+    "verificationAttempts": [],
+    "ballotContractErrors": [],
+    "effectiveStatus": "passed",
+    "expectedMatched": false,
+    "usage": {
+      "providerHttpCalls": 1,
+      "providerInputCharacters": 58440,
+      "actualTokens": 10424,
+      "actualCost": null,
+      "elapsedMs": 13895.385800000047
+    }
+  }
+}
