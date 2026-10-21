@@ -1,0 +1,110 @@
+{
+  "request": {
+    "stage": "judge_ruling",
+    "courtroomProtocol": true,
+    "groundingRequired": true,
+    "packet": "Approved scenario procedure: In this fictional exercise, sustain objections to questions that assume cash contents or knowing receipt; Mira's account supplies neither. Such questions are prohibited; neutral questions remain permitted. No actual law is supplied.\nPinned legal packet abc123: {\"issues\":[{\"label\":\"Fictional account issue; no actual offence defined\",\"elements\":[{\"label\":\"One fictional fixture condition; no statement of applicable law\",\"standard\":\"beyond a reasonable doubt\"}]}],\"instructions\":[{\"kind\":\"limited_use\",\"text\":\"Account only; no contents or guilt proof.\"}]}",
+    "evidence": [
+      {
+        "id": "positive-witness-account",
+        "exhibitId": "E-101",
+        "name": "fictional-account.txt",
+        "text": "Fictional witness Mira states: I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.",
+        "summary": "Fictional disputed eyewitness account.",
+        "tags": [],
+        "type": "text",
+        "mimeType": "text/plain",
+        "size": 147,
+        "ingestionStatus": "stored",
+        "matterId": "fictional-positive-control",
+        "uploadedAt": "2026-10-03T00:00:00Z",
+        "sha256": null,
+        "sourceAvailable": false,
+        "extractionWarning": null,
+        "archivedAt": null
+      }
+    ],
+    "previousTurns": "",
+    "groundingContext": "E-101: permitted for accurately attributing Mira's account and previewing that account; not proof of envelope contents or guilt. The account is disputed. No assertion of complete disclosure is authorized.",
+    "approvedPartyRoles": [
+      {
+        "id": "ellis",
+        "name": "Fictional Ellis",
+        "role": "accused"
+      },
+      {
+        "id": "crown",
+        "name": "Fictional Crown",
+        "role": "crown"
+      }
+    ],
+    "courtroomActor": {
+      "id": "w1",
+      "name": "Fictional Mira",
+      "roles": [
+        "witness"
+      ]
+    },
+    "courtroomEvents": [
+      {
+        "eventId": "q1",
+        "type": "witness_question",
+        "payload": {
+          "witnessId": "w1",
+          "text": "Which cash did Ellis knowingly receive?"
+        }
+      }
+    ]
+  },
+  "draft": {
+    "title": "",
+    "content": "Under the supplied fictional rule, the objection should be sustained and the question struck because it assumes contents not supplied by the account.",
+    "citations": [],
+    "jurors": []
+  },
+  "checkerResult": {
+    "id": "full-control-judge_ruling-positive",
+    "state": "finished",
+    "review": {
+      "status": "failed",
+      "method": "source-quotes-and-model-review",
+      "findings": [
+        {
+          "unitId": "content:1",
+          "text": "Under the supplied fictional rule, the objection should be sustained and the question struck because it assumes contents not supplied by the account.",
+          "status": "unsupported",
+          "explanation": "The supplied fictional procedure supports sustaining an objection to the question because it assumes cash contents, and the account does not supply those contents. However, the procedure does not expressly authorize the additional disposition that the question should be struck.",
+          "citations": [
+            {
+              "exhibitId": "E-101",
+              "quote": "Fictional witness Mira states: I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.",
+              "paragraph": 1,
+              "startOffset": 0,
+              "endOffset": 140,
+              "quoteMethod": "source-paragraph"
+            }
+          ]
+        }
+      ],
+      "errors": [
+        "content:1: unsupported \u2014 The supplied fictional procedure supports sustaining an objection to the question because it assumes cash contents, and the account does not supply those contents. However, the procedure does not expressly authorize the additional disposition that the question should be struck."
+      ],
+      "validationErrors": [],
+      "citationCorrections": [],
+      "repairs": 0,
+      "verificationRetries": 0
+    },
+    "verificationAttempts": [],
+    "ballotContractErrors": [],
+    "effectiveStatus": "failed",
+    "expectedMatched": false,
+    "usage": {
+      "providerHttpCalls": 1,
+      "providerInputCharacters": 56167,
+      "actualTokens": 10413,
+      "actualCost": null,
+      "elapsedMs": 15367.602700000047
+    }
+  },
+  "run": "tmp\\qa\\courtroom\\jury-v139-current-comparison\\live-994b875125f14dd6facdb5c84858fba772632db506f31eeaf5e3025b6742c942-1791701410563"
+}

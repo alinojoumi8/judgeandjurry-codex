@@ -1,0 +1,116 @@
+{
+  "job": {
+    "id": "full-control-burden-promise-positive",
+    "expected": "passed",
+    "request": {
+      "stage": "crown_opening",
+      "courtroomProtocol": true,
+      "groundingRequired": true,
+      "packet": "Approved scenario procedure: In this fictional exercise, sustain objections to questions that assume cash contents or knowing receipt; Mira's account supplies neither. Such questions are prohibited; neutral questions remain permitted. No actual law is supplied.\nPinned legal packet abc123: {\"issues\":[{\"label\":\"Fictional account issue; no actual offence defined\",\"elements\":[{\"label\":\"One fictional fixture condition; no statement of applicable law\",\"standard\":\"beyond a reasonable doubt\"}]}],\"instructions\":[{\"kind\":\"limited_use\",\"text\":\"Account only; no contents or guilt proof.\"}]}\nApproved evidence plan: Fictional Mira will present her attributed account in E-101 within its attribution-only use limit.",
+      "evidence": [
+        {
+          "id": "positive-witness-account",
+          "exhibitId": "E-101",
+          "name": "fictional-account.txt",
+          "text": "Fictional witness Mira states: I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.",
+          "summary": "Fictional disputed eyewitness account.",
+          "tags": [],
+          "type": "text",
+          "mimeType": "text/plain",
+          "size": 147,
+          "ingestionStatus": "stored",
+          "matterId": "fictional-positive-control",
+          "uploadedAt": "2026-10-03T00:00:00Z",
+          "sha256": null,
+          "sourceAvailable": false,
+          "extractionWarning": null,
+          "archivedAt": null
+        }
+      ],
+      "previousTurns": "",
+      "groundingContext": "E-101: permitted for accurately attributing Mira's account and previewing that account; not proof of envelope contents or guilt. The account is disputed. No assertion of complete disclosure is authorized.",
+      "approvedPartyRoles": [
+        {
+          "id": "crown",
+          "name": "Fictional Crown",
+          "role": "crown"
+        },
+        {
+          "id": "ellis",
+          "name": "Fictional Ellis",
+          "role": "accused"
+        }
+      ],
+      "courtroomActor": {
+        "id": "crown",
+        "name": "Fictional Crown",
+        "roles": [
+          "crown"
+        ]
+      },
+      "courtroomEvents": [
+        {
+          "eventId": "q1",
+          "type": "witness_question",
+          "payload": {
+            "witnessId": "w1",
+            "text": "Which cash did Ellis knowingly receive?"
+          }
+        }
+      ],
+      "courtroomState": {
+        "juryPresent": true,
+        "examination": "complete"
+      }
+    },
+    "draft": {
+      "title": "",
+      "content": "The Crown bears the supplied burden. It will present the planned account within its attribution-only use limit.",
+      "citations": [],
+      "jurors": []
+    },
+    "fresh": false
+  },
+  "checkerResult": {
+    "id": "full-control-burden-promise-positive",
+    "state": "finished",
+    "review": {
+      "status": "failed",
+      "method": "source-quotes-and-model-review",
+      "findings": [
+        {
+          "unitId": "content:1",
+          "text": "The Crown bears the supplied burden.",
+          "status": "unsupported",
+          "explanation": "The supplied material states the applicable fictional standard but does not expressly allocate the burden to the Crown.",
+          "citations": []
+        },
+        {
+          "unitId": "content:2",
+          "text": "It will present the planned account within its attribution-only use limit.",
+          "status": "analysis",
+          "explanation": "This accurately previews the approved evidence plan: Mira will present the attributed E-101 account within its attribution-only use limit.",
+          "citations": []
+        }
+      ],
+      "errors": [
+        "content:1: unsupported \u2014 The supplied material states the applicable fictional standard but does not expressly allocate the burden to the Crown."
+      ],
+      "validationErrors": [],
+      "citationCorrections": [],
+      "repairs": 0,
+      "verificationRetries": 0
+    },
+    "verificationAttempts": [],
+    "ballotContractErrors": [],
+    "effectiveStatus": "failed",
+    "expectedMatched": false,
+    "usage": {
+      "providerHttpCalls": 1,
+      "providerInputCharacters": 39563,
+      "actualTokens": 7573,
+      "actualCost": null,
+      "elapsedMs": 23312.602700000047
+    }
+  }
+}

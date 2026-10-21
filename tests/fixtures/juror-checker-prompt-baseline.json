@@ -1,0 +1,17 @@
+{
+  "modes": [
+    {
+      "opening": false,
+      "staticRulesSha256": "2224d3794f9c90df61ede2282033b44b6ad0b9e202e799b9d84c187bd773c38d",
+      "staticCharacters": 42897,
+      "variableAuthoritySha256": "1c8e6fc785f38ca662153645c7f1ca22379c116e819e084f443cc609d326a754"
+    },
+    {
+      "opening": true,
+      "staticRulesSha256": "200e3b6c1509811d420ed98f2bc78d0378f5a98b0f9c6c477bf25ebd79afd071",
+      "staticCharacters": 60542,
+      "variableAuthoritySha256": "1c8e6fc785f38ca662153645c7f1ca22379c116e819e084f443cc609d326a754"
+    }
+  ],
+  "note": "2026-10-18: add factual-premise validation inside analytical conclusions. Verified every prior static rule byte and variable authority suffix unchanged before updating these hashes. Historical QA baselines remain unchanged."
+}
