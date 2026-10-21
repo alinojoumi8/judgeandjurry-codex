@@ -1,6 +1,7 @@
 import type { GroundingCitation } from './grounding'
 
-const amount = String.raw`(?:(?:CAD|CDN|USD)\s*\$?\s*|(?:US|CA|Cdn)\$\s*|\$\s*)\d[\d,]*(?:\.\d+)?(?:[ \t]*(?:million|billion|thousand)\b|[mbk]\b)?`
+export const monetarySuffix = String.raw`(?:[ \t]*(?:million|billion|thousand)\b|[mbk]\b|[ \t]+[mbk]\b(?!\)|\.(?=[ \t]*\S)))?`
+const amount = String.raw`(?:(?:CAD|CDN|USD)\s*\$?\s*|(?:US|CA|Cdn)\$\s*|\$\s*)\d[\d,]*(?:\.\d+)?${monetarySuffix}`
 function currency(text: string) {
   return /^(?:USD|US\$)/i.test(text) ? 'USD' : /^(?:CAD|CDN|CA\$|Cdn\$)/i.test(text) ? 'CAD' : '$'
 }
