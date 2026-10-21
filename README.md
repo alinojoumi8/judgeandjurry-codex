@@ -149,7 +149,7 @@ npm run build
 | `npm run coverage:all` | Aggregate server and isolated browser coverage checks |
 | `npm run check:authorities` | Reachability of curated authority links, not legal validation |
 
-Passing scripted tests establishes behavior under those fixtures. Live semantic quality and legal correctness require separate review. See the [evaluation guide](docs/evals/courtroom-realism.md), [implementation evidence](docs/qa/courtroom-realism-tdd.md), and [release review worksheet](docs/qa/courtroom-release-review.md) for the relevant boundaries and remaining checks.
+Passing scripted tests establishes behavior under those fixtures. Live semantic quality and legal correctness require separate review. See the [evaluation guide](docs/evals/courtroom-realism.md) and [release review worksheet](docs/qa/courtroom-release-review.md) for the relevant boundaries and remaining checks. Historical implementation evidence remains in the owner's private QA workspace.
 
 ## The TrialLens identity
 
