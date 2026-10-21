@@ -15,7 +15,7 @@ The hero and emblem images are excluded from the software's AGPL license; the do
 
 ## Direction
 
-**TrialLens**  
+**TrialLens**<br>
 **See the evidence. Test the argument.**
 
 A precision lens and connected document surfaces communicate close examination and source relationships. The design uses midnight navy, warm ivory, copper, and muted teal. Suggested UI palette for a later implementation: navy `#0B1C2C`, ivory `#F3E7D3`, copper `#B97945`, teal `#477A80`. These are proposed tokens, not sampled or contrast-certified values.
@@ -33,4 +33,3 @@ Use case: logo-brand. Create a square companion brand emblem for TrialLens, an e
 ## Provenance and review
 
 Generated in two separate built-in calls and copied into this repository. The hero was visually checked for TrialLens spelling, tagline legibility, composition, and absence of real case material. The emblem was checked for a distinct centered mark and visual consistency. No manual image editing or CLI image-generation fallback was used. All illustrated documents are fictional visual texture.
-
