@@ -1,13 +1,13 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { groundingUnits } from '../server/grounding'
 const capture = JSON.parse(readFileSync('docs/qa/jury/v125-conditional-relevance-control-capture.json', 'utf8'))
 const request = capture.control.request
 const text = capture.control.draft.content as string
 function check(content = text, q = request, status = 'unsupported') {
   const units = groundingUnits({ ...capture.control.draft, content })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({
     ...capture.actual.review.findings[0], unitId: unit.id, status, citations: [],
   })) }), units, q.evidence, q.groundingContext, undefined, {
     packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles,
@@ -39,6 +39,6 @@ describe('conditional account relevance preserves the actual attribution limit',
   ])('does not clear additional facts or a proof grant: %s', value => expect(check(value)).toBe('failed'))
   it('never promotes a whole-ballot consistency judgment', () => {
     const unit = { id: 'ballot-consistency-1', kind: 'ballot_consistency' as const, text }
-    expect(parseGroundingReview(JSON.stringify({ findings: [{ unitId: unit.id, status: 'unsupported', explanation: 'Contradictory ballot.', citations: [] }] }), [unit], request.evidence, request.groundingContext).status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: [{ unitId: unit.id, status: 'unsupported', explanation: 'Contradictory ballot.', citations: [] }] }), [unit], request.evidence, request.groundingContext).status).toBe('failed')
   })
 })

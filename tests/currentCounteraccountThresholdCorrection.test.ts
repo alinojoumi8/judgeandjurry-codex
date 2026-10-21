@@ -1,11 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { groundingUnits } from '../server/grounding'
 const c = JSON.parse(readFileSync('docs/qa/jury/v143-calibration-full-control-v143-threshold-correction.json', 'utf8'))
 function check(q = c.request, text = c.result.content, status = 'unsupported', actual = false) {
   const units = groundingUnits({ ...c.result, content: text })
-  return parseGroundingReview(JSON.stringify({ findings: actual ? c.checkerResult.review.findings : units.map(unit => ({ unitId: unit.id, status, explanation: 'No matching prior Defence submission.', citations: [] })) }), units,
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: actual ? c.checkerResult.review.findings : units.map(unit => ({ unitId: unit.id, status, explanation: 'No matching prior Defence submission.', citations: [] })) }), units,
     q.evidence, q.groundingContext, undefined, { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, stage: q.stage })
 }
 

@@ -23,11 +23,20 @@ function props(events: number) {
   return { trial: { run: { id: 'fictional-run', status: 'ready' }, events: Array.from({ length: events }, () => ({ type: 'procedure' })) }, model: { witnesses: [], parties: [] }, sources: [], motions: [], onChanged: () => {} }
 }
 describe('courtroom refresh freshness', () => {
+  it('shows the original load error and disables commands after a failed response', async () => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 503, json: async () => ({ error: 'Fictional courtroom temporarily unavailable.' }) })))
+    const element = browserDocument.createElement('div'); browserDocument.body.append(element)
+    const root = createRoot(element); roots.push(root)
+    await act(async () => root.render(createElement(CourtroomPanel, props(1))))
+    expect(element.querySelector('[role="alert"]')!.textContent).toContain('Fictional courtroom temporarily unavailable.')
+    expect(element.querySelector('button')!.disabled).toBe(true)
+  })
   it('does not let an aborted earlier JSON response replace a newer sequence', async () => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
     const oldBody = deferred<object>()
     let calls = 0
-    const fetchMock = vi.fn(async () => ({ json: async () => ++calls === 1 ? oldBody.promise : { lastSequence: 7, juryPresent: true, examination: 'cross' } }))
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ++calls === 1 ? oldBody.promise : { lastSequence: 7, juryPresent: true, examination: 'cross' } }))
     vi.stubGlobal('fetch', fetchMock)
     const element = browserDocument.createElement('div'); browserDocument.body.append(element)
     const root = createRoot(element); roots.push(root)

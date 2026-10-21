@@ -1,10 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import {readFileSync} from 'node:fs'
 import {describe,expect,it} from 'vitest'
-import {groundingUnits,parseGroundingReview} from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const captures=JSON.parse(readFileSync('docs/qa/jury/v102-full-acknowledgement-mismatches.json','utf8'))
 function audit(c:any,q=c.control.request,text=c.control.draft.content,status=c.result.review.findings[0].status){
  const units=groundingUnits({...c.control.draft,content:text})
- return parseGroundingReview(JSON.stringify({findings:units.map(u=>({...c.result.review.findings[0],unitId:u.id,status}))}),units,q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:units.map(u=>({...c.result.review.findings[0],unitId:u.id,status}))}),units,q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
 }
 for(const c of captures)describe(c.control.id,()=>{
  it('accepts current own acknowledgement of the actual Crown concession',()=>expect(audit(c)).toBe('passed'))

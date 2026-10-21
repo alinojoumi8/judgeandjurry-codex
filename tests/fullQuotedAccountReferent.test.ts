@@ -1,10 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const c = JSON.parse(readFileSync('docs/qa/jury/v111-full-account-capture.json', 'utf8'))
 function audit(events = c.job.request.courtroomEvents, status = 'unsupported', content = c.job.draft.content) {
   const q = c.job.request, units = groundingUnits({ ...c.job.draft, content })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ ...c.result.review.findings[0], unitId: unit.id, status })) }), units, q.evidence, q.groundingContext, undefined, { packet: q.packet, events, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, stage: q.stage })
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ ...c.result.review.findings[0], unitId: unit.id, status })) }), units, q.evidence, q.groundingContext, undefined, { packet: q.packet, events, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, stage: q.stage })
 }
 describe('full supplied account as actually quoted in the visible record', () => {
   it('resolves the captured whole-unit statement to the complete visible quotation', () => expect(audit().status).toBe('passed'))

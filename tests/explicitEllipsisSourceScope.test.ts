@@ -1,17 +1,17 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { groundingUnits } from '../server/grounding'
 const capture = JSON.parse(readFileSync('docs/qa/jury/v144-calibration-v84-explicit-ellipsis-positive.json', 'utf8'))
 function check(q: any, draft: any, status = 'supported', citations: any[] = [{ exhibitId: 'E-002', paragraph: 1 }]) {
-  return parseGroundingReview(JSON.stringify({ findings: groundingUnits(draft).map(unit => ({ unitId: unit.id, status, explanation: 'Recorded source locator.', citations })) }), groundingUnits(draft), q.evidence, q.groundingContext, undefined,
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: groundingUnits(draft).map(unit => ({ unitId: unit.id, status, explanation: 'Recorded source locator.', citations })) }), groundingUnits(draft), q.evidence, q.groundingContext, undefined,
     { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, stage: q.stage })
 }
 
 describe('explicit quotation ellipses preserve ordered source sentences and scope', () => {
   it('reproduces the actual V144 false rejection', () => {
     const c = capture
-    expect(parseGroundingReview(JSON.stringify({ findings: c.checkerResult.review.findings }), groundingUnits(c.result), c.request.evidence, c.request.groundingContext, undefined,
+    expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: c.checkerResult.review.findings }), groundingUnits(c.result), c.request.evidence, c.request.groundingContext, undefined,
       { packet: c.request.packet, events: c.request.courtroomEvents, actorRoles: c.request.courtroomActor.roles, partyRoles: c.request.approvedPartyRoles, stage: c.request.stage }).status).toBe('passed')
   })
   for (const marker of ['...', '…', '[...]']) {

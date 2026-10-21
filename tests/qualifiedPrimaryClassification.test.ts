@@ -1,12 +1,12 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { groundingUnits } from '../server/grounding'
 const capture = JSON.parse(readFileSync('docs/qa/jury/v140-qualified-primary-classification-capture.json', 'utf8'))
 function check(q = structuredClone(capture.request), text = capture.draft.content, status = 'unsupported', wholeBallot = false) {
   const units = groundingUnits({ ...capture.draft, content: text })
   if (wholeBallot) units.push({ id: 'whole-ballot', kind: 'ballot_consistency', text })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Captured qualified classification judgment.', citations: [] })) }), units,
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Captured qualified classification judgment.', citations: [] })) }), units,
     q.evidence, q.groundingContext, undefined, { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, actor: q.courtroomActor, stage: q.stage }).status
 }
 

@@ -1,11 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { groundingUnits } from '../server/grounding'
 const capture = JSON.parse(readFileSync('docs/qa/jury/v139-full-control-judge-ruling-positive-capture.json', 'utf8'))
 function check(request = structuredClone(capture.request), text = capture.draft.content, status = 'unsupported') {
   const units = groundingUnits({ ...capture.draft, content: text })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Captured proposed question-disposition judgment.', citations: [] })) }), units,
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Captured proposed question-disposition judgment.', citations: [] })) }), units,
     request.evidence, request.groundingContext, undefined, {
       packet: request.packet, events: request.courtroomEvents, actorRoles: request.courtroomActor.roles,
       partyRoles: request.approvedPartyRoles, actor: request.courtroomActor, stage: request.stage,

@@ -1,12 +1,13 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import {readFileSync} from 'node:fs'
 import {describe,expect,it} from 'vitest'
-import {groundingUnits,parseGroundingReview} from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const c=JSON.parse(readFileSync('docs/qa/jury/v115-burden-allocation-oracle-capture.json','utf8')).job
 function check(status='analysis',allocation?:string,instruction?:string){
  const q=c.request,units=groundingUnits(c.draft)
  let packet=allocation===undefined?q.packet:q.packet.replace('"standard":"beyond a reasonable doubt"',`"standard":"beyond a reasonable doubt","burdenPartyId":"${allocation}"`)
  if(instruction)packet=packet.replace('"instructions":[','"instructions":['+JSON.stringify({text:instruction})+',')
- return parseGroundingReview(JSON.stringify({findings:units.map(u=>({unitId:u.id,status:u.text==='The Crown bears the supplied burden.'?status:'analysis',citations:[]}))}),units,q.evidence,q.groundingContext,undefined,{packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:units.map(u=>({unitId:u.id,status:u.text==='The Crown bears the supplied burden.'?status:'analysis',citations:[]}))}),units,q.evidence,q.groundingContext,undefined,{packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
 }
 describe('a fictional standard does not supply its burden party',()=>{
  it.each(['analysis','supported'])('rejects missing allocation despite %s',status=>expect(check(status)).toBe('failed'))

@@ -1,13 +1,14 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 import { MiniMaxClient } from '../server/minimax'
 
 const c = JSON.parse(readFileSync('docs/qa/jury/v141-contiguous-quote-capture.json', 'utf8'))
 function check(q = structuredClone(c.request), content = c.draft.content, status = 'unsupported', whole = false, citations: any[] = []) {
   const units = groundingUnits({ ...c.draft, content })
   if (whole) units.push({ id: 'whole', kind: 'ballot_consistency', text: JSON.stringify(c.draft) })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Captured excerpt rejected as an inexact full-sentence quote.', citations })) }), units,
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Captured excerpt rejected as an inexact full-sentence quote.', citations })) }), units,
     q.evidence, q.groundingContext, undefined, { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, stage: q.stage })
 }
 describe('actual contiguous excerpt with omitted checker source locator', () => {
@@ -54,7 +55,8 @@ describe('actual contiguous excerpt with omitted checker source locator', () => 
     const bodies: string[] = [], original = JSON.stringify(c.draft)
     const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional-key', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 2000, maxRetries }, undefined, async (_url, init) => {
       bodies.push(String(init?.body))
-      const rows = { findings: groundingUnits(c.draft).map(unit => ({ unitId: unit.id, status: 'unsupported', explanation: 'The quotation omits I saw and is inexact.', citations: kind === 'recovered' && bodies.length > 1 ? [{ exhibitId: 'E-001', paragraph: 1 }] : [] })) }
+      const recovered = kind === 'recovered' && bodies.length > 1
+      const rows = { findings: groundingUnits(c.draft).map(unit => ({ unitId: unit.id, status: recovered ? 'supported' : 'unsupported', explanation: recovered ? 'The exact quotation matches the selected source paragraph.' : 'The quotation omits I saw and is inexact.', citations: recovered ? [{ exhibitId: 'E-001', paragraph: 1 }] : [] })) }
       return Response.json({ choices: [{ message: { content: JSON.stringify(rows) } }] })
     })
     const review = await client.reviewGrounding(c.request, c.draft)

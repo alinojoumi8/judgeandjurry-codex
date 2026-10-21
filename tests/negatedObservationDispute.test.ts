@@ -1,10 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const c = JSON.parse(readFileSync('docs/qa/jury/v113-full-control-v111-observation-negated-capture.json', 'utf8'))
 function audit(evidence = c.job.request.evidence, status = 'contradicted') {
   const q = c.job.request, units = groundingUnits(c.job.draft)
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => {
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => {
     const row = c.result.review.findings.find((f: any) => f.unitId === unit.id)
     return { ...row, unitId: unit.id, status: unit.id.startsWith('title:') ? 'analysis' : status, citations: row.citations.map(({ exhibitId, paragraph }: any) => ({ exhibitId, paragraph })) }
   }) }), units, evidence, q.groundingContext, undefined, { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, stage: q.stage }).status

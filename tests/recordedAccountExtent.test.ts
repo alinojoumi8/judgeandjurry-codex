@@ -1,13 +1,13 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { groundingUnits } from '../server/grounding'
 const capture = JSON.parse(readFileSync('docs/qa/jury/v105-recorded-extent-capture.json', 'utf8'))
 const original = capture.job.request
 function audit(request = original, text = capture.job.draft.content, status = 'unsupported') {
   const units = groundingUnits({ ...capture.job.draft, content: text })
   const finding = capture.result.review.findings[0]
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ ...finding, unitId: unit.id, status })) }), units, request.evidence, request.groundingContext, undefined, {
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ ...finding, unitId: unit.id, status })) }), units, request.evidence, request.groundingContext, undefined, {
     packet: request.packet, events: request.courtroomEvents, actorRoles: request.courtroomActor.roles, partyRoles: request.approvedPartyRoles, stage: request.stage,
   }).status
 }

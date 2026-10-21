@@ -1,11 +1,12 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const observer = JSON.parse(readFileSync('docs/qa/jury/v108-other-saw-no-capture.json', 'utf8'))
 const agreement = JSON.parse(readFileSync('docs/qa/jury/v108-opponent-polarity-capture.json', 'utf8'))
 function audit(c: any, q = c.job.request, content = c.job.draft.content, status = 'unsupported') {
   const units = groundingUnits({ ...c.job.draft, content })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ ...c.result.review.findings[0], unitId: unit.id, status })) }), units, q.evidence, q.groundingContext, undefined, { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, stage: q.stage }).status
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ ...c.result.review.findings[0], unitId: unit.id, status })) }), units, q.evidence, q.groundingContext, undefined, { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, stage: q.stage }).status
 }
 describe('whole-unit source and current position boundaries', () => {
   it('preserves a cited literal third-party observer expressly supplied by the account', () => expect(audit(observer)).toBe('passed'))

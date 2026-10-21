@@ -1,12 +1,12 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { parseGroundingReview } from '../server/grounding'
 import type { StageRequest } from '../server/minimax'
 
 const capture = JSON.parse(readFileSync(new URL('../docs/qa/jury/v121-full-explicit-unauthenticated-status-positive-capture.json', import.meta.url), 'utf8'))
 const request = capture.job.request as StageRequest
 function check(status: string, context = request.groundingContext!, text = capture.job.draft.content, evidence = request.evidence) {
-  return parseGroundingReview(JSON.stringify({ findings: [{ unitId: 'content:1', status, explanation: 'Captured metadata classification.', citations: [] }] }),
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: [{ unitId: 'content:1', status, explanation: 'Captured metadata classification.', citations: [] }] }),
     [{ id: 'content:1', text }], evidence, context)
 }
 describe('explicit supplied authentication metadata', () => {

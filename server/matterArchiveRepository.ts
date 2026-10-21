@@ -306,7 +306,7 @@ export class MatterArchiveRepository {
         ...overrides,
         id: allIds.get(String(row.id)) ?? randomUUID(),
         [foreignKey]: parentIds.get(String(row[foreignKey])),
-      }, allIds)
+      }, allIds, foreignKey === 'trial_run_id' ? String(row.trial_run_id) : undefined)
       if (table === 'actor_snapshots') {
         const state = JSON.parse(String(remapped.private_state_json))
         if (state.participantMemory) remapped.state_hash = state.participantMemory.projectionHash
@@ -340,7 +340,7 @@ function nextExhibitNumber(rows: ArchiveRow[]): number {
   )
 }
 
-function remapRow(row: ArchiveRow, ids: ReadonlyMap<string, string>): ArchiveRow {
+function remapRow(row: ArchiveRow, ids: ReadonlyMap<string, string>, originalRunId?: string): ArchiveRow {
   return Object.fromEntries(
     Object.entries(row).map(([key, value]) => {
       if ((key.endsWith('_json') || key === 'verdict_json') && typeof value === 'string') {
@@ -348,7 +348,7 @@ function remapRow(row: ArchiveRow, ids: ReadonlyMap<string, string>): ArchiveRow
           const parsed = remapJson(JSON.parse(value), ids)
           if (key === 'model_audit_json' && parsed && typeof parsed === 'object') {
             const audit = parsed as Record<string, unknown>
-            audit.importProvenance = { executionHashesPreserved: true, originalRunId: String(row.trial_run_id ?? ''), remappedReferences: true }
+            audit.importProvenance = { executionHashesPreserved: true, originalRunId: originalRunId ?? String(row.trial_run_id ?? ''), remappedReferences: true }
           }
           if (key === 'private_state_json' && parsed && typeof parsed === 'object') {
             const memory = (parsed as Record<string, unknown>).participantMemory as Record<string, unknown> | undefined

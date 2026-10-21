@@ -1,6 +1,7 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 import type { StageRequest } from '../server/minimax'
 
 const capture = JSON.parse(readFileSync(new URL('../docs/qa/jury/v131-modal-question-control-capture.json', import.meta.url), 'utf8'))
@@ -8,7 +9,7 @@ const request = capture.control.request as StageRequest
 function check(content: string, q = request, status = 'analysis', citations: object[] = [], wholeBallot = false) {
   const units = groundingUnits({ ...capture.control.draft, content })
   if (wholeBallot) units.push({ id: 'ballot:whole', kind: 'ballot_consistency', text: content })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Check the actual source inventory.', citations })) }), units, q.evidence, q.groundingContext, undefined,
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Check the actual source inventory.', citations })) }), units, q.evidence, q.groundingContext, undefined,
     { packet: q.packet, events: q.courtroomEvents ?? [], actorRoles: q.courtroomActor?.roles ?? [], partyRoles: q.approvedPartyRoles ?? [], stage: q.stage }).status
 }
 

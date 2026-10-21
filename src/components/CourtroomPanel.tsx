@@ -25,7 +25,13 @@ export function CourtroomPanel({ trial, model, sources, motions, onChanged }: { 
   const actors = (trial.events.find(e => e.type === 'run_created')?.payload.actors ?? []) as Array<{ id: string; role: string }>
   useEffect(() => {
     const abort = new AbortController()
-    void fetch(`/api/trials/${trial.run.id}/courtroom`, { signal: abort.signal }).then(r => r.json()).then(next => { if (!abort.signal.aborted) setState(next) }).catch(e => { if (!abort.signal.aborted) setError(String(e)) })
+    setState(undefined)
+    setError('')
+    void fetch(`/api/trials/${trial.run.id}/courtroom`, { signal: abort.signal }).then(async response => {
+      const view = await response.json()
+      if (!response.ok) throw new Error(view.error ?? `Unable to load courtroom state (${response.status}).`)
+      return view
+    }).then(next => { if (!abort.signal.aborted) setState(next) }).catch(e => { if (!abort.signal.aborted) { setState(undefined); setError(String(e)) } })
     return () => abort.abort()
   }, [trial.run.id, trial.events.length])
   async function submit() {
