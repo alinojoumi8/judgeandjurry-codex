@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "fictional": true,
+  "legalReview": "fictional_fixture_only",
+  "preferredVerdict": null,
+  "scenarios": [
+    "limited-purpose", "later-exclusion", "struck-testimony", "conflicting-statements",
+    "outside-witness-knowledge", "unavailable-evidence", "jury-out", "missing-proof",
+    "legal-packet-defect", "restart-recovery"
+  ],
+  "privateMarkers": ["CROWN_PRIVATE_713", "DEFENCE_PRIVATE_829", "JURY_OUT_941", "OTHER_WITNESS_527"],
+  "pairedVariants": ["Fictional Rowan", "Fictional Morgan"],
+  "conditions": ["Notice-only document is not proof of truth", "Sustained question is replaced", "No inferred relief for a reserved ruling"],
+  "humanReviewRequired": ["witness fidelity", "limited-purpose reasoning", "instruction adherence", "legal correctness"]
+}

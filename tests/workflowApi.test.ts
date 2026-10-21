@@ -57,6 +57,27 @@ describe('trial engine workflow API', () => {
     const theories = await request(app).get(`/api/case-models/${draft.body.id}/theories`).expect(200)
     expect(theories.body[0]).toMatchObject({ narrative: 'Private defence scenario.', visibility: 'private' })
 
+    const source = store.listEvidence(matter.id)[0]
+    const recordScope = {
+      description: 'Selected primary material for this run.',
+      documents: [{ evidenceId: source.id, kind: 'primary', coverage: 'selected_extracts', note: 'Pages 1-2 only.' }],
+      missingMaterials: [{ label: 'Operative charging document', status: 'not_supplied', note: 'Availability elsewhere is not determined.' }],
+    }
+    const revision = await request(app).post(`/api/case-models/${draft.body.id}/versions`)
+      .send({ ...draft.body, title: 'Revised count scope', recordScope }).expect(201)
+    expect(revision.body).toMatchObject({ version: 2, status: 'draft', title: 'Revised count scope', recordScope })
+    expect(store.workflow.listCaseModels(matter.id).find((model) => model.id === draft.body.id)?.status).toBe('approved')
+    const copiedTheories = await request(app).get(`/api/case-models/${revision.body.id}/theories`).expect(200)
+    expect(copiedTheories.body[0]).toMatchObject({ narrative: 'Private defence scenario.', visibility: 'private' })
+    await request(app).post(`/api/case-models/${revision.body.id}/approve`).expect(200)
+
+    const use = { evidenceId: source.id, status: 'limited', purposes: ['Assess the recorded account only.'], redactions: [], hiddenFrom: [], note: 'Not proof of authentication.' }
+    await request(app).post(`/api/matters/${matter.id}/admission-ledgers`).send({ reason: 'Test', evidenceUses: [{ ...use, purposes: [] }] }).expect(400)
+    await request(app).post(`/api/matters/${matter.id}/admission-ledgers`).send({ reason: 'Test', evidenceUses: [use, use] }).expect(400)
+    await request(app).post(`/api/matters/${matter.id}/admission-ledgers`).send({ reason: 'Test', evidenceUses: [{ ...use, evidenceId: 'foreign-source' }] }).expect(400)
+    await request(app).post(`/api/matters/${matter.id}/admission-ledgers`).send({ reason: 'Test', evidenceUses: [{ ...use, status: 'redacted' }] }).expect(400)
+    const admission = await request(app).post(`/api/matters/${matter.id}/admission-ledgers`).send({ reason: 'Limited use', evidenceUses: [use] }).expect(201)
+
     const config = {
       mode: 'full', procedureAdapter: 'ontario_criminal_jury_v1', seed: 'api-seed',
       checkpointPolicy: { default: 'autonomous', approvalPhases: [], allowCounselTakeover: true },
@@ -65,12 +86,23 @@ describe('trial engine workflow API', () => {
     }
     const trial = await request(app)
       .post(`/api/matters/${matter.id}/trials`)
-      .send({ caseModelId: draft.body.id, config })
+      .send({ caseModelId: revision.body.id, admissionLedgerId: admission.body.id, config })
       .expect(201)
     expect(trial.body.run).toMatchObject({ status: 'ready', procedureAdapter: 'ontario_criminal_jury_v1' })
     expect(store.workflow.listJurorProfiles(trial.body.run.id)).toHaveLength(12)
     const fetched = await request(app).get(`/api/trials/${trial.body.run.id}`).expect(200)
     expect(fetched.body.events[0].type).toBe('run_created')
+    expect(fetched.body.recordCoverage.scope).toMatchObject(recordScope)
+    expect(fetched.body.recordCoverage.notice).toMatch(/Absent from this run does not mean absent from the disclosure/)
+    const workspace = await request(app).get(`/api/matters/${matter.id}/workflow`).expect(200)
+    expect(workspace.body.trials[0].id).toBe(trial.body.run.id)
+    expect(workspace.body.models).toHaveLength(2)
+    expect(workspace.body.ledgers[0].id).toBe(admission.body.id)
+    expect(workspace.body.evidence[0]).toMatchObject({ id: source.id, name: 'record.txt' })
+
+    const otherMatter = store.createMatter({ title: 'Other matter' })
+    const foreign = store.workflow.createAdmissionLedger({ matterId: otherMatter.id, reason: 'Other scope', evidenceUses: [] })
+    await request(app).post(`/api/matters/${matter.id}/trials`).send({ caseModelId: revision.body.id, admissionLedgerId: foreign.id, config }).expect(400)
   })
 
   it('releases shared corpus blobs only when the last matter referencing them is deleted', async () => {

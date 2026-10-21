@@ -46,19 +46,8 @@ export interface ManifestEntry {
   evidenceId?: string
 }
 
-export interface CaseModel {
-  id: string
-  matterId: string
-  version: number
-  procedureAdapter: ProcedureAdapterId
-  status: 'draft' | 'approved' | 'superseded'
-  title: string
-  parties: Array<{ id: string; name: string; role: string }>
-  decisionIssues: Array<{ id: string; label: string; elements: Array<{ id: string; label: string; burden: string }>; permittedOutcomes: string[] }>
-  witnesses: Array<{ id: string; name: string }>
-  juryNotice?: { valid: boolean; note: string }
-  unresolved: string[]
-}
+export type CaseModel = import('../server/trialEngineTypes').CaseModelV1
+export type RecordScope = import('../server/trialEngineTypes').RecordScope
 
 export interface TheoryBrief {
   id: string
@@ -102,22 +91,15 @@ export interface AdmissionLedger {
     redactions: string[]
     hiddenFrom: string[]
     note: string
+      scope?: import('../server/trialEngineTypes').EvidenceUse['scope']
   }>
   createdAt: string
 }
 
-export interface TrialRun {
-  id: string
-  matterId: string
-  procedureAdapter: ProcedureAdapterId
-  mode: 'screen' | 'full'
-  status: string
-  phase: string
-  seed: string
-  parentRunId?: string
-}
+export type TrialRun = import('../server/trialEngineTypes').TrialRun
 
 export interface TrialRunConfig {
+  courtroomProtocol?: 'courtroom_v1'
   mode: 'screen' | 'full'
   procedureAdapter: ProcedureAdapterId
   seed: string
@@ -131,22 +113,35 @@ export interface TrialRunConfig {
 
 export interface TrialRunView {
   run: TrialRun
+  recordCoverage?: { scope: RecordScope; sources: WorkflowSource[]; warnings: string[]; notice: string }
   checkpoints: Array<{ id: string; phase: string; status: string; note: string }>
-  events: Array<{ id: string; sequence: number; phase: string; type: string; actorId?: string; payload: Record<string, unknown> }>
+  events: Array<{ id: string; sequence: number; phase: string; type: string; actorId?: string; payload: Record<string, unknown>; modelAudit?: import('../server/trialEngineTypes').ModelAudit }>
   jurorProfiles: Array<{ id: string; actorId: string; traits: Record<string, number> }>
   ballots: Array<{ id: string; issueId: string; actorId: string; round: string; choice: string; valid: boolean; rationale: string }>
   decisionSheet?: {
     complete: boolean
-    decisions: Array<{ issueId: string; outcome: string; complete: boolean; rule: string; voteCounts?: Record<string, number>; warnings: string[] }>
+    decisions: import('../server/trialEngineTypes').IssueDecision[]
     validationWarnings: string[]
   }
 }
 
-export interface RobustnessReport {
-  baseRunId: string
-  runIds: string[]
-  completeRuns: number
-  scenarioSensitivity: Array<{ issueId: string; outcomes: Record<string, number>; sensitive: boolean }>
-  recurringProofGaps: string[]
-  disclaimer: string
+export interface WorkflowSource {
+  id: string
+  exhibitId: string
+  name: string
+  sha256: string | null
+  ingestionStatus: string
+  extractionWarning: string | null
 }
+
+export interface WorkflowState {
+  models: CaseModel[]
+  trials: TrialRun[]
+  ledgers: AdmissionLedger[]
+  motions: Motion[]
+  findings: DisclosureFinding[]
+  jobs: CorpusJob[]
+  evidence: WorkflowSource[]
+}
+
+export type RobustnessReport = import('../server/trialEngineTypes').RobustnessReport

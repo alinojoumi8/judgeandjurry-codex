@@ -9,8 +9,8 @@ export function BrandMark({ compact = false }: BrandMarkProps) {
     <div className={compact ? 'brand brand--compact' : 'brand'}>
       <img src={markUrl} alt="" className="brand__mark" />
       {!compact && (
-        <div className="brand__text" aria-label="Judge & Jury">
-          Judge <span>&amp;</span> Jury
+        <div className="brand__text" aria-label="TrialLens">
+          TrialLens
         </div>
       )}
     </div>

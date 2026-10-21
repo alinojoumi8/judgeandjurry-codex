@@ -2756,3 +2756,46 @@
   margin: 0.15rem 0 0;
   overflow-wrap: anywhere;
 }
+.scenario-editor, .record-coverage { display: grid; gap: 14px; margin-top: 18px; }
+.scenario-editor label, .saved-proceeding { display: grid; gap: 6px; font-size: 13px; }
+.scenario-editor input:not([type="checkbox"]), .scenario-editor select, .scenario-editor textarea, .saved-proceeding select { width: 100%; padding: 9px 11px; border: 1px solid #d8dfe8; border-radius: 6px; background: #fff; color: #18263b; font: inherit; }
+.scenario-editor textarea { min-height: 75px; resize: vertical; }
+.editor-card { display: grid; gap: 12px; padding: 16px; border: 1px solid #d8dfe8; border-radius: 8px; min-width: 0; }
+.editor-card legend { font-size: 13px; font-weight: 600; padding: 0 6px; overflow-wrap: anywhere; }
+.element-editor { padding: 12px; background: #f6f8fb; display: grid; gap: 9px; }
+.scenario-editor button { justify-self: start; }
+.workflow-edit-details { border-top: 1px solid #d8dfe8; padding-top: 16px; }
+.workflow-edit-details summary { cursor: pointer; font-weight: 600; }
+.workflow-restoring { padding: 32px; }
+.saved-proceeding { margin: 0 0 18px; }
+.grounding-review { border: 1px solid #d8dfe8; border-radius: 6px; padding: 12px; }
+.grounding-review summary { cursor: pointer; font-size: 13px; }
+.grounding-review article { padding: 12px 0; border-top: 1px solid #edf0f5; margin-top: 12px; }
+.grounding-review blockquote { margin: 10px 0; border-left: 3px solid #8ca7d6; background: #f6f8fb; padding: 10px; font-size: 12px; white-space: pre-wrap; }
+.evidence-matrix-editor, .decision-trace, .scenario-comparisons { display: grid; gap: 12px; min-width: 0; }
+.decision-trace { border-top: 1px solid #d8dfe8; margin-top: 12px; padding-top: 12px; font-size: 13px; }
+.decision-trace summary, .scenario-comparison summary, .ballot-trace summary { cursor: pointer; font-weight: 600; }
+.trace-element { padding: 14px 0; border-bottom: 1px solid #e0e5ed; }
+.matrix-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.matrix-columns > section { min-width: 0; padding: 12px; border: 1px solid #d8dfe8; border-radius: 6px; background: #f7f9fc; }
+.matrix-columns h5 { font-size: 13px; margin: 0 0 10px; }
+.matrix-columns article { padding: 8px 0; overflow-wrap: anywhere; }
+.source-reference { text-align: left; color: #24599d; text-decoration: underline; }
+.evidence-matrix-editor blockquote, .decision-trace blockquote, .source-dialog blockquote { margin: 8px 0; padding: 12px; border-left: 3px solid #8ca7d6; background: #f6f8fb; white-space: pre-wrap; overflow-wrap: anywhere; }
+.source-dialog { width: min(1000px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; border: 1px solid #c1cedd; border-radius: 10px; padding: 24px; color: #18263b; }
+.source-dialog::backdrop { background: #15263e99; }
+.source-dialog header { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+.source-dialog button { padding: 8px 12px; cursor: pointer; }
+.source-dialog iframe { width: 100%; height: 520px; border: 1px solid #d8dfe8; margin-top: 16px; }
+.source-hash { font-size: 12px; overflow-wrap: anywhere; }
+.source-passages { display: grid; gap: 12px; }
+.source-passages article { padding: 12px; border: 1px solid #e0e5ed; border-radius: 6px; }
+.source-passages article p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.source-passages .selected-passage { border: 2px solid #24599d; background: #eef4ff; }
+.ballot-trace, .scenario-comparison { margin: 10px 0; padding: 12px; border: 1px solid #d8dfe8; border-radius: 6px; }
+.ballot-trace small { display: block; margin-bottom: 8px; }
+.comparison-table { overflow-x: auto; margin: 12px 0; }
+.comparison-table table { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 12px; }
+.comparison-table th, .comparison-table td { border: 1px solid #d8dfe8; text-align: left; vertical-align: top; padding: 10px; overflow-wrap: anywhere; }
+.comparison-table caption { text-align: left; font-weight: 600; padding: 8px 0; }
+@media (max-width: 900px) { .matrix-columns { grid-template-columns: 1fr; } .source-dialog { padding: 16px; } }

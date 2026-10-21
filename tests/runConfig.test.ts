@@ -46,7 +46,7 @@ describe('run configuration', () => {
   it('infers OSC and criminal templates from matter language', () => {
     expect(
       inferTemplateId({
-        title: 'OSC Smart Prime disclosure',
+        title: 'Fictional securities disclosure',
         narrative: 'Investor trading and MT4 platform records.',
       }),
     ).toBe('osc_securities')

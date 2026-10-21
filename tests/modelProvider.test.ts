@@ -32,6 +32,41 @@ const evidence: EvidenceItem[] = [
 ]
 
 describe('model provider reliability', () => {
+  it('defaults MiniMax to M3.1 Flash Preview and preserves explicit model overrides', () => {
+    const previous = { ...process.env }
+    try {
+      process.env.MODEL_PROVIDER = 'minimax'
+      delete process.env.MINIMAX_MODEL
+      expect(createMiniMaxConfig().model).toBe('MiniMax-M3.1-Flash-Preview')
+      process.env.MINIMAX_MODEL = 'custom-model'
+      expect(createMiniMaxConfig().model).toBe('custom-model')
+    } finally { process.env = previous }
+  })
+  it('sends source text without retrieval chunks and budgets external secret ballots for reasoning', async () => {
+    const previous = { ...process.env }
+    process.env.MODEL_MAX_OUTPUT_TOKENS = '8000'
+    process.env.MINIMAX_REASONING_EFFORT = 'low'
+    const captured: Record<string, unknown>[] = []
+    const client = new MiniMaxClient(
+      { provider: 'minimax', apiKey: 'key', baseUrl: 'https://api.minimax.io/v1', model: 'MiniMax-M3.1-Flash-Preview', timeoutMs: 2000, maxRetries: 0 },
+      undefined,
+      async (_url, init) => {
+        captured.push(JSON.parse(String(init?.body)))
+        return Response.json({ choices: [{ message: { content: '{"title":"Ballot","content":"Uses E-001.","citations":["E-001"],"jurors":[]}' } }] })
+      },
+    )
+    try {
+      await client.generateStage({ stage: 'juror_ballot', packet: 'Decide from the source record.', evidence, previousTurns: '' })
+      const messages = captured[0].messages as Array<{ content: string }>
+      expect(messages[1].content).toContain('[E-001] note.txt')
+      expect(messages[1].content).toContain('[E-001 paragraph 1] Evidence text.')
+      expect(captured[0].max_completion_tokens).toBe(8000)
+      expect(captured[0].reasoning_effort).toBe('low')
+    } finally {
+      process.env = previous
+    }
+  })
+
   it('infers OpenAI-compatible provider configuration from env', () => {
     const previous = { ...process.env }
     process.env.MODEL_PROVIDER = 'openai-compatible'
@@ -266,6 +301,44 @@ describe('model provider reliability', () => {
     expect(userPrompt).toContain('Panel decision rule: unanimous verdict')
     expect(result.jurors).toHaveLength(1)
     expect(result.jurors?.[0]?.leaning).toBe('defence')
+    expect(userPrompt).toContain('independent secret ballot cast before any deliberation')
+
+    await client.generateStage({
+      stage: 'juror_ballot', packet: 'Final issue instructions.', evidence,
+      previousTurns: 'Completed public deliberation.', jurorProfiles: [profile],
+      ballotRound: 'final',
+    })
+    const finalPrompt = requestBody?.messages?.[1]?.content ?? ''
+    expect(finalPrompt).toContain('final secret ballot after deliberation')
+    expect(finalPrompt).not.toContain('independent secret ballot cast before any deliberation')
+  })
+
+  it.each(['juror_ballot', 'jury_deliberation'] as const)('retries panel-wide and wrong-identity responses for an isolated %s', async (stage) => {
+    const profile: JurorProfile = {
+      id: 'profile-4', sessionId: 'session-1', juror: 'Juror 04', role: 'Skeptical engineer',
+      skepticismLevel: 80, burdenSensitivity: 85, bias: 'neutral', evidenceFocus: 'source reliability',
+      reasoningStyle: 'Document-led.', doubtTriggers: 'Unsupported inference.', trustAnchors: 'Records.',
+      emotionalPosture: 'Measured.', evidenceHierarchy: 'Documents first.', whatWouldChangeMind: 'Corroboration.',
+    }
+    const prompts: string[] = []
+    const client = new MiniMaxClient(
+      { provider: 'minimax', apiKey: 'test-key', baseUrl: 'https://api.minimax.io/v1', model: 'MiniMax-M3.1-Flash-Preview', timeoutMs: 2000, maxRetries: 2 },
+      undefined,
+      async (_url, init) => {
+        prompts.push(JSON.stringify(JSON.parse(String(init?.body)).messages))
+        const identities = prompts.length === 1 ? ['Juror 1', 'Juror 04'] : prompts.length === 2 ? ['Juror 3'] : ['juror-4']
+        return Response.json({ choices: [{ message: { content: JSON.stringify({
+          title: 'Ballot', content: 'The burden is applied to E-001.', citations: ['E-001'],
+          jurors: identities.map((juror) => ({ juror, leaning: 'defence', confidence: 60, rationale: 'Reasonable doubt remains.', citations: ['E-001'] })),
+        }) } }] })
+      },
+    )
+    const result = await client.generateStage({ stage, packet: 'Decide the assigned issue.', evidence, previousTurns: '', jurorProfiles: [profile] })
+    expect(prompts).toHaveLength(3)
+    expect(prompts[1]).toContain('Return exactly one juror object for Juror 04')
+    expect(prompts[2]).toContain('Juror 3')
+    expect(result.jurors).toHaveLength(1)
+    expect(result.jurors?.[0].juror).toBe(profile.juror)
   })
 
   it('feeds secret ballots and the decision rule into the deliberation prompt', async () => {

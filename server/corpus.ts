@@ -3,6 +3,8 @@ import MsgReader from '@kenjiuno/msgreader'
 import mammoth from 'mammoth'
 import { simpleParser } from 'mailparser'
 import { createHash, randomUUID } from 'node:crypto'
+import { createRequire } from 'node:module'
+const mailparserVersion: string = createRequire(import.meta.url)('mailparser/package.json').version
 import { execFile } from 'node:child_process'
 import { createReadStream, existsSync } from 'node:fs'
 import {
@@ -291,7 +293,8 @@ export class CorpusService {
       return
     }
     const sha256 = digest(bytes)
-    if (entry.sha256 && entry.sha256 !== sha256) {
+    const expectedSha256 = entry.expectedSha256 ?? entry.sha256 ?? job.preview.files.find(file => file.relativePath === entry.relativePath)?.sha256
+    if (expectedSha256 && expectedSha256 !== sha256) {
       this.store.workflow.completeManifestEntry(entry.id, {
         status: 'failed', warning: 'Source bytes changed after preview; import this corpus again.',
       })
@@ -328,7 +331,7 @@ export class CorpusService {
       tags: inferTags(`${entry.relativePath} ${text.slice(0, 10_000)}`),
       sha256,
       sourcePath: storagePath,
-      ingestionStatus: extraction.status === 'extracted' ? 'stored' : 'extraction_failed',
+      ingestionStatus: extraction.artifacts.some((artifact) => artifact.status === 'extracted' && artifact.text.trim()) ? 'stored' : 'extraction_failed',
       extractionWarning: extraction.warning ?? null,
     })
     this.store.workflow.completeManifestEntry(entry.id, {
@@ -481,7 +484,9 @@ async function extractPdf(entry: ManifestEntry, bytes: Buffer): Promise<Extracti
     const artifacts = result.pages.map((page, index) => artifact(
       'page', { page: page.num }, page.text, 'pdf-parse', '2.4.5', [], page.text.trim() ? 1 : 0.5, index,
     ))
-    const emptyPageNumbers = result.pages.filter((page) => !page.text.trim()).map((page) => page.num)
+    // A scanned page can still have a machine-readable footer or page number.
+    // Nonempty text alone does not establish that its body was extracted.
+    const sparsePageNumbers = result.pages.filter((page) => page.text.replace(/[^\p{L}]/gu, '').length < 80).map((page) => page.num)
     if (artifacts.length === 0) {
       return {
         status: 'needs_review',
@@ -490,26 +495,35 @@ async function extractPdf(entry: ManifestEntry, bytes: Buffer): Promise<Extracti
       }
     }
     const ocrWarnings: string[] = []
-    if (emptyPageNumbers.length > 0) {
+    if (sparsePageNumbers.length > 0) {
       try {
-        const { recognize } = await import('tesseract.js')
-        for (const pageNumber of emptyPageNumbers) {
+        const { recognize } = (await import('tesseract.js')).default
+        const ocrOptions = await localOcrOptions()
+        for (const pageNumber of sparsePageNumbers) {
           const screenshot = await parser.getScreenshot({ partial: [pageNumber], desiredWidth: 1800 })
           const page = screenshot.pages[0]
           if (!page) {
             ocrWarnings.push(`Page ${pageNumber} could not be rendered for OCR.`)
             continue
           }
-          const result = await recognize(Buffer.from(page.data), 'eng')
+          const result = await recognize(Buffer.from(page.data), 'eng', ocrOptions)
           const confidence = Math.max(0, Math.min(1, result.data.confidence / 100))
           const target = artifacts.find((item) => item.locator.page === pageNumber)
           if (!target) continue
-          target.text = result.data.text.slice(0, maxExtractedCharacters)
+          const ocrText = result.data.text.slice(0, maxExtractedCharacters)
+          if (ocrText.trim().length <= target.text.trim().length) {
+            target.status = 'needs_review'
+            target.warnings = ['Sparse PDF text; OCR did not recover additional page content. Review the preserved image.']
+            ocrWarnings.push(`Page ${pageNumber} has sparse text; verify its image before assuming the body was extracted.`)
+            continue
+          }
+          target.text = ocrText
           target.extractorName = 'pdf-parse+tesseract.js'
           target.extractorVersion = '2.4.5+7.0.0'
           target.reliability = confidence
           target.status = confidence >= 0.5 && target.text.trim() ? 'extracted' : 'needs_review'
           target.warnings = ['OCR-derived PDF text; verify legally significant wording against the preserved page image.']
+          ocrWarnings.push(`Page ${pageNumber} uses OCR-derived text; verify significant wording against the preserved image.`)
           if (confidence < 0.75) ocrWarnings.push(`Page ${pageNumber} OCR confidence is low (${Math.round(confidence * 100)}%).`)
         }
       } catch (error) {
@@ -579,12 +593,12 @@ async function extractEml(_entry: ManifestEntry, bytes: Buffer): Promise<Extract
     `To: ${message.to ? String(message.to) : ''}`,
     `Date: ${message.date?.toISOString() ?? ''}`,
   ].join('\n')
-  const artifacts = [artifact('email', { message: 1 }, `${header}\n\n${message.text ?? stripHtml(message.html || '')}`, 'mailparser', '3.9.14', [], 1, 0)]
+  const artifacts = [artifact('email', { message: 1 }, `${header}\n\n${message.text ?? stripHtml(message.html || '')}`, 'mailparser', mailparserVersion, [], 1, 0)]
   message.attachments.forEach((attachment, index) => {
     artifacts.push(artifact(
       'metadata', { attachment: index + 1, filename: attachment.filename ?? `attachment-${index + 1}` },
       `Attachment: ${attachment.filename ?? 'unnamed'} (${attachment.contentType}, ${attachment.size} bytes)`,
-      'mailparser', '3.9.14', ['Attachment remains preserved inside the source EML.'], 0.9, index + 1,
+      'mailparser', mailparserVersion, ['Attachment remains preserved inside the source EML.'], 0.9, index + 1,
     ))
   })
   return { status: 'extracted', artifacts }
@@ -613,10 +627,16 @@ function extractMsg(_entry: ManifestEntry, bytes: Buffer): ExtractionResult {
   return { status: text.trim() ? 'extracted' : 'needs_review', warning: text.trim() ? undefined : 'MSG contained no readable message body.', artifacts }
 }
 
+async function localOcrOptions() {
+  const cachePath = resolve(dirname(process.env.CORPUS_STORAGE_DIR || 'data/corpus/blobs'), 'ocr-cache')
+  await mkdir(cachePath, { recursive: true })
+  return { cachePath }
+}
+
 async function extractImage(_entry: ManifestEntry, bytes: Buffer): Promise<ExtractionResult> {
   try {
-    const { recognize } = await import('tesseract.js')
-    const result = await recognize(bytes, 'eng')
+    const { recognize } = (await import('tesseract.js')).default
+    const result = await recognize(bytes, 'eng', await localOcrOptions())
     const confidence = Math.max(0, Math.min(1, result.data.confidence / 100))
     const warnings = confidence < 0.75 ? ['OCR confidence is low; compare the text with the original image.'] : ['OCR is derived text; verify legally significant wording against the original image.']
     return {
@@ -792,7 +812,7 @@ function previewWarnings(files: CorpusPreviewEntry[]): string[] {
 function extractorVersions(): Record<string, string> {
   return {
     'pdf-parse': '2.4.5', mammoth: '1.12.0', 'judge-jury-xlsx': '1',
-    mailparser: '3.9.14', '@kenjiuno/msgreader': '1.28.0', 'tesseract.js': '7.0.0',
+    mailparser: mailparserVersion, '@kenjiuno/msgreader': '1.28.0', 'tesseract.js': '7.0.0',
     ffprobe: process.env.FFPROBE_PATH ?? 'local', whisper: process.env.WHISPER_MODEL ?? 'base',
   }
 }

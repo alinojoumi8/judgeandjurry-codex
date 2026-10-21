@@ -1,0 +1,297 @@
+{
+  "provenance": {
+    "source": "tmp/qa/courtroom/live-evaluation-2026-10-03T07-56-16-993Z.json",
+    "sha256": "2f27089b54d2723d71f54950f0018ad56aad74c9c8e2280e6c0f15b48024666e",
+    "reconstruction": "Drafts reconstructed from recorded sentence units; original raw JSON and whitespace unavailable. Prior failures precede final findings.",
+    "historicalInputHash": "a6653f8730e54a6d8cce975260d9389708f72a53a11ea502c53eb50f4c0eedea",
+    "historicalContextHash": "21ab636c11f34747c29cd2267d037e7a15ae870a59f8662aba666aac871eb579"
+  },
+  "original": {
+    "findings": [
+      {
+        "unitId": "title:1",
+        "text": "Crown Opening Address — Issue 1 (Fictional Disputed Transfer)",
+        "status": "analysis",
+        "explanation": "Procedural title identifying the address and a scenario instruction label ('Fictional Disputed Transfer'). No factual claim requiring source support.",
+        "citations": []
+      },
+      {
+        "unitId": "content:1",
+        "text": "Members of the Jury Panel, may it please the Court.",
+        "status": "analysis",
+        "explanation": "Ceremonial address to the jury panel. No factual assertion requiring source support.",
+        "citations": []
+      },
+      {
+        "unitId": "content:2",
+        "text": "I appear for the Crown and I bear the burden of proving every essential element of the allegation beyond a reasonable doubt.",
+        "status": "analysis",
+        "explanation": "Statement of the Crown's legal burden of proof, consistent with the governing legal standard provided in the audit instructions. Legal instruction/argument, not a factual claim.",
+        "citations": []
+      },
+      {
+        "unitId": "content:3",
+        "text": "Those are not mere words; they govern how I frame what follows, and they tell you when a fact alleged is, for now, only an allegation.",
+        "status": "analysis",
+        "explanation": "Commentary on the legal standard and its framing effect. Legal argument, not a factual assertion.",
+        "citations": []
+      },
+      {
+        "unitId": "content:4",
+        "text": "The only matter presently before you is issue-1, described as a fictional disputed transfer.",
+        "status": "analysis",
+        "explanation": "Procedural statement scoping the opening to the designated issue. The 'fictional disputed transfer' descriptor is a scenario instruction label.",
+        "citations": []
+      },
+      {
+        "unitId": "content:5",
+        "text": "The Crown's position, to be tested through evidence you will hear, is that a transfer occurred and that the accused was a party to it.",
+        "status": "unsupported",
+        "explanation": "Asserts as the Crown's position that a transfer occurred and the accused was a party to it. E-001 records only that notice was delivered and is expressly 'not proof of truth'; no source supports these factual assertions. Framing as 'the Crown's position to be tested' does not convert an unsupported factual premise into analysis.",
+        "citations": []
+      },
+      {
+        "unitId": "content:6",
+        "text": "I will not, in opening, ask you to accept that as proven.",
+        "status": "analysis",
+        "explanation": "Procedural statement about what counsel will not do in opening. No factual claim requiring source support.",
+        "citations": []
+      },
+      {
+        "unitId": "content:7",
+        "text": "I will tell you what the Crown expects the evidence to show, what exhibits will be relied upon, and — candidly — where proof gaps remain.",
+        "status": "analysis",
+        "explanation": "Roadmap of the opening's structure. Procedural, not factual.",
+        "citations": []
+      },
+      {
+        "unitId": "content:8",
+        "text": "The single exhibit presently supplied to the Crown as part of the trial record is E-001, the notice.txt document.",
+        "status": "analysis",
+        "explanation": "Statement that E-001 is the single exhibit presently supplied, scoped to the supplied record. Consistent with the record-coverage context, which permits analysis-based statements about what is supplied to this run.",
+        "citations": []
+      },
+      {
+        "unitId": "content:9",
+        "text": "I draw your attention to it for one purpose only: E-001 records that notice was delivered.",
+        "status": "supported",
+        "explanation": "Asserts that E-001 records that notice was delivered, which is the exact content of E-001 paragraph 1.",
+        "citations": [
+          {
+            "exhibitId": "E-001",
+            "quote": "Early material fact: notice was delivered.",
+            "paragraph": 1,
+            "startOffset": 0,
+            "endOffset": 42,
+            "quoteMethod": "source-paragraph"
+          }
+        ]
+      },
+      {
+        "unitId": "content:10",
+        "text": "By the limited-use restriction attached to that exhibit, it proves notice and nothing more; it is not tendered by the Crown as proof of the truth of any underlying transaction or of the accused's conduct.",
+        "status": "supported",
+        "explanation": "Characterizes the E-001 limited-use restriction ('Notice only; not proof of truth') as meaning the exhibit proves notice and nothing more and is not tendered for the truth of any underlying transaction. This is a faithful description of the source-use restriction attached to E-001.",
+        "citations": [
+          {
+            "exhibitId": "E-001",
+            "quote": "Early material fact: notice was delivered.",
+            "paragraph": 1,
+            "startOffset": 0,
+            "endOffset": 42,
+            "quoteMethod": "source-paragraph"
+          }
+        ]
+      },
+      {
+        "unitId": "content:11",
+        "text": "The Crown will therefore not invite you to reason backwards from notice to the substantive elements of the offence.",
+        "status": "analysis",
+        "explanation": "Procedural statement about the Crown's intended inferential approach. Legal argument, not a factual claim.",
+        "citations": []
+      },
+      {
+        "unitId": "content:12",
+        "text": "As to chronology, motive, opportunity, witness reliability, and corroboration — the Crown anticipates calling evidence-in-chief to address each.",
+        "status": "analysis",
+        "explanation": "Forward-looking statement that the Crown anticipates calling evidence-in-chief on enumerated topics. Speculative procedural statement, not an assertion of present fact.",
+        "citations": []
+      },
+      {
+        "unitId": "content:13",
+        "text": "At this stage, and on the record as presently supplied, no witness statement, no independent corroboration, no motive theory, and no timeline exhibit has been disclosed to me beyond E-001's notice reference.",
+        "status": "analysis",
+        "explanation": "Scoped to 'on the record as presently supplied' and to what 'has been disclosed to me.' Consistent with the record-coverage context permitting analysis-based statements about the supplied record, and does not assert non-existence of evidence beyond the run.",
+        "citations": []
+      },
+      {
+        "unitId": "content:14",
+        "text": "The Crown therefore acknowledges, with the duty of candour owed to you, that proof gaps exist in the supplied record and that the Crown's case will stand or fall on what is properly put before you in evidence.",
+        "status": "analysis",
+        "explanation": "Crown's candid acknowledgement, scoped to the supplied record, that proof gaps exist there and that the case will stand or fall on evidence properly put before the jury. Procedural/statement of approach, not a factual assertion requiring source support.",
+        "citations": []
+      },
+      {
+        "unitId": "content:15",
+        "text": "I will return to my burden at the close of my case.",
+        "status": "analysis",
+        "explanation": "Procedural statement reserving return to the burden at close of the Crown's case. Not a factual claim.",
+        "citations": []
+      }
+    ],
+    "errors": [
+      "content:5: unsupported — Asserts as the Crown's position that a transfer occurred and the accused was a party to it. E-001 records only that notice was delivered and is expressly 'not proof of truth'; no source supports these factual assertions. Framing as 'the Crown's position to be tested' does not convert an unsupported factual premise into analysis."
+    ]
+  },
+  "repaired": {
+    "findings": [
+      {
+        "unitId": "title:1",
+        "text": "Crown Opening Address — issue-1 (Fictional Disputed Transfer)",
+        "status": "analysis",
+        "explanation": "Title/label; no factual assertion requiring source support.",
+        "citations": []
+      },
+      {
+        "unitId": "content:1",
+        "text": "Members of the jury panel, on the single live issue — issue-1, a fictional disputed transfer — the Crown bears the burden of proving every element beyond a reasonable doubt.",
+        "status": "analysis",
+        "explanation": "Legal standard articulation (burden of proof); not a factual claim.",
+        "citations": []
+      },
+      {
+        "unitId": "content:2",
+        "text": "Nothing I say in this opening is evidence; it is a roadmap of what the Crown will ask you to find, tested against the evidence you will hear, and tested against the Defence's reply.",
+        "status": "analysis",
+        "explanation": "Procedural/legal characterization of an opening address; not a factual assertion.",
+        "citations": []
+      },
+      {
+        "unitId": "content:4",
+        "text": "The Crown will contend, through evidence to be called, that a transfer occurred and that the accused was a party to it.",
+        "status": "analysis",
+        "explanation": "Forward-looking statement of the Crown's own anticipated contention ('will contend, through evidence to be called'); a conditional argument, not an assertion of established fact.",
+        "citations": []
+      },
+      {
+        "unitId": "content:5",
+        "text": "The Defence is presumed innocent, and is entitled to challenge each link in that chain — what was transferred, when, between whom, and with what intent.",
+        "status": "analysis",
+        "explanation": "Statement of presumption of innocence and right to challenge; legal instruction, not a factual claim.",
+        "citations": []
+      },
+      {
+        "unitId": "content:6",
+        "text": "If, at the end of the case, you are left with a reasonable doubt on any element of issue-1, you must find the accused not guilty on that issue.",
+        "status": "analysis",
+        "explanation": "Jury instruction on reasonable doubt; legal standard, not a factual claim.",
+        "citations": []
+      },
+      {
+        "unitId": "content:8",
+        "text": "I owe you candor about what is actually in the record at this stage.",
+        "status": "analysis",
+        "explanation": "Rhetorical/procedural statement about candor; no factual assertion.",
+        "citations": []
+      },
+      {
+        "unitId": "content:9",
+        "text": "The Crown's only filed exhibit at this point is E-001 (notice.txt).",
+        "status": "unsupported",
+        "explanation": "Asserts E-001 is the Crown's 'only filed exhibit at this point.' The supplied record contains only E-001, but the record-coverage context expressly warns that absence from this run does not mean absence from disclosure and that claims of non-existence must not be inferred from upload gaps. The exclusivity claim is therefore an overreach on the supplied record.",
+        "citations": []
+      },
+      {
+        "unitId": "content:10",
+        "text": "E-001 records a single, early material fact: that notice was delivered.",
+        "status": "supported",
+        "explanation": "Directly tracks E-001 paragraph 1: 'Early material fact: notice was delivered.'",
+        "citations": [
+          {
+            "exhibitId": "E-001",
+            "quote": "Early material fact: notice was delivered.",
+            "paragraph": 1,
+            "startOffset": 0,
+            "endOffset": 42,
+            "quoteMethod": "source-paragraph"
+          }
+        ]
+      },
+      {
+        "unitId": "content:11",
+        "text": "By its own designation, E-001 is a notice-only document and is not proof of the truth of any allegation; it may be used only for the limited purpose of establishing that notice was given.",
+        "status": "supported",
+        "explanation": "Source-use restriction specifies E-001 is 'limited; permitted purposes: Notice only; not proof of truth,' which supports the description of E-001 as a notice-only document usable only to establish notice.",
+        "citations": [
+          {
+            "exhibitId": "E-001",
+            "quote": "Early material fact: notice was delivered.",
+            "paragraph": 1,
+            "startOffset": 0,
+            "endOffset": 42,
+            "quoteMethod": "source-paragraph"
+          }
+        ]
+      },
+      {
+        "unitId": "content:12",
+        "text": "Standing alone, E-001 does not establish that a transfer occurred, that the accused was a party to it, or any element of issue-1-element-1 beyond the fact of notice.",
+        "status": "analysis",
+        "explanation": "Evidentiary argument about the scope of what E-001 proves; premise (E-001 is notice-only and not proof of truth) is supported by the source-use restriction, and the conclusion that E-001 standing alone does not establish other elements is a permissible inference/argument from that premise.",
+        "citations": []
+      },
+      {
+        "unitId": "content:13",
+        "text": "The Crown does not ask you to draw a prohibited inference from E-001, and I instruct myself now to be careful not to invite one.",
+        "status": "analysis",
+        "explanation": "Procedural self-instruction about inferences; not a factual claim.",
+        "citations": []
+      },
+      {
+        "unitId": "content:15",
+        "text": "The Crown therefore anticipates calling further evidence — testimony and any additional exhibits — to make out the elements of issue-1-element-1, including the actus reus, the mens rea, the identity of the accused, and participation in the alleged transaction.",
+        "status": "analysis",
+        "explanation": "Anticipatory statement about further evidence the Crown expects to call; forward-looking and conditional, not an assertion of fact.",
+        "citations": []
+      },
+      {
+        "unitId": "content:16",
+        "text": "I will not preview that evidence in detail so as not to pre-empt the Defence.",
+        "status": "analysis",
+        "explanation": "Procedural statement about not previewing evidence; not a factual claim.",
+        "citations": []
+      },
+      {
+        "unitId": "content:17",
+        "text": "Where the Crown's proof falls short on any element, I will say so; where it is absent on a live issue, the only correct verdict on that issue is not guilty.",
+        "status": "analysis",
+        "explanation": "Concession/instruction on the consequence of proof falling short; legal argument, not a factual claim.",
+        "citations": []
+      },
+      {
+        "unitId": "content:19",
+        "text": "You will hear from the Defence after me.",
+        "status": "analysis",
+        "explanation": "Procedural statement about the order of addresses; not a factual claim.",
+        "citations": []
+      },
+      {
+        "unitId": "content:20",
+        "text": "Keep an open mind.",
+        "status": "analysis",
+        "explanation": "Jury instruction to keep an open mind; not a factual claim.",
+        "citations": []
+      },
+      {
+        "unitId": "content:21",
+        "text": "Decide this issue only on the evidence, when it is given.",
+        "status": "analysis",
+        "explanation": "Jury instruction to decide based on the evidence; not a factual claim.",
+        "citations": []
+      }
+    ],
+    "errors": [
+      "content:9: unsupported — Asserts E-001 is the Crown's 'only filed exhibit at this point.' The supplied record contains only E-001, but the record-coverage context expressly warns that absence from this run does not mean absence from disclosure and that claims of non-existence must not be inferred from upload gaps. The exclusivity claim is therefore an overreach on the supplied record."
+    ]
+  }
+}

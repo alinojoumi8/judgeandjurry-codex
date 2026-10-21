@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { validateEvidenceScope } from './evidenceRestrictions'
 
 import type { CaseStore } from './db'
 import { assertPermittedRelief, getProcedureAdapter } from './procedureAdapters'
@@ -19,6 +20,10 @@ import type {
   TheoryBrief,
 } from './trialEngineTypes'
 import type { EvidenceItem } from './types'
+import { admissionInputSchema, editableCaseModelSchema } from './workflowSchemas'
+import { resolveEvidenceMatrix, sourceDocument } from './decisionTrace'
+import { legalPacketReadiness, packetContentHash } from './legalPacket'
+import { legalPacketSchema } from './legalPacketSchema'
 
 export class CaseWorkflowService {
   private readonly store: CaseStore
@@ -26,12 +31,21 @@ export class CaseWorkflowService {
   constructor(store: CaseStore) {
     this.store = store
   }
+  legalReadiness(modelId: string) { return legalPacketReadiness(this.store.workflow.getCaseModel(modelId)) }
+  saveLegalPacket(modelId: string, raw: unknown) {
+    const packet = legalPacketSchema.parse(raw)
+    packet.contentHash = packetContentHash(packet)
+    // Retain an attestation only when it names the exact submitted content.
+    if (packet.review && packet.review.packetHash !== packet.contentHash) packet.review = undefined
+    return this.reviseCaseModel(modelId, { legalPacket: packet })
+  }
 
   draftCaseModel(
     matterId: string,
     procedureAdapter: ProcedureAdapterId,
-    input: Partial<Pick<CaseModelV1, 'title' | 'parties' | 'decisionIssues' | 'witnesses' | 'disputedFacts' | 'remedies' | 'juryNotice' | 'unresolved'>> = {},
+    input: Partial<Pick<CaseModelV1, 'title' | 'parties' | 'decisionIssues' | 'witnesses' | 'disputedFacts' | 'remedies' | 'juryNotice' | 'unresolved' | 'recordScope' | 'evidenceMatrix' | 'legalPacket'>> = {},
   ): CaseModelV1 {
+    input = editableCaseModelSchema.parse(input)
     const matter = this.store.getMatter(matterId)
     const evidence = this.store.listEvidence(matterId)
     const adapter = getProcedureAdapter(procedureAdapter)
@@ -39,6 +53,7 @@ export class CaseWorkflowService {
     const decisionIssues = input.decisionIssues ?? inferDecisionIssues(procedureAdapter, matter.narrative, parties, evidence)
     return this.store.workflow.createCaseModel({
       schemaVersion: 1,
+      legalPacket: input.legalPacket,
       matterId,
       procedureAdapter,
       title: input.title?.trim() || matter.title,
@@ -48,6 +63,8 @@ export class CaseWorkflowService {
       disputedFacts: input.disputedFacts ?? inferDisputedFacts(evidence, decisionIssues),
       remedies: input.remedies ?? [],
       juryNotice: input.juryNotice,
+      recordScope: input.recordScope,
+      evidenceMatrix: resolveEvidenceMatrix(input.evidenceMatrix, decisionIssues, evidence),
       unresolved: input.unresolved ?? [
         `Confirm the governing law and tailored elements against ${adapter.legalSources.map((source) => source.title).join('; ')}.`,
       ],
@@ -55,7 +72,62 @@ export class CaseWorkflowService {
   }
 
   approveCaseModel(modelId: string): CaseModelV1 {
+    const model = this.store.workflow.getCaseModel(modelId)
+    const evidenceIds = new Set(this.store.listEvidence(model.matterId).map((item) => item.id))
+    const classified = model.recordScope?.documents.map((item) => item.evidenceId) ?? []
+    if (new Set(classified).size !== classified.length || classified.some((id) => !evidenceIds.has(id))) {
+      throw new Error('Record coverage must identify distinct sources in this matter.')
+    }
+    resolveEvidenceMatrix(model.evidenceMatrix, model.decisionIssues, this.store.listEvidence(model.matterId))
     return this.store.workflow.approveCaseModel(modelId)
+  }
+
+  sourcePassages(matterId: string, evidenceId: string) {
+    const source = this.store.listEvidence(matterId, true).find((item) => item.id === evidenceId)
+    if (!source) throw new Error('Source not found in this matter.')
+    const entry = this.store.workflow.listCorpusJobs(matterId)
+      .flatMap((job) => this.store.workflow.listManifestEntries(job.id)).find((item) => item.evidenceId === evidenceId)
+    return sourceDocument(source, entry ? this.store.workflow.listDerivedArtifacts(entry.id) : [])
+  }
+
+  reviseCaseModel(modelId: string, input: Parameters<CaseWorkflowService['draftCaseModel']>[2]): CaseModelV1 {
+    const previous = this.store.workflow.getCaseModel(modelId)
+    const revised = this.draftCaseModel(previous.matterId, previous.procedureAdapter, { ...previous, ...input })
+    for (const brief of this.store.workflow.listTheoryBriefs(modelId)) {
+      if (revised.parties.some((party) => party.id === brief.partyId)) {
+        this.saveTheoryBrief({ caseModelId: revised.id, partyId: brief.partyId, side: brief.side, title: brief.title, narrative: brief.narrative, visibility: brief.visibility, sourceKind: brief.sourceKind })
+      }
+    }
+    return revised
+  }
+
+  workspace(matterId: string) {
+    this.store.getMatter(matterId)
+    return {
+      models: this.listCaseModels(matterId), trials: this.listTrialRuns(matterId),
+      ledgers: this.listAdmissionLedgers(matterId), motions: this.listMotions(matterId),
+      findings: this.listDisclosureFindings(matterId), jobs: this.store.workflow.listCorpusJobs(matterId),
+      evidence: this.store.listEvidence(matterId).map(({ id, exhibitId, name, sha256, ingestionStatus, extractionWarning }) => ({ id, exhibitId, name, sha256, ingestionStatus, extractionWarning })),
+    }
+  }
+
+  saveAdmissionLedger(matterId: string, rawInput: unknown): AdmissionLedgerVersion {
+    const input = admissionInputSchema.parse(rawInput)
+    const evidenceIds = new Set(this.store.listEvidence(matterId).map((item) => item.id))
+    const supplied = new Set(input.evidenceUses.map((use) => use.evidenceId))
+    if (supplied.size !== input.evidenceUses.length || supplied.size !== evidenceIds.size || [...supplied].some((id) => !evidenceIds.has(id))) {
+      throw new Error('Source-use settings must cover every current source in this matter exactly once.')
+    }
+    if (input.parentVersionId && this.store.workflow.getAdmissionLedger(input.parentVersionId).matterId !== matterId) {
+      throw new Error('The parent source-use version belongs to another matter.')
+    }
+    for (const use of input.evidenceUses) {
+      if (use.status === 'limited' && !use.purposes.some((purpose) => purpose.trim())) throw new Error('Limited sources need a permitted purpose.')
+      const models = this.store.workflow.listCaseModels(matterId)
+      validateEvidenceScope(use, this.store.listEvidence(matterId).find(s => s.id === use.evidenceId)!, models.flatMap(m => m.decisionIssues.map(i => i.id)), models.flatMap(m => m.parties.map(p => p.id)))
+      if (use.status === 'redacted' && !use.redactions.length) throw new Error('Redacted sources need at least one exact phrase to redact.')
+    }
+    return this.store.workflow.createAdmissionLedger({ ...input, matterId })
   }
 
   listCaseModels(matterId: string): CaseModelV1[] {

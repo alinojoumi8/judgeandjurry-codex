@@ -27,10 +27,45 @@ import type {
 type Row = Record<string, unknown>
 
 export class WorkflowRepository {
+  private transactionDepth = 0
   private readonly db: DatabaseSync
 
   constructor(db: DatabaseSync) {
     this.db = db
+  }
+
+  atomic<T>(operation: () => T): T {
+    if (this.transactionDepth) return operation()
+    this.db.exec('BEGIN IMMEDIATE')
+    this.transactionDepth++
+    try { const result = operation(); this.db.exec('COMMIT'); return result }
+    catch (error) { this.db.exec('ROLLBACK'); throw error }
+    finally { this.transactionDepth-- }
+  }
+
+  getCourtroomState(runId: string): import('./courtroomTypes').CourtroomState | undefined {
+    const row = this.one('SELECT state_json FROM courtroom_states WHERE trial_run_id = ?', runId)
+    return row ? JSON.parse(String(row.state_json)) : undefined
+  }
+  saveCourtroomState(state: import('./courtroomTypes').CourtroomState): void {
+    this.db.prepare('INSERT INTO courtroom_states(trial_run_id, state_json) VALUES(?, ?) ON CONFLICT(trial_run_id) DO UPDATE SET state_json = excluded.state_json').run(state.runId, JSON.stringify(state))
+  }
+  courtroomReceipt(runId: string, commandId: string): { inputHash: string; result: import('./courtroomTypes').CourtroomState } | undefined {
+    const row = this.one('SELECT input_hash, result_json FROM courtroom_command_receipts WHERE trial_run_id = ? AND command_id = ?', runId, commandId)
+    return row ? { inputHash: String(row.input_hash), result: JSON.parse(String(row.result_json)) } : undefined
+  }
+  saveCourtroomReceipt(runId: string, commandId: string, inputHash: string, result: import('./courtroomTypes').CourtroomState, command: import('./courtroomState').CourtroomCommand): void {
+    this.db.prepare('INSERT INTO courtroom_command_receipts(id, trial_run_id, command_id, input_hash, result_json, command_json) VALUES (?, ?, ?, ?, ?, ?)').run(randomUUID(), runId, commandId, inputHash, JSON.stringify(result), JSON.stringify(command))
+  }
+  saveActorInput(runId: string, actorId: string, request: import('./minimax').StageRequest, manifest: import('./courtroomTypes').ActorContextManifest): string {
+    const id = randomUUID()
+    this.db.prepare('INSERT INTO actor_context_inputs(id, trial_run_id, actor_id, input_json, manifest_json) VALUES (?, ?, ?, ?, ?)').run(id, runId, actorId, JSON.stringify(request), JSON.stringify(manifest))
+    return id
+  }
+  actorInputAudit(runId: string, id: string) {
+    const row = this.one('SELECT * FROM actor_context_inputs WHERE id = ? AND trial_run_id = ?', id, runId)
+    if (!row) throw new Error('Actor input is outside this run or unavailable for a legacy run.')
+    return { id, actorId: String(row.actor_id), request: JSON.parse(String(row.input_json)), manifest: JSON.parse(String(row.manifest_json)), notice: 'Owner execution audit. Original input bytes and hashes are preserved after archive import. This object is never participant context.' }
   }
 
   createCorpusJob(input: {
@@ -107,22 +142,23 @@ export class WorkflowRepository {
       `INSERT INTO corpus_manifest_entries
        (id, job_id, matter_id, relative_path, original_name, mime_type, size,
         modified_at, sha256, source_reference, status, warning_text, order_index,
-        created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
+        created_at, updated_at, preview_sha256)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)`,
     )
     const at = nowIso()
-    this.db.exec('BEGIN IMMEDIATE')
+    const ownTransaction = this.transactionDepth === 0
+    if (ownTransaction) this.db.exec('BEGIN IMMEDIATE')
     try {
       job.preview.files.forEach((entry, index) => {
         insert.run(
           randomUUID(), job.id, job.matterId, entry.relativePath, entry.originalName,
           entry.mimeType, entry.size, entry.modifiedAt ?? null, entry.sourceReference,
-          entry.status, entry.warning ?? null, index, at, at,
+          entry.status, entry.warning ?? null, index, at, at, entry.sha256 ?? null,
         )
       })
-      this.db.exec('COMMIT')
+      if (ownTransaction) this.db.exec('COMMIT')
     } catch (error) {
-      this.db.exec('ROLLBACK')
+      if (ownTransaction) this.db.exec('ROLLBACK')
       throw error
     }
     return this.listManifestEntries(job.id)
@@ -376,7 +412,8 @@ export class WorkflowRepository {
     const id = randomUUID()
     const version = Number(row?.next_version ?? 1)
     const createdAt = nowIso()
-    this.db.exec('BEGIN IMMEDIATE')
+    const ownTransaction = this.transactionDepth === 0
+    if (ownTransaction) this.db.exec('BEGIN IMMEDIATE')
     try {
       this.db.prepare(
         `INSERT INTO admission_ledger_versions
@@ -386,17 +423,17 @@ export class WorkflowRepository {
       const insert = this.db.prepare(
         `INSERT INTO evidence_uses
          (id, ledger_version_id, evidence_id, status, purposes_json, redactions_json,
-          hidden_from_json, ruling_id, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          hidden_from_json, ruling_id, note, scope_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       for (const use of input.evidenceUses) {
         insert.run(
           randomUUID(), id, use.evidenceId, use.status, JSON.stringify(use.purposes),
-          JSON.stringify(use.redactions), JSON.stringify(use.hiddenFrom), use.rulingId ?? null, use.note,
+          JSON.stringify(use.redactions), JSON.stringify(use.hiddenFrom), use.rulingId ?? null, use.note, use.scope ? JSON.stringify(use.scope) : null,
         )
       }
-      this.db.exec('COMMIT')
+      if (ownTransaction) this.db.exec('COMMIT')
     } catch (error) {
-      this.db.exec('ROLLBACK')
+      if (ownTransaction) this.db.exec('ROLLBACK')
       throw error
     }
     return this.getAdmissionLedger(id)
@@ -454,6 +491,18 @@ export class WorkflowRepository {
     return this.all('SELECT * FROM trial_runs WHERE matter_id = ? ORDER BY created_at DESC', matterId).map(rowToTrialRun)
   }
 
+  recoverInterruptedTrialRuns(): number {
+    // Only the application owner invokes this at startup, before dispatching
+    // workers. Merely opening a store for backup/import/audit changes no runs.
+    const result = this.db.prepare(`UPDATE trial_runs SET status = 'failed',
+      error_text = CASE WHEN error_text IS NULL OR error_text = '' THEN ? ELSE error_text || char(10) || ? END,
+      updated_at = ? WHERE status = 'running'`).run(
+      'Processing was interrupted before completion. Resume this run from its saved phase.',
+      'Processing was interrupted before completion. Resume this run from its saved phase.', nowIso(),
+    )
+    return Number(result.changes)
+  }
+
   updateTrialRun(runId: string, update: Partial<Pick<TrialRun, 'status' | 'phase' | 'admissionLedgerId' | 'error' | 'completedAt'>>): TrialRun {
     const current = this.getTrialRun(runId)
     this.db.prepare(
@@ -462,20 +511,20 @@ export class WorkflowRepository {
     ).run(
       update.status ?? current.status, update.phase ?? current.phase,
       update.admissionLedgerId === undefined ? current.admissionLedgerId ?? null : update.admissionLedgerId,
-      update.error === undefined ? current.error ?? null : update.error,
+      Object.hasOwn(update, 'error') ? update.error ?? null : current.error ?? null,
       update.completedAt === undefined ? current.completedAt ?? null : update.completedAt,
       nowIso(), runId,
     )
     return this.getTrialRun(runId)
   }
 
-  appendTrialEvent(input: Omit<TrialEvent, 'id' | 'sequence' | 'createdAt'>): TrialEvent {
+  appendTrialEvent(input: Omit<TrialEvent, 'id' | 'sequence' | 'createdAt'> & { id?: string }): TrialEvent {
     const row = this.one(
       'SELECT COALESCE(MAX(sequence), 0) + 1 AS next_sequence FROM trial_events WHERE trial_run_id = ?',
       input.trialRunId,
     )
     const event: TrialEvent = {
-      ...input, id: randomUUID(), sequence: Number(row?.next_sequence ?? 1), createdAt: nowIso(),
+      ...input, id: input.id ?? randomUUID(), sequence: Number(row?.next_sequence ?? 1), createdAt: nowIso(),
     }
     this.db.prepare(
       `INSERT INTO trial_events
@@ -585,16 +634,16 @@ export class WorkflowRepository {
     this.db.prepare(
       `INSERT INTO issue_ballots
        (id, trial_run_id, issue_id, actor_id, round, choice, confidence, rationale,
-        source_refs_json, changed_by_event_id, valid, error_text, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        source_refs_json, changed_by_event_id, valid, error_text, created_at, instruction_event_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(trial_run_id, issue_id, actor_id, round) DO UPDATE SET
        choice = excluded.choice, confidence = excluded.confidence, rationale = excluded.rationale,
        source_refs_json = excluded.source_refs_json, changed_by_event_id = excluded.changed_by_event_id,
-       valid = excluded.valid, error_text = excluded.error_text, created_at = excluded.created_at`,
+       valid = excluded.valid, error_text = excluded.error_text, created_at = excluded.created_at, instruction_event_id = excluded.instruction_event_id`,
     ).run(
       ballot.id, ballot.trialRunId, ballot.issueId, ballot.actorId, ballot.round,
       ballot.choice, ballot.confidence, ballot.rationale, JSON.stringify(ballot.sourceRefs),
-      ballot.changedByEventId ?? null, ballot.valid ? 1 : 0, ballot.error ?? null, ballot.createdAt,
+      ballot.changedByEventId ?? null, ballot.valid ? 1 : 0, ballot.error ?? null, ballot.createdAt, ballot.instructionEventId ?? null,
     )
     return ballot
   }
@@ -698,8 +747,14 @@ export class WorkflowRepository {
 function validateCaseModelForApproval(model: CaseModelV1): void {
   if (model.parties.length < 2) throw new Error('The case model needs at least two parties.')
   if (model.decisionIssues.length === 0) throw new Error('The case model needs at least one decision issue.')
+  const parties = new Set(model.parties.map((party) => party.id))
+  if (parties.size !== model.parties.length) throw new Error('Party IDs must be unique.')
+  if (new Set(model.decisionIssues.map((issue) => issue.id)).size !== model.decisionIssues.length) throw new Error('Decision issue IDs must be unique.')
   for (const issue of model.decisionIssues) {
+    if (issue.claimantPartyId && !parties.has(issue.claimantPartyId)) throw new Error(`Unknown claimant for "${issue.label}".`)
+    if (!issue.respondingPartyIds.length || issue.respondingPartyIds.some((id) => !parties.has(id))) throw new Error(`Select a responding party for "${issue.label}".`)
     if (issue.elements.length === 0) throw new Error(`Decision issue "${issue.label}" has no legal elements.`)
+    if (new Set(issue.elements.map((element) => element.id)).size !== issue.elements.length) throw new Error('Element IDs must be unique within each issue.')
     if (issue.permittedOutcomes.length < 2) throw new Error(`Decision issue "${issue.label}" needs permitted outcomes.`)
   }
   if (model.procedureAdapter === 'ontario_civil_v1' && model.juryNotice?.valid === false) {
@@ -727,7 +782,7 @@ function rowToManifestEntry(row: Row): ManifestEntry {
     id: String(row.id), jobId: String(row.job_id), matterId: String(row.matter_id),
     relativePath: String(row.relative_path), sourceReference: String(row.source_reference),
     originalName: String(row.original_name), mimeType: String(row.mime_type), size: Number(row.size),
-    modifiedAt: optionalString(row.modified_at), sha256: optionalString(row.sha256),
+    modifiedAt: optionalString(row.modified_at), sha256: optionalString(row.sha256), expectedSha256: optionalString(row.preview_sha256),
     status: String(row.status) as ManifestEntry['status'], warning: optionalString(row.warning_text),
     evidenceId: optionalString(row.evidence_id), createdAt: String(row.created_at), updatedAt: String(row.updated_at),
   }
@@ -771,6 +826,7 @@ function rowToEvidenceUse(row: Row): EvidenceUse {
     status: String(row.status) as EvidenceUse['status'], purposes: parseJson(row.purposes_json),
     redactions: parseJson(row.redactions_json), hiddenFrom: parseJson(row.hidden_from_json),
     rulingId: optionalString(row.ruling_id), note: String(row.note),
+    scope: row.scope_json ? parseJson(row.scope_json) : undefined,
   }
 }
 
@@ -809,6 +865,7 @@ function rowToBallot(row: Row): IssueBallot {
     round: String(row.round) as IssueBallot['round'], choice: String(row.choice), confidence: Number(row.confidence),
     rationale: String(row.rationale), sourceRefs: parseJson(row.source_refs_json),
     changedByEventId: optionalString(row.changed_by_event_id), valid: Boolean(row.valid),
+    instructionEventId: optionalString(row.instruction_event_id),
     error: optionalString(row.error_text), createdAt: String(row.created_at),
   }
 }

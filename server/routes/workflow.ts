@@ -5,9 +5,13 @@ import type { CaseWorkflowService } from '../caseWorkflow'
 import { procedureAdapters } from '../procedureAdapters'
 import type { TrialCommand, TrialEngineService } from '../trialEngine'
 import type { ProcedureAdapterId, TrialRunConfig } from '../trialEngineTypes'
+import { editableCaseModelSchema } from '../workflowSchemas'
+import { courtroomCommandSchema } from '../courtroomState'
+import { legalPacketSchema } from '../legalPacketSchema'
+import { packetContentHash } from '../legalPacket'
 
 const adapterSchema = z.enum(['ontario_criminal_jury_v1', 'ontario_capital_markets_v1', 'ontario_civil_v1'])
-const caseModelDraftSchema = z.object({ procedureAdapter: adapterSchema, model: z.record(z.string(), z.unknown()).optional() })
+const caseModelDraftSchema = z.object({ procedureAdapter: adapterSchema, model: editableCaseModelSchema.optional() })
 const theorySchema = z.object({
   partyId: z.string().min(1), side: z.string().min(1), title: z.string().optional(),
   narrative: z.string().optional(), sourceKind: z.enum(['user', 'model']).optional(),
@@ -36,6 +40,7 @@ const rulingSchema = z.object({
   parentLedgerId: z.string().optional(),
 })
 const trialConfigSchema = z.object({
+  courtroomProtocol: z.literal('courtroom_v1').optional(),
   mode: z.enum(['screen', 'full']), procedureAdapter: adapterSchema, seed: z.string().min(1),
   checkpointPolicy: z.object({
     default: z.enum(['autonomous', 'approval']), approvalPhases: z.array(z.string()), allowCounselTakeover: z.boolean(),
@@ -71,6 +76,7 @@ const commandSchema = z.discriminatedUnion('type', [
       issueId: z.string().min(1), actorId: z.string().min(1), round: z.enum(['initial', 'final']),
       choice: z.string().min(1), confidence: z.number().min(0).max(100), rationale: z.string().min(1).max(50_000),
       sourceRefs: z.array(sourceRefSchema).max(100), changedByEventId: z.string().optional(),
+      instructionEventId: z.string().optional(),
       valid: z.boolean(), error: z.string().max(4_000).optional(),
     }),
   }),
@@ -82,6 +88,23 @@ export function createWorkflowRouter(workflow: CaseWorkflowService, trials: Tria
   const router = express.Router()
 
   router.get('/procedure-adapters', (_request, response) => response.json(Object.values(procedureAdapters)))
+
+  router.get('/matters/:matterId/workflow', (request, response) => response.json(workflow.workspace(parameter(request, 'matterId'))))
+
+  router.get('/matters/:matterId/sources/:evidenceId/passages', (request, response) => {
+    response.json(workflow.sourcePassages(parameter(request, 'matterId'), parameter(request, 'evidenceId')))
+  })
+
+  router.post('/case-models/:modelId/versions', (request, response) => {
+    response.status(201).json(workflow.reviseCaseModel(parameter(request, 'modelId'), editableCaseModelSchema.parse(request.body)))
+  })
+  router.get('/case-models/:modelId/legal-readiness', (request, response) => response.json(workflow.legalReadiness(parameter(request, 'modelId'))))
+  router.post('/case-models/:modelId/legal-packet/hash', (request, response) => response.json({ contentHash: packetContentHash(legalPacketSchema.parse(request.body)) }))
+  router.post('/case-models/:modelId/legal-packet', (request, response) => response.status(201).json(workflow.saveLegalPacket(parameter(request, 'modelId'), request.body)))
+
+  router.post('/matters/:matterId/admission-ledgers', (request, response) => {
+    response.status(201).json(workflow.saveAdmissionLedger(parameter(request, 'matterId'), request.body))
+  })
 
   router.post('/matters/:matterId/case-models/draft', asyncRoute(async (request, response) => {
     const input = caseModelDraftSchema.parse(request.body)
@@ -159,6 +182,12 @@ export function createWorkflowRouter(workflow: CaseWorkflowService, trials: Tria
     ))
   })
 
+  router.post('/matters/:matterId/trials/preflight', (request, response) => {
+    const input = createTrialSchema.parse(request.body)
+    response.json(trials.preflightRun({ matterId: parameter(request, 'matterId'), caseModelId: input.caseModelId,
+      config: input.config as TrialRunConfig, admissionLedgerId: input.admissionLedgerId }))
+  })
+
   router.post('/matters/:matterId/trials', (request, response) => {
     const input = createTrialSchema.parse(request.body)
     const view = trials.createRun({
@@ -175,6 +204,9 @@ export function createWorkflowRouter(workflow: CaseWorkflowService, trials: Tria
   router.get('/trials/:runId', (request, response) => {
     response.json(trials.view(parameter(request, 'runId'), 'user'))
   })
+  router.get('/trials/:runId/courtroom', (request, response) => response.json(trials.courtroom(parameter(request, 'runId'))))
+  router.get('/trials/:runId/audit/inputs/:inputId', (request, response) => response.json(trials.actorInputAudit(parameter(request, 'runId'), parameter(request, 'inputId'))))
+  router.post('/trials/:runId/courtroom', (request, response) => response.json(trials.courtroomCommand(parameter(request, 'runId'), courtroomCommandSchema.parse(request.body))))
 
   router.post('/trials/:runId/commands', (request, response) => {
     const command = commandSchema.parse(request.body) as TrialCommand

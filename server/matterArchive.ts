@@ -8,7 +8,7 @@ import { removeEvidenceSource, restoreEvidenceSource } from './evidenceStorage'
 import type { ArchiveRow, MatterDatabaseSnapshot } from './matterArchiveRepository'
 import type { Matter } from './types'
 
-export const matterArchiveVersion = 2
+export const matterArchiveVersion = 3
 
 interface MatterArchiveV1 {
   format: 'judge-jury-matter'
@@ -21,7 +21,7 @@ interface MatterArchiveV1 {
 
 export interface MatterArchive {
   format: 'judge-jury-matter'
-  version: 2
+  version: 2 | 3
   createdAt: string
   checksum: string
   snapshot: MatterDatabaseSnapshot
@@ -80,6 +80,7 @@ const archiveV2Schema = z.object({
   })),
   evidenceSources: z.array(z.object({ evidenceId: z.string(), sha256: z.string().regex(/^[a-f0-9]{64}$/) })),
 })
+const archiveV3Schema = archiveV2Schema.extend({ version: z.literal(3), snapshot: snapshotV2Schema.extend({ courtroomStates: z.array(rowSchema), courtroomCommandReceipts: z.array(rowSchema), actorContextInputs: z.array(rowSchema) }) })
 
 export async function createMatterArchive(store: CaseStore, matterId: string): Promise<MatterArchive> {
   const rawSnapshot = store.exportMatterSnapshot(matterId)
@@ -116,9 +117,18 @@ export async function createMatterArchive(store: CaseStore, matterId: string): P
   }
   blobs.sort((a, b) => a.sha256.localeCompare(b.sha256))
   const snapshot: MatterDatabaseSnapshot = { ...rawSnapshot, evidence, sourceBlobs }
+  const protocol = rawSnapshot.trialRuns.some(row => JSON.parse(String(row.config_json)).courtroomProtocol)
+  delete snapshot.courtroomStates
+  delete snapshot.courtroomCommandReceipts
+  delete snapshot.actorContextInputs
+  if (protocol) {
+    snapshot.courtroomStates = rawSnapshot.courtroomStates ?? []
+    snapshot.courtroomCommandReceipts = rawSnapshot.courtroomCommandReceipts ?? []
+    snapshot.actorContextInputs = rawSnapshot.actorContextInputs ?? []
+  }
   const unsigned = {
     format: 'judge-jury-matter' as const,
-    version: matterArchiveVersion as 2,
+    version: (protocol ? matterArchiveVersion : 2) as 2 | 3,
     createdAt: new Date().toISOString(),
     snapshot,
     blobs,
@@ -128,7 +138,12 @@ export async function createMatterArchive(store: CaseStore, matterId: string): P
 }
 
 export async function importMatterArchive(store: CaseStore, input: unknown): Promise<Matter> {
-  const header = z.object({ format: z.literal('judge-jury-matter'), version: z.union([z.literal(1), z.literal(2)]) }).parse(input)
+  const header = z.object({ format: z.literal('judge-jury-matter'), version: z.union([z.literal(1), z.literal(2), z.literal(3)]) }).parse(input)
+  if (header.version === 3) return importV2(store, archiveV3Schema.parse(input) as unknown as MatterArchive)
+  if (header.version === 2) {
+    const archive = archiveV2Schema.parse(input) as unknown as MatterArchive
+    if (archive.snapshot.trialRuns.some(row => JSON.parse(String(row.config_json)).courtroomProtocol)) throw new Error('A protocol run requires archive format 3.')
+  }
   return header.version === 1
     ? importV1(store, archiveV1Schema.parse(input) as MatterArchiveV1)
     : importV2(store, archiveV2Schema.parse(input) as unknown as MatterArchive)

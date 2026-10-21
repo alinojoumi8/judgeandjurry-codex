@@ -1,0 +1,6 @@
+FICTIONAL TEST SOURCE: transaction extract
+10 February 2026: $20,000 incoming customer payment to the Northstar Workshop account.
+12 February 2026: $15,000 transferred from that account to the business operating-expense account.
+1 March 2026: the customer delivery log records no equipment received.
+15 March 2026: the refund log records no refund issued.
+This extract records dates and amounts only. It does not identify intent or the complete financial position of the business.

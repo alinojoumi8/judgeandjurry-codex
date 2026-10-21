@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
+import { contextHash } from './actorMemory'
 
 export type ArchiveRow = Record<string, unknown>
 
@@ -31,6 +32,9 @@ export interface MatterDatabaseSnapshot {
   jurorCognitiveProfiles: ArchiveRow[]
   issueBallots: ArchiveRow[]
   decisionSheets: ArchiveRow[]
+  courtroomStates?: ArchiveRow[]
+  courtroomCommandReceipts?: ArchiveRow[]
+  actorContextInputs?: ArchiveRow[]
 }
 
 export class MatterArchiveRepository {
@@ -49,6 +53,9 @@ export class MatterArchiveRepository {
     }
     return {
       matter,
+      courtroomStates: this.rows('SELECT s.* FROM courtroom_states s JOIN trial_runs r ON r.id = s.trial_run_id WHERE r.matter_id = ?', matterId),
+      actorContextInputs: this.rows('SELECT s.* FROM actor_context_inputs s JOIN trial_runs r ON r.id = s.trial_run_id WHERE r.matter_id = ?', matterId),
+      courtroomCommandReceipts: this.rows('SELECT s.* FROM courtroom_command_receipts s JOIN trial_runs r ON r.id = s.trial_run_id WHERE r.matter_id = ?', matterId),
       evidence: this.rows('SELECT * FROM evidence WHERE matter_id = ?', matterId),
       sessions: this.rows('SELECT * FROM sessions WHERE matter_id = ?', matterId),
       agentTurns: this.rows(
@@ -150,10 +157,12 @@ export class MatterArchiveRepository {
     const ledgerIds = idMap(snapshot.admissionLedgerVersions)
     const trialRunIds = idMap(snapshot.trialRuns)
     const trialEventIds = idMap(snapshot.trialEvents)
+    const ballotIds = idMap(snapshot.issueBallots)
+    const inputIds = idMap(snapshot.actorContextInputs ?? [])
     const allIds = new Map([
       ...evidenceIds, ...sessionIds, ...trialForgeIds, ...corpusJobIds, ...manifestIds,
       ...caseModelIds, ...theoryIds, ...findingIds, ...motionIds, ...ledgerIds,
-      ...trialRunIds, ...trialEventIds, [String(snapshot.matter.id), newMatterId],
+      ...trialRunIds, ...trialEventIds, ...ballotIds, ...inputIds, [String(snapshot.matter.id), newMatterId],
     ])
 
     this.db.exec('BEGIN IMMEDIATE')
@@ -265,6 +274,13 @@ export class MatterArchiveRepository {
       this.importChildren('juror_cognitive_profiles', snapshot.jurorCognitiveProfiles, 'trial_run_id', trialRunIds, allIds)
       this.importChildren('issue_ballots', snapshot.issueBallots, 'trial_run_id', trialRunIds, allIds)
       this.importChildren('decision_sheets', snapshot.decisionSheets, 'trial_run_id', trialRunIds, allIds)
+      for (const row of snapshot.courtroomStates ?? []) this.insert('courtroom_states', remapRow({ ...row, trial_run_id: trialRunIds.get(String(row.trial_run_id)) }, allIds))
+      this.importChildren('courtroom_command_receipts', snapshot.courtroomCommandReceipts ?? [], 'trial_run_id', trialRunIds, allIds)
+      for (const row of snapshot.actorContextInputs ?? []) {
+        // Original actor inputs are execution evidence. Preserve their bytes;
+        // only the collection's owning run is remapped during import.
+        this.insert('actor_context_inputs', { ...row, id: allIds.get(String(row.id)) ?? randomUUID(), trial_run_id: trialRunIds.get(String(row.trial_run_id)) })
+      }
       this.db.exec('COMMIT')
       return newMatterId
     } catch (error) {
@@ -285,12 +301,18 @@ export class MatterArchiveRepository {
       // Honour a pre-computed id when other rows reference this one (trial
       // events are referenced by ballots' changed_by_event_id and by event
       // payloads); otherwise a fresh id is fine.
-      this.insert(table, remapRow({
+      const remapped = remapRow({
         ...row,
         ...overrides,
         id: allIds.get(String(row.id)) ?? randomUUID(),
         [foreignKey]: parentIds.get(String(row[foreignKey])),
-      }, allIds))
+      }, allIds)
+      if (table === 'actor_snapshots') {
+        const state = JSON.parse(String(remapped.private_state_json))
+        if (state.participantMemory) remapped.state_hash = state.participantMemory.projectionHash
+      }
+      if (table === 'courtroom_command_receipts') remapped.input_hash = contextHash(JSON.parse(String(remapped.command_json)))
+      this.insert(table, remapped)
     }
   }
 
@@ -323,7 +345,16 @@ function remapRow(row: ArchiveRow, ids: ReadonlyMap<string, string>): ArchiveRow
     Object.entries(row).map(([key, value]) => {
       if ((key.endsWith('_json') || key === 'verdict_json') && typeof value === 'string') {
         try {
-          return [key, JSON.stringify(remapJson(JSON.parse(value), ids))]
+          const parsed = remapJson(JSON.parse(value), ids)
+          if (key === 'model_audit_json' && parsed && typeof parsed === 'object') {
+            const audit = parsed as Record<string, unknown>
+            audit.importProvenance = { executionHashesPreserved: true, originalRunId: String(row.trial_run_id ?? ''), remappedReferences: true }
+          }
+          if (key === 'private_state_json' && parsed && typeof parsed === 'object') {
+            const memory = (parsed as Record<string, unknown>).participantMemory as Record<string, unknown> | undefined
+            if (memory) { const { projectionHash: originalProjectionHash, ...content } = memory; memory.projectionHash = contextHash(content); memory.originalProjectionHash = originalProjectionHash }
+          }
+          return [key, JSON.stringify(parsed)]
         } catch {
           return [key, value]
         }

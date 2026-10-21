@@ -149,6 +149,7 @@ export interface Matter {
 }
 
 export interface EvidenceItem {
+  authorizedPassages?: Array<{ paragraph: number; text: string; startOffset: number; endOffset: number }>
   id: string
   matterId: string
   exhibitId: string
@@ -373,9 +374,11 @@ export interface ExportReport {
 }
 
 export interface StageResult {
+  examinationComplete?: boolean
   title: string
   content: string
   citations: string[]
+  grounding?: import('./grounding').GroundingReview
   jurors?: Array<{
     juror: string
     leaning: JuryLeaning
@@ -385,6 +388,8 @@ export interface StageResult {
     beliefTrail?: Array<Omit<JurorBeliefSnapshot, 'citations'> & { citations?: string[] }>
     deliberationRounds?: JurorDeliberationRound[]
     mindChangedBecause?: string
+    changedByEventId?: string
+    instructionEventId?: string
     consistencyWarnings?: string[]
   }>
   verdict?: Omit<VerdictReport, 'disclaimer'>

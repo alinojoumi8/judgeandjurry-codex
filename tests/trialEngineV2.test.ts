@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { CaseWorkflowService } from '../server/caseWorkflow'
 import { CaseStore } from '../server/db'
@@ -19,6 +19,88 @@ afterEach(() => {
 })
 
 describe('trial engine v2', () => {
+  it.each(['Source verification rejected the generated response.', 'Provider request timed out.'])('preserves the actual reason for withheld ballots: %s', async message => {
+    const { store, matterId, workflow } = fixtureStore()
+    addEvidence(store, matterId, 'record.txt', 'A fictional source statement.')
+    const model = workflow.approveCaseModel(workflow.draftCaseModel(matterId, 'ontario_criminal_jury_v1', { witnesses: [] }).id)
+    const scripted = new WitnessModel('Unused witness answer.')
+    const engine = new TrialEngineService(store, { generateStage: async request => {
+      if (request.stage === 'juror_ballot') throw new Error(message)
+      return scripted.generateStage(request)
+    } })
+    const run = engine.createRun({ matterId, caseModelId: model.id, config: { ...configFor('ontario_criminal_jury_v1'), mode: 'screen' } }).run
+    await engine.runAutonomous(run.id)
+    const ballots = store.workflow.listBallots(run.id, 'final')
+    expect(ballots).toHaveLength(12)
+    expect(ballots.every(ballot => !ballot.valid && ballot.rationale === `Ballot withheld: ${message}` && ballot.error === message)).toBe(true)
+    expect(store.workflow.getDecisionSheet(run.id)?.decisions[0]).toMatchObject({ complete: false, outcome: 'no_verdict' })
+  })
+
+  it('provides each full-proceeding checker the actor-visible public record', async () => {
+    const { store, matterId, workflow } = fixtureStore()
+    addEvidence(store, matterId, 'record.txt', 'A source-grounded statement.')
+    const model = workflow.approveCaseModel(workflow.draftCaseModel(matterId, 'ontario_criminal_jury_v1', { witnesses: [] }).id)
+    workflow.saveTheoryBrief({ caseModelId: model.id, partyId: 'crown', side: 'crown', narrative: 'PRIVATE_CROWN_456' })
+    workflow.saveTheoryBrief({ caseModelId: model.id, partyId: 'accused-1', side: 'defence', narrative: 'PRIVATE_DEFENCE_789' })
+    const client = new WitnessModel('Unused witness answer.')
+    const engine = new TrialEngineService(store, client)
+    const run = engine.createRun({ matterId, caseModelId: model.id, config: configFor('ontario_criminal_jury_v1') }).run
+    await engine.runAutonomous(run.id)
+    const closing = client.requests.find(request => request.stage === 'defence_rebuttal')!
+    expect(closing.courtroomProtocol).toBe(false)
+    expect(closing.approvedIssueInstructions).toEqual(model.decisionIssues.map(issue => ({ issueId: issue.id, elements: issue.elements.map(element => ({ label: element.label })) })))
+    expect(closing.courtroomEvents?.some(event => event.type === 'judicial_instruction')).toBe(false)
+    expect(closing.courtroomActor?.roles).toContain('defence')
+    const crown = store.workflow.listTrialEvents(run.id).filter(event => event.type === 'public_submission' && event.actorId === 'crown')
+    expect(closing.courtroomEvents?.filter(event => event.type === 'public_submission' && event.actorId === 'crown').map(event => event.eventId)).toEqual(crown.map(event => event.id))
+    expect(closing.courtroomEvents?.length).toBeGreaterThan(0)
+    expect(JSON.stringify(closing.courtroomEvents)).not.toMatch(/PRIVATE_CROWN_456|PRIVATE_DEFENCE_789|modelAudit|contextManifest/)
+  })
+
+  it('acknowledges a failed run as running before dispatch and preserves its saved phase', async () => {
+    const { store, matterId, workflow } = fixtureStore()
+    addEvidence(store, matterId, 'record.txt', 'A source-grounded statement.')
+    const model = workflow.approveCaseModel(workflow.draftCaseModel(matterId, 'ontario_criminal_jury_v1', { witnesses: [] }).id)
+    const engine = new TrialEngineService(store, new WitnessModel('Unused witness answer.'))
+    const created = engine.createRun({ matterId, caseModelId: model.id, config: { ...configFor('ontario_criminal_jury_v1'), mode: 'screen' } })
+    store.workflow.updateTrialRun(created.run.id, { status: 'failed', phase: 'instructions', error: 'Temporary provider failure.' })
+    const acknowledged = engine.startAutonomous(created.run.id)
+    expect(acknowledged.run).toMatchObject({ status: 'running', phase: 'instructions' })
+    expect(acknowledged.run.error).toBeFalsy()
+    await vi.waitFor(() => expect(store.workflow.getTrialRun(created.run.id).status).toBe('completed'))
+    expect(store.workflow.listTrialEvents(created.run.id).some((event) => event.phase === 'openings' && event.type === 'public_submission')).toBe(false)
+    expect(store.workflow.listBallots(created.run.id, 'final')).toHaveLength(12)
+  })
+
+  it('passes source-use limits and only visible redacted source text to jury actors', async () => {
+    const { store, matterId, workflow } = fixtureStore()
+    const limited = addEvidence(store, matterId, 'limited.txt', 'Notice was delivered.')
+    const redacted = addEvidence(store, matterId, 'redacted.txt', 'Visible fact. REDACT_ME')
+    const excluded = addEvidence(store, matterId, 'excluded.txt', 'EXCLUDED_CONTENT')
+    const hidden = addEvidence(store, matterId, 'hidden.txt', 'ROLE_HIDDEN_CONTENT')
+    const model = workflow.approveCaseModel(workflow.draftCaseModel(matterId, 'ontario_criminal_jury_v1', { witnesses: [] }).id)
+    const ledger = store.workflow.createAdmissionLedger({ matterId, reason: 'Actor visibility fixture', evidenceUses: [
+      { evidenceId: limited.id, status: 'limited', purposes: ['Notice only, not truth'], redactions: [], hiddenFrom: [], note: 'No finding of truth.' },
+      { evidenceId: redacted.id, status: 'redacted', purposes: [], redactions: ['REDACT_ME'], hiddenFrom: [], note: '' },
+      { evidenceId: excluded.id, status: 'excluded', purposes: [], redactions: [], hiddenFrom: [], note: '' },
+      { evidenceId: hidden.id, status: 'admitted', purposes: [], redactions: [], hiddenFrom: ['juror'], note: '' },
+    ] })
+    const client = new WitnessModel('Unused witness answer.')
+    const engine = new TrialEngineService(store, client)
+    const run = engine.createRun({ matterId, caseModelId: model.id, admissionLedgerId: ledger.id, config: { ...configFor('ontario_criminal_jury_v1'), mode: 'screen' } }).run
+    await engine.runAutonomous(run.id)
+    const ballots = client.requests.filter((request) => request.stage === 'juror_ballot')
+    expect(ballots.length).toBeGreaterThan(0)
+    for (const request of ballots) {
+      expect(request.packet).toContain('Controlling issue elements and burdens:')
+      expect(request.ballotRound).toBeDefined()
+      expect(request.packet).toContain('Notice only, not truth')
+      expect(request.packet).toContain('No finding of truth.')
+      expect(request.evidence.map((item) => item.id)).toEqual([limited.id, redacted.id])
+      expect(request.evidence[1].text).toBe('Visible fact. [REDACTED]')
+    }
+  })
+
   it('calculates criminal unanimity separately for each accused/count and fails missing ballots closed', () => {
     const { store, matterId, workflow } = fixtureStore()
     const evidence = addEvidence(store, matterId, 'statement.txt', 'A source-grounded statement.')
