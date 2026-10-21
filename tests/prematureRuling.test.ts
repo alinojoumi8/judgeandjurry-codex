@@ -45,4 +45,3 @@ describe('procedural ruling completion', () => {
     expect(check('The objection is sustained.', [question], ['judge'], 'judge_ruling')).toBe('passed')
   })
 })
-

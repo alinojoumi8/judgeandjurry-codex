@@ -8,4 +8,3 @@ export const legalPacketSchema = z.object({
   authorities: z.array(z.object({ id: text, title: text, jurisdiction: text, type: z.enum(['legislation', 'binding_decision', 'persuasive_decision', 'guidance', 'model_instruction']), url: z.string().url(), pinpoint: text, asOf: text, retrievedAt: text, reviewed: z.boolean() })),
   contentHash: z.string(), review: z.object({ kind: z.enum(['qualified_legal', 'fictional_fixture']), reviewer: text, reviewedAt: text, packetHash: text, attestation: text }).optional(),
 })
-

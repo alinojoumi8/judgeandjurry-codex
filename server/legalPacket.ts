@@ -58,4 +58,3 @@ export function fictionalLegalPacket(model: CaseModelV1): ReviewedLegalPacket {
   packet.review = { kind: 'fictional_fixture', reviewer: 'Software fixture author', reviewedAt: '2026-10-03', packetHash: packet.contentHash, attestation: 'Fictional software fixture only. No lawyer certification or legal validation.' }
   return packet
 }
-

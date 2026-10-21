@@ -63,4 +63,3 @@ export const admissionInputSchema = z.object({
     }).optional(),
   })).max(20_000),
 })
-

@@ -69,4 +69,3 @@ export function sourceMetadataProvided(evidence: EvidenceItem[], information: st
 }
 
 export const missingClassificationStatement = /^Both remain disputed accounts, and their source classification and verification status are not supplied\.$/i
-

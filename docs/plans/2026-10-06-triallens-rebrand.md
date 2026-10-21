@@ -1,6 +1,6 @@
 # TrialLens rebrand plan
 
-Date: 2026-10-06  
+Date: 2026-10-06<br>
 Status: README and generated artwork delivered locally; application rebrand planned.
 
 ## Name and positioning
@@ -94,4 +94,3 @@ The first delivery consists of documentation and new images. For a later applica
 ## Delivery validation
 
 For this documentation phase: inspect both generated images, check all relative links and README anchors, verify referenced npm scripts and runtime requirements against package metadata, compare the preserved operational guide against the pre-edit README, and run whitespace checks. Application tests are deferred until application code changes.
-
