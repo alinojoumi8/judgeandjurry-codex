@@ -8,7 +8,7 @@ import { factualPremiseError } from './factualPremise'
 import { groundingSupportTypes, groundingSupportTypesContract } from './groundingFormat'
 import { checkerParagraphReferenceErrors } from './checkerParagraphReferences'
 import { sourceAbsenceScopeError } from './sourceAbsenceScope'
-import { sourceThresholdComparisons } from './sourceThresholds'
+import { monetarySuffix, sourceThresholdComparisons } from './sourceThresholds'
 import { jurorHistoryError, initialHistoryStatement, jurorConditionalState, jurorDiscussionState, jurorInfluenceStatement, jurorInstructionState, jurorStateAttribution, matchingCurrentJurorState, matchingJurorInfluence, matchingUnusableHistory, unusableHistoryStatement, type currentJurorDraft } from './checkerJurorState'
 
 // Input must be the actor's already authorized/redacted event projection.
@@ -106,7 +106,6 @@ function assertsContentsAbsence(text: string) {
     return !/(?:\b(?:not|never)(?:\s+(?:an?|acknowledged|confirmed)){0,2}\s*|\b(?:not|no)\s+(?:proof|prove|evidence)\s+(?:of|for|that)\s+(?:an?|the)?\s*|\b(?:whether|if)\s+(?:the\s+)?|\b(?:may|might|could)\b[^.!?;]*)$/i.test(prefix)
   })
 }
-const monetarySuffix = String.raw`(?:[ \t]*(?:million|billion|thousand)\b|[mbk]\b|[ \t]+[mbk]\b(?!\)|\.(?=[ \t]*\S)))?`
 function dollarAmounts(text: string): number[] {
   return [...text.matchAll(new RegExp(String.raw`(?:\$\s*|\b(?:CAD|USD|CDN)\s+)(\d[\d,]*(?:\.\d+)?)(${monetarySuffix})`, 'gi'))]
     .map((match) => Number(match[1].replaceAll(',', '')) * ({ million: 1e6, billion: 1e9, thousand: 1e3, m: 1e6, b: 1e9, k: 1e3 }[match[2]?.trim().toLowerCase() ?? ''] ?? 1))
