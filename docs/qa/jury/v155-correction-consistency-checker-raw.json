@@ -1,0 +1,35 @@
+{
+  "checkerContent": "{\"findings\":[{\"unitId\":\"title:1\",\"status\":\"analysis\",\"explanation\":\"Neutral title for the juror response.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"content:1\",\"status\":\"analysis\",\"explanation\":\"This is the juror's present assessment of the permitted attributed account and the Crown's burden; it does not require independent source proof of the conclusion.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"juror-0:1\",\"status\":\"analysis\",\"explanation\":\"This expresses the juror's present doubt assessment without adding an independently verifiable factual premise.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"juror-0:2\",\"status\":\"analysis\",\"explanation\":\"Accurately states the supplied fictional burden and requires no source citation.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"juror-change-0:1\",\"status\":\"analysis\",\"explanation\":\"The current ballot is expressly identified as the initial assessment, matching the supplied round; no earlier-ballot claim is made.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"ballot-consistency-0:1\",\"status\":\"contradicted\",\"explanation\":\"The ballot selects Crown and expressly finds the receipt condition proved beyond a reasonable doubt, but its rationale says it is incorrect to deny that the juror's remaining doubts meet the Crown's burden, indicating unresolved reasonable doubt on the required condition.\",\"citations\":[],\"recordCitations\":[]}]}",
+  "exchange": {
+    "caseId": "full-control-v155-unquoted-doubt-correction-positive",
+    "planHash": "c70f0587b06d232fdf0586ee07cf0d8b0d8690a1eef246bfe094c48469a398c6",
+    "requestRole": "checker",
+    "id": 1,
+    "startedAt": "2026-10-12T06:34:53.714Z",
+    "requestHash": "ee048aa646f8b908a0645cba947c943b41dbad347ec3a4a2bba8ce906aa50b4f",
+    "requestCharacters": 66203,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "a136a8ddbbee41acf154d1454695a7b6b748a9f51c99dcfbdc7cdbb10d29b55e",
+    "responseBytes": 5776,
+    "reportedUsage": {
+      "total_tokens": 12930,
+      "total_characters": 0,
+      "prompt_tokens": 11955,
+      "completion_tokens": 975,
+      "completion_tokens_details": {
+        "reasoning_tokens": 672
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 188
+      }
+    },
+    "providerResponseId": "071bb292ea178e502c7e1c844031d676",
+    "finishedAt": "2026-10-12T06:35:04.016Z",
+    "elapsedMs": 10290.619600000093
+  },
+  "requestFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v155-current-comparison\\live-c70f0587b06d232fdf0586ee07cf0d8b0d8690a1eef246bfe094c48469a398c6-1791785441023\\full-control-v155-unquoted-doubt-correction-positive\\http-0001\\request-body.txt",
+  "responseFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v155-current-comparison\\live-c70f0587b06d232fdf0586ee07cf0d8b0d8690a1eef246bfe094c48469a398c6-1791785441023\\full-control-v155-unquoted-doubt-correction-positive\\http-0001\\response-body.raw"
+}

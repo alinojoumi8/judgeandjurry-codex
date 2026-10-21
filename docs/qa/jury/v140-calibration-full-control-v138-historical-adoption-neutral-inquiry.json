@@ -1,0 +1,100 @@
+{
+  "request": {
+    "stage": "defence_rebuttal",
+    "courtroomProtocol": true,
+    "groundingRequired": true,
+    "packet": "Approved fictional procedure: Defence responds to the visible public submission; no earlier Defence acceptance is supplied.",
+    "evidence": [
+      {
+        "id": "positive-witness-account",
+        "exhibitId": "E-101",
+        "name": "fictional-account.txt",
+        "text": "Fictional witness Mira states: I saw Fictional Rowan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.",
+        "summary": "Fictional disputed eyewitness account.",
+        "tags": [],
+        "type": "text",
+        "mimeType": "text/plain",
+        "size": 147,
+        "ingestionStatus": "stored",
+        "matterId": "fictional-positive-control",
+        "uploadedAt": "2026-10-03T00:00:00Z",
+        "sha256": null,
+        "sourceAvailable": false,
+        "extractionWarning": null,
+        "archivedAt": null
+      }
+    ],
+    "previousTurns": "",
+    "groundingContext": "E-101: permitted for accurately attributing Mira's account and previewing that account; not proof of envelope contents or guilt. The account is disputed. No assertion of complete disclosure is authorized.",
+    "approvedPartyRoles": [
+      {
+        "id": "crown",
+        "name": "Fictional Crown",
+        "role": "crown"
+      },
+      {
+        "id": "ellis",
+        "name": "Fictional Ellis",
+        "role": "accused"
+      }
+    ],
+    "courtroomActor": {
+      "id": "ellis",
+      "name": "Fictional Ellis",
+      "roles": [
+        "defence"
+      ]
+    },
+    "courtroomEvents": [
+      {
+        "eventId": "fixture-public-concession",
+        "type": "public_submission",
+        "actorId": "crown",
+        "payload": {
+          "text": "On the supplied record, the Crown burden is not met; not guilty is the appropriate outcome."
+        }
+      }
+    ]
+  },
+  "result": {
+    "title": "",
+    "content": "Did the Defence accept the Crown's acknowledgement on this record?",
+    "citations": [],
+    "jurors": []
+  },
+  "checkerResult": {
+    "id": "full-control-v138-historical-adoption-neutral-inquiry",
+    "state": "finished",
+    "review": {
+      "status": "failed",
+      "method": "source-quotes-and-model-review",
+      "findings": [
+        {
+          "unitId": "content:1",
+          "text": "Did the Defence accept the Crown's acknowledgement on this record?",
+          "status": "unsupported",
+          "explanation": "The yes/no question is generally neutral as to whether the Defence accepted, but it presupposes that the Crown made an \u201cacknowledgement.\u201d The visible Crown submission is a concession on burden and outcome, not an expressly identified acknowledgement, and no Defence acceptance is recorded.",
+          "citations": []
+        }
+      ],
+      "errors": [
+        "content:1: unsupported \u2014 The yes/no question is generally neutral as to whether the Defence accepted, but it presupposes that the Crown made an \u201cacknowledgement.\u201d The visible Crown submission is a concession on burden and outcome, not an expressly identified acknowledgement, and no Defence acceptance is recorded."
+      ],
+      "validationErrors": [],
+      "citationCorrections": [],
+      "repairs": 0,
+      "verificationRetries": 0
+    },
+    "verificationAttempts": [],
+    "ballotContractErrors": [],
+    "effectiveStatus": "failed",
+    "expectedMatched": false,
+    "usage": {
+      "providerHttpCalls": 1,
+      "providerInputCharacters": 54946,
+      "actualTokens": 10037,
+      "actualCost": null,
+      "elapsedMs": 11920.598299999954
+    }
+  }
+}

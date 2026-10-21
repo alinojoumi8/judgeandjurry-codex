@@ -1,0 +1,35 @@
+{
+  "checkerContent": "{\"findings\":[{\"unitId\":\"title:1\",\"status\":\"analysis\",\"explanation\":\"Neutral response title; it asserts no factual proposition.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"content:1\",\"status\":\"analysis\",\"explanation\":\"This is the author's present assessment of the disputed account and sole receipt condition, which is permitted; crediting Mira does not independently authenticate or establish her account.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"juror-0:1\",\"status\":\"analysis\",\"explanation\":\"This expresses the author's present reasonable-doubt assessment. It does not attribute the quoted statement to a prior juror or other speaker.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"juror-0:2\",\"status\":\"analysis\",\"explanation\":\"Accurately restates the supplied burden that the fictional Crown must prove the receipt condition beyond a reasonable doubt.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"juror-change-0:1\",\"status\":\"analysis\",\"explanation\":\"Accurately identifies the present assessment as initial, consistent with the supplied current ballot round and empty prior-assessment history.\",\"citations\":[],\"recordCitations\":[]},{\"unitId\":\"ballot-consistency-0:1\",\"status\":\"contradicted\",\"explanation\":\"The Crown-leaning selection and express proof-beyond-reasonable-doubt rationale conflict with the statement that the author's remaining doubts do meet the Crown's burden on the sole required condition.\",\"citations\":[],\"recordCitations\":[]}]}",
+  "exchange": {
+    "caseId": "full-control-v155-quoted-doubt-correction-positive",
+    "planHash": "c70f0587b06d232fdf0586ee07cf0d8b0d8690a1eef246bfe094c48469a398c6",
+    "requestRole": "checker",
+    "id": 1,
+    "startedAt": "2026-10-12T06:34:52.824Z",
+    "requestHash": "3a31e02011d633dee2eed4d0655f2bdce48305c7eee4dc0cc6cd2fd9fdc990cb",
+    "requestCharacters": 66207,
+    "state": "received",
+    "responseBodyRepresentation": "Exact application-visible response bytes; fetch may decompress HTTP content encoding. Request and response headers are not retained except allowlisted request IDs.",
+    "httpStatus": 200,
+    "requestIdentifiers": {},
+    "responseHash": "00df1dd6631f965964afe899e89710cc19a986b695fbe7ca4c60a61b4cc14a11",
+    "responseBytes": 10741,
+    "reportedUsage": {
+      "total_tokens": 13785,
+      "total_characters": 0,
+      "prompt_tokens": 11956,
+      "completion_tokens": 1829,
+      "completion_tokens_details": {
+        "reasoning_tokens": 1516
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 196
+      }
+    },
+    "providerResponseId": "071bb2911c5f57c9beed1d18ccef754d",
+    "finishedAt": "2026-10-12T06:35:16.635Z",
+    "elapsedMs": 23801.36300000013
+  },
+  "requestFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v155-current-comparison\\live-c70f0587b06d232fdf0586ee07cf0d8b0d8690a1eef246bfe094c48469a398c6-1791785441023\\full-control-v155-quoted-doubt-correction-positive\\http-0001\\request-body.txt",
+  "responseFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v155-current-comparison\\live-c70f0587b06d232fdf0586ee07cf0d8b0d8690a1eef246bfe094c48469a398c6-1791785441023\\full-control-v155-quoted-doubt-correction-positive\\http-0001\\response-body.raw"
+}
