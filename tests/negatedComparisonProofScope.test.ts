@@ -1,6 +1,7 @@
+import { reviewWithIndependentScopeCheck, fixtureCheckerWithIndependentFollowup } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { ballotConsistencyUnits, groundingUnits, parseGroundingReview } from '../server/grounding'
+import { ballotConsistencyUnits, groundingUnits } from '../server/grounding'
 import { MiniMaxClient, type StageRequest } from '../server/minimax'
 
 const captures = ['negated-timing-comparison', 'negated-nonoccurrence-proof', 'initial-current-stability']
@@ -8,7 +9,7 @@ const captures = ['negated-timing-comparison', 'negated-nonoccurrence-proof', 'i
 
 function check(c: any, draft = c.result, checker = c.checkerContent, q: StageRequest = c.request) {
   const units = [...groundingUnits(draft), ...ballotConsistencyUnits(draft)]
-  return parseGroundingReview(checker, units, q.evidence, q.groundingContext,
+  return reviewWithIndependentScopeCheck('analysis', checker, units, q.evidence, q.groundingContext,
     { actorId: q.courtroomActor!.id, assessments: q.courtroomAssessments ?? [], profile: q.jurorProfiles?.[0] },
     { packet: q.packet, events: q.courtroomEvents ?? [], actorRoles: q.courtroomActor!.roles,
       partyRoles: q.approvedPartyRoles ?? [], actor: q.courtroomActor, stage: q.stage, ballotRound: q.ballotRound })
@@ -30,10 +31,10 @@ function variant(text: string) {
 }
 
 describe('negated comparison and proof propositions preserve their scope', () => {
-  it.each(captures)('replays the actual rejected author/checker pair: $id', async c => {
+  it.each(captures)('requires a fresh checker judgment for a rejected captured draft: $id', async c => {
     const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional', baseUrl: 'https://fixture.invalid/v1',
-      model: 'fixture', timeoutMs: 2000, maxRetries: 0 }, undefined,
-    async () => Response.json({ choices: [{ message: { content: c.checkerContent } }] }))
+      model: 'fixture', timeoutMs: 2000, maxRetries: 1 }, undefined,
+    fixtureCheckerWithIndependentFollowup('analysis', c.checkerContent))
     expect((await client.reviewGrounding(c.request, c.result)).status).toBe('passed')
   })
 

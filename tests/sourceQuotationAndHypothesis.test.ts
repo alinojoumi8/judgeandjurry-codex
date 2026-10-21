@@ -1,12 +1,12 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { groundingUnits } from '../server/grounding'
 const capture = (name: string) => JSON.parse(readFileSync(`docs/qa/jury/v83-captured-${name}.json`, 'utf8'))
 const base = capture('altered-source-quotation-failure')
 function check(content: string, status = 'analysis', q = base.request) {
  const units = groundingUnits({title:'',content,citations:[]})
- return parseGroundingReview(JSON.stringify({findings:units.map(unit=>({unitId:unit.id,status,citations:[]}))}),units,q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles})
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:units.map(unit=>({unitId:unit.id,status,citations:[]}))}),units,q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles})
 }
 
 describe('source quotation fidelity and genuine hypothesis boundaries',()=>{

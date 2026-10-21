@@ -1,11 +1,12 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import {readFileSync} from 'node:fs'
 import {describe,expect,it} from 'vitest'
-import {groundingUnits,parseGroundingReview} from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const quote=JSON.parse(readFileSync('docs/qa/jury/v101-calibration-v84-contiguous-quote-positive.json','utf8'))
 const comparison=JSON.parse(readFileSync('docs/qa/jury/v101-calibration-v89-negated-inconsistent-positive.json','utf8'))
 function check(c:any,content=c.result.content,q=c.request,includeCitations=true){
  const units=groundingUnits({...c.result,content})
- return parseGroundingReview(JSON.stringify({findings:units.map(u=>({...c.checkerResult.review.findings[0],unitId:u.id,citations:includeCitations?c.checkerResult.review.findings[0].citations:[]}))}),units,q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:units.map(u=>({...c.checkerResult.review.findings[0],unitId:u.id,citations:includeCitations?c.checkerResult.review.findings[0].citations:[]}))}),units,q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
 }
 describe('verified contiguous quotation and qualified source comparison',()=>{
  it('accepts the captured exact contiguous quotation without requiring an omitted prefix',()=>expect(check(quote)).toBe('passed'))

@@ -1,14 +1,14 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { groundingUnits } from '../server/grounding'
 const c = JSON.parse(readFileSync(new URL('../docs/qa/jury/v137-historical-defence-acceptance-capture.json', import.meta.url), 'utf8'))
 const accepted = "The Defence accepted the Crown's acknowledgement on this record."
 const adoption = "I accept the Crown's acknowledgement on this record."
 function check(q = structuredClone(c.request), content = accepted, status = 'analysis') {
   const units = groundingUnits({ ...c.draft, content })
   const recordCitations = q.courtroomEvents.filter((e: any) => e.type === 'public_submission').map((e: any) => ({ eventId: e.eventId }))
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Captured historical acceptance assessment.', citations: [], recordCitations })) }), units, q.evidence, q.groundingContext, undefined,
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Captured historical acceptance assessment.', citations: [], recordCitations })) }), units, q.evidence, q.groundingContext, undefined,
     { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, actor: q.courtroomActor, stage: q.stage }).status
 }
 function prior(text = adoption) {
@@ -21,7 +21,7 @@ describe('past Defence acceptance requires actual Defence adoption', () => {
   it('preserves the actual recorded adoption when the checker selects only the Defence event', () => {
     const capture = JSON.parse(readFileSync('docs/qa/jury/v138-full-control-v138-historical-adoption-actual-prior-third-person-capture.json', 'utf8'))
     const q = capture.request
-    expect(parseGroundingReview(JSON.stringify({ findings: capture.checkerResult.review.findings }), groundingUnits(capture.draft), q.evidence, q.groundingContext, undefined,
+    expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: capture.checkerResult.review.findings }), groundingUnits(capture.draft), q.evidence, q.groundingContext, undefined,
       { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, actor: q.courtroomActor, stage: q.stage }).status).toBe('passed')
   })
   it.each(['analysis', 'supported'])('rejects the captured unsupported history despite %s', status => expect(check(undefined, accepted, status)).toBe('failed'))

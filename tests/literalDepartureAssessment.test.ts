@@ -1,10 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import {readFileSync} from 'node:fs'
 import {describe,expect,it} from 'vitest'
-import {groundingUnits,parseGroundingReview} from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const c=JSON.parse(readFileSync('docs/qa/jury/v116-explicit-departure-rejection-capture.json','utf8')).job
 function check(status='unsupported',roles=['juror'],evidence=c.request.evidence,context=c.request.groundingContext,citations:any[]=[]){
  const q=c.request,units=groundingUnits(c.draft)
- return parseGroundingReview(JSON.stringify({findings:units.map(u=>({unitId:u.id,status,citations}))}),units,evidence,context,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:roles,partyRoles:q.approvedPartyRoles,stage:roles[0]==='juror'?'juror_ballot':'crown_rebuttal'}).status
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:units.map(u=>({unitId:u.id,status,citations}))}),units,evidence,context,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:roles,partyRoles:q.approvedPartyRoles,stage:roles[0]==='juror'?'juror_ballot':'crown_rebuttal'}).status
 }
 describe('a literal departure assessment respects role and source purpose',()=>{
  it.each(['unsupported','contradicted'])('preserves the actual juror assessment despite %s',status=>expect(check(status)).toBe('passed'))

@@ -1,10 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import {readFileSync} from 'node:fs'
 import {describe,expect,it} from 'vitest'
-import {groundingUnits,parseGroundingReview} from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const load=(id:string)=>JSON.parse(readFileSync(`docs/qa/jury/v94-calibration-${id}.json`,'utf8'))
 function check(c:any,q=c.request,draft=c.result,checkerStatus='unsupported'){
  const units=groundingUnits(draft)
- return parseGroundingReview(JSON.stringify({findings:units.map(u=>({unitId:u.id,status:u.id.startsWith('title:')?'analysis':checkerStatus,citations:[]}))}),units,q.evidence,q.groundingContext,{actorId:q.courtroomActor.id,assessments:q.courtroomAssessments??[]},{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).findings
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:units.map(u=>({unitId:u.id,status:u.id.startsWith('title:')?'analysis':checkerStatus,citations:[]}))}),units,q.evidence,q.groundingContext,{actorId:q.courtroomActor.id,assessments:q.courtroomAssessments??[]},{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).findings
 }
 describe('actual initial ballot reason and complete compatible source summary',()=>{
  const initial=load('bare-ballot-mixed-positive'), summary=load('v80-complete-only-summary-positive')

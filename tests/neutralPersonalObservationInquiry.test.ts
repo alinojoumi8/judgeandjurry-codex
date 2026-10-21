@@ -1,12 +1,13 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 import { MiniMaxClient } from '../server/minimax'
 
 const c = JSON.parse(readFileSync('docs/qa/jury/v142-neutral-personal-observation-inquiry-capture.json', 'utf8'))
 function check(q = structuredClone(c.request), text = c.draft.content, status = 'unsupported', citations: any[] = []) {
   const units = groundingUnits({ title: '', content: text, citations: [], jurors: [] })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'The prior mention to the examiner is not supplied.', citations })) }), units,
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'The prior mention to the examiner is not supplied.', citations })) }), units,
     q.evidence, q.groundingContext, undefined, { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, stage: q.stage })
 }
 
@@ -42,7 +43,7 @@ describe('neutral personal-observation request bound to the approved account', (
     const bodies: string[] = [], draft = { title: '', content: c.draft.content, citations: ['E-001'], jurors: [] }
     const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional-key', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 2000, maxRetries: 2 }, undefined, async (_url, init) => {
       bodies.push(String(init?.body))
-      return Response.json({ choices: [{ message: { content: JSON.stringify({ findings: groundingUnits(draft).map(unit => ({ unitId: unit.id, status: 'unsupported', explanation: 'No prior mention supplied.', citations: bodies.length > 1 ? [{ exhibitId: 'E-001', paragraph: 1 }] : [] })) }) } }] })
+      return Response.json({ choices: [{ message: { content: JSON.stringify({ findings: groundingUnits(draft).map(unit => ({ unitId: unit.id, status: bodies.length > 1 ? 'analysis' : 'unsupported', explanation: bodies.length > 1 ? 'The selected paragraph supplies the approved account.' : 'No prior mention supplied.', citations: bodies.length > 1 ? [{ exhibitId: 'E-001', paragraph: 1 }] : [] })) }) } }] })
     })
     expect((await client.reviewGrounding(c.request, draft)).status).toBe('passed')
     expect(bodies).toHaveLength(2)

@@ -1,10 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const c = JSON.parse(readFileSync('docs/qa/jury/v109-first-person-saw-no-capture.json', 'utf8'))
 function audit(q = c.job.request, content = c.job.draft.content, status = 'contradicted') {
   const units = groundingUnits({ ...c.job.draft, content })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ ...c.result.review.findings[0], unitId: unit.id, status, citations: c.result.review.findings[0].citations.map(({ exhibitId, paragraph }: any) => ({ exhibitId, paragraph })) })) }), units, q.evidence, q.groundingContext, undefined, { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, stage: q.stage }).status
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ ...c.result.review.findings[0], unitId: unit.id, status, citations: c.result.review.findings[0].citations.map(({ exhibitId, paragraph }: any) => ({ exhibitId, paragraph })) })) }), units, q.evidence, q.groundingContext, undefined, { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, stage: q.stage }).status
 }
 describe('explicit first-person reset to the actual account speaker', () => {
   it('preserves unquoted saw-no paraphrase of the same speaker non-observation', () => expect(audit()).toBe('passed'))

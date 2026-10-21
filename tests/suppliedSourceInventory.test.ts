@@ -1,6 +1,7 @@
+import { reviewWithIndependentScopeCheck, fixtureCheckerWithIndependentFollowup } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 import { MiniMaxClient, type StageRequest } from '../server/minimax'
 
 const capture = JSON.parse(readFileSync('docs/qa/jury/v153-source-inventory-capture.json', 'utf8'))
@@ -8,16 +9,16 @@ const raw = JSON.parse(readFileSync('docs/qa/jury/v153-source-inventory-checker-
 const request = capture.request as StageRequest
 function check(q = request, status = 'contradicted', content = capture.result.content) {
  const units = groundingUnits({ ...capture.result, content })
- return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'A public submission mentions another exhibit.',
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'A public submission mentions another exhibit.',
   citations: status === 'supported' && q.evidence.length ? [{ exhibitId: q.evidence[0].exhibitId, quote: q.evidence[0].text }] : [] })) }),
   units, q.evidence, q.groundingContext, undefined,
   { packet: q.packet, events: q.courtroomEvents ?? [], actorRoles: q.courtroomActor!.roles, partyRoles: q.approvedPartyRoles ?? [], actor: q.courtroomActor, stage: q.stage }).status
 }
 
 describe('source passages supplied to the run remain distinct from permission metadata and advocacy', () => {
- it('preserves the exact live inventory statement through the production checker', async () => {
-  const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 2000, maxRetries: 0 }, undefined,
-   async () => Response.json({ choices: [{ message: { content: raw } }] }))
+ it('requires an independent new review of the captured inventory statement through the production checker', async () => {
+  const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 2000, maxRetries: 1 }, undefined,
+   fixtureCheckerWithIndependentFollowup('analysis', raw))
   expect((await client.reviewGrounding(request, capture.result)).status).toBe('passed')
  })
  it.each(['analysis', 'supported', 'unsupported', 'contradicted'])('binds the complete source inventory under checker %s', status => expect(check(undefined, status)).toBe('passed'))

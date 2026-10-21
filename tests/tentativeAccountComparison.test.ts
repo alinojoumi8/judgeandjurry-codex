@@ -1,6 +1,7 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 import type { StageRequest } from '../server/minimax'
 import type { StageResult } from '../server/types'
 
@@ -10,7 +11,7 @@ const check = (text: string, q = request, status = 'unsupported', ballot = false
   const result = { title: '', content: text, citations: [], jurors: [] } as StageResult
   const units = groundingUnits(result)
   if (ballot) units.push({ id: 'ballot:whole', kind: 'ballot_consistency', text })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status,
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status,
     explanation: 'The captured checker incorrectly requires an established contradiction.', citations: [] })) }),
   units, q.evidence, q.groundingContext, undefined,
   { packet: q.packet, events: q.courtroomEvents ?? [], actorRoles: q.courtroomActor?.roles ?? [], partyRoles: q.approvedPartyRoles ?? [], stage: q.stage }).status

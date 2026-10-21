@@ -1,10 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import {readFileSync} from 'node:fs'
 import {describe,expect,it} from 'vitest'
-import {groundingUnits,parseGroundingReview} from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const c=JSON.parse(readFileSync('docs/qa/jury/v96-calibration-captured-neutral-placement-positive.json','utf8'))
 function check(content=c.result.content,evidence=c.request.evidence,status='unsupported'){
  const units=groundingUnits({...c.result,content})
- return parseGroundingReview(JSON.stringify({findings:units.map(u=>({unitId:u.id,status,citations:[]}))}),units,evidence,c.request.groundingContext).status
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:units.map(u=>({unitId:u.id,status,citations:[]}))}),units,evidence,c.request.groundingContext).status
 }
 describe('neutral question about actual source placement',()=>{
  it('does not turn the captured yes/no source question into an assertion',()=>expect(check()).toBe('passed'))

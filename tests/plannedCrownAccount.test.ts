@@ -1,12 +1,12 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { groundingUnits } from '../server/grounding'
 const capture = JSON.parse(readFileSync(new URL('../docs/qa/jury/v136-planned-crown-account-capture.json', import.meta.url), 'utf8'))
 const preview = 'It will present the planned account within its attribution-only use limit.'
 function check(request = structuredClone(capture.request), content = capture.result.content, previewStatus = 'unsupported', legacyActor = false) {
   const units = groundingUnits({ ...capture.result, content })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status: unit.text === preview ? previewStatus : 'analysis', explanation: 'Captured actor-specific preview review.', citations: [] })) }), units, request.evidence, request.groundingContext, undefined,
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status: unit.text === preview ? previewStatus : 'analysis', explanation: 'Captured actor-specific preview review.', citations: [] })) }), units, request.evidence, request.groundingContext, undefined,
     { packet: request.packet, events: request.courtroomEvents ?? [], actorRoles: request.courtroomActor.roles, partyRoles: request.approvedPartyRoles, actor: legacyActor ? undefined : request.courtroomActor, stage: request.stage }).status
 }
 describe('Crown previews its actually planned attributed witness account', () => {

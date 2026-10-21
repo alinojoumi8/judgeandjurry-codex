@@ -1,12 +1,12 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { groundingUnits } from '../server/grounding'
 const c = JSON.parse(readFileSync('docs/qa/jury/v141-alternate-classification-capture.json', 'utf8'))
 function check(q = structuredClone(c.request), status = 'unsupported', content = c.draft.content, whole = false) {
   const units = groundingUnits({ ...c.draft, content })
   if (whole) units.push({ id: 'whole', kind: 'ballot_consistency', text: JSON.stringify(c.draft) })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Actual inline classification metadata.', citations: [] })) }), units,
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Actual inline classification metadata.', citations: [] })) }), units,
     q.evidence, q.groundingContext, undefined, { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, stage: q.stage }).status
 }
 describe('inline unknown classification and row metadata have the same scope', () => {

@@ -1,6 +1,7 @@
+import { reviewWithIndependentScopeCheck, fixtureCheckerWithIndependentFollowup } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 import type { StageRequest } from '../server/minimax'
 import { MiniMaxClient } from '../server/minimax'
 
@@ -9,7 +10,7 @@ const request = capture.control.request as StageRequest
 function check(q = request, content = capture.control.draft.content, status = 'unsupported') {
   const units = groundingUnits({ ...capture.control.draft, content })
   const setup = { packet: q.packet, events: q.courtroomEvents ?? [], actorRoles: q.courtroomActor?.roles ?? [], partyRoles: q.approvedPartyRoles ?? [], stage: q.stage, actor: q.courtroomActor }
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'The checker incorrectly inferred Defence identity from the stage label.', citations: [] })) }), units, q.evidence, q.groundingContext, undefined, setup).status
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'The checker incorrectly inferred Defence identity from the stage label.', citations: [] })) }), units, q.evidence, q.groundingContext, undefined, setup).status
 }
 
 describe('current actor identity controls an own-account attribution', () => {
@@ -21,8 +22,8 @@ describe('current actor identity controls an own-account attribution', () => {
     expect(check(renamed)).toBe('passed')
   })
   it('passes the actual actor identity through the production checker client', async () => {
-    const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional-key', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 2000, maxRetries: 0 }, undefined, async () =>
-      Response.json({ choices: [{ message: { content: JSON.stringify({ findings: [{ unitId: 'content:1', status: 'unsupported', explanation: 'The stage label suggests Defence.', citations: [] }] }) } }] }))
+    const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional-key', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 2000, maxRetries: 1 }, undefined,
+      fixtureCheckerWithIndependentFollowup('analysis', JSON.stringify({ findings: [{ unitId: 'content:1', status: 'unsupported', explanation: 'The stage label suggests Defence.', citations: [] }] })))
     const review = await client.reviewGrounding(request, capture.control.draft)
     expect(review.status).toBe('passed')
   })

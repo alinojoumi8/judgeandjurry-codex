@@ -1,13 +1,13 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { groundingUnits } from '../server/grounding'
 const capture = JSON.parse(readFileSync('docs/qa/jury/v126-actual-denial-inverse-conflict-control-capture.json', 'utf8'))
 const request = capture.control.request
 const text = capture.control.draft.content as string
 function check(content = text, evidence = request.evidence, status = 'analysis', q = request) {
   const units = groundingUnits({ ...capture.control.draft, content })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({
     ...capture.actual.review.findings[0], unitId: unit.id, status,
     citations: status === 'supported' ? evidence.map((e: any) => ({ exhibitId: e.exhibitId, paragraph: 1 })) : [],
   })) }), units, evidence, q.groundingContext, undefined, {
@@ -46,6 +46,6 @@ describe('opposing account propositions do not become compatible through receipt
   it('does not infer opposition from a hypothetical positive account', () => expect(check(text, request.evidence.map((e: any) => e.exhibitId === 'E-001' ? { ...e, text: e.text.replace('I saw', 'If I saw') } : e))).toBe('passed'))
   it('does not override a whole-ballot consistency failure', () => {
     const unit = { id: 'ballot-consistency-1', kind: 'ballot_consistency' as const, text }
-    expect(parseGroundingReview(JSON.stringify({ findings: [{ unitId: unit.id, status: 'unsupported', explanation: 'Inconsistent ballot.', citations: [] }] }), [unit], request.evidence, request.groundingContext).status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: [{ unitId: unit.id, status: 'unsupported', explanation: 'Inconsistent ballot.', citations: [] }] }), [unit], request.evidence, request.groundingContext).status).toBe('failed')
   })
 })
