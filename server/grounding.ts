@@ -42,6 +42,7 @@ export interface GroundingReview {
   roleValidationUnitIds?: string[]
   peerReferenceValidationUnitIds?: string[]
   sourceLocatorValidationUnitIds?: string[]
+  scopeValidationUnitIds?: string[]
   verificationRetries?: number
   verificationFailures?: Array<{ attempt: number; errors: string[]; findings?: GroundingFinding[] }>
   citationCorrections?: Array<{ unitId: string; exhibitId: string; fromParagraph?: number; toParagraph: number }>
@@ -2894,13 +2895,22 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
       if (status === 'unsupported' || status === 'contradicted') errors.push(`${unit.id}: ${status} — ${explanation || 'No valid source review was supplied.'}`)
     findings.push({ unitId: unit.id, text: unit.text, status, explanation, ...(Array.isArray(row?.supportTypes) ? { supportTypes: row.supportTypes } : {}), citations, ...(recordCitations.length ? { recordCitations } : {}) })
   }
-  // Incomplete ancillary metadata can never turn a rejection into acceptance,
-  // including when a separate deterministic scope rule changes its status.
+  // Scope rules can request a fresh checker judgment, but cannot replace an
+  // explicit rejection or accept a finding with incomplete ancillary metadata.
+  const scopeValidationUnitIds: string[] = []
   for (const finding of findings) {
+    const original = rows.find(row => row.unitId === finding.unitId)
+    const originallyRejected = original && ['unsupported', 'contradicted'].includes(original.status ?? '')
+    if (originallyRejected && ['supported', 'analysis'].includes(finding.status)) {
+      finding.status = original.status as GroundingFinding['status']
+      finding.explanation = typeof original.explanation === 'string' ? original.explanation : ''
+      scopeValidationUnitIds.push(finding.unitId)
+      invalid(`${finding.unitId}: deterministic scope analysis cannot replace an explicit ${original.status} judgment. Recheck the SAME draft independently against the actual supplied source and record; acceptance requires a new valid checker judgment. Preserve all separate failures.`)
+    }
     const omission = incompleteRejections.get(finding.unitId)
     if (omission) finding.status = omission.status
   }
-  return { status: errors.length ? 'failed' : 'passed', method: 'source-quotes-and-model-review', findings, errors: [...new Set(errors)], validationErrors: [...new Set(validationErrors)], ...(roleValidationUnitIds.length ? { roleValidationUnitIds } : {}), ...(peerReferenceValidationUnitIds.length ? { peerReferenceValidationUnitIds } : {}), ...(sourceLocatorValidationUnitIds.length ? { sourceLocatorValidationUnitIds } : {}), citationCorrections, repairs: 0 }
+  return { status: errors.length ? 'failed' : 'passed', method: 'source-quotes-and-model-review', findings, errors: [...new Set(errors)], validationErrors: [...new Set(validationErrors)], ...(roleValidationUnitIds.length ? { roleValidationUnitIds } : {}), ...(peerReferenceValidationUnitIds.length ? { peerReferenceValidationUnitIds } : {}), ...(sourceLocatorValidationUnitIds.length ? { sourceLocatorValidationUnitIds } : {}), ...(scopeValidationUnitIds.length ? { scopeValidationUnitIds } : {}), citationCorrections, repairs: 0 }
 }
 
 export function groundingRepairInstructions(review: GroundingReview): string {

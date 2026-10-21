@@ -2,9 +2,9 @@
 
 Date: October 3, 2026 (America/Toronto)
 
-Status: opt-in implementation delivered and mechanically verified; release gates remain open. See [implementation evidence](../qa/courtroom-realism-tdd.md) and [evaluation protocol](../evals/courtroom-realism.md).
+Status: opt-in implementation delivered; release gates remain open. See the [release review worksheet](../qa/courtroom-release-review.md) and [evaluation protocol](../evals/courtroom-realism.md). Historical evaluation evidence remains in the owner's private workspace.
 
-Workspace: D:/myprojects/judgeandjurry-codex. Inspected HEAD: 81d3e8e, plus the existing uncommitted work. Complexity: large. Deliver sequentially, with a working and verified increment at each milestone.
+Repository: TrialLens. Inspected HEAD: 81d3e8e, plus the existing uncommitted work. Complexity: large. Deliver sequentially, with a working and verified increment at each milestone.
 
 ## 1. Requested outcomes and scope
 
@@ -20,15 +20,15 @@ Use the existing evidence matrix, original-source viewer, admission ledger, deci
 
 ## 2. ECC workflow for planning and implementation
 
-ECC installation inspected: C:/Users/matri/.codex/plugins/cache/ecc/ecc/2.2.3.
+ECC version inspected: 2.2.3. Resolve these components from the installed plugin.
 
 | Stage | ECC component | Required use |
 | --- | --- | --- |
-| Choose the workflow | [ecc-guide](C:/Users/matri/.codex/plugins/cache/ecc/ecc/2.2.3/skills/ecc-guide/SKILL.md) | Resolve the installed guidance from its files. |
-| Plan | [plan workflow](C:/Users/matri/.codex/plugins/cache/ecc/ecc/2.2.3/commands/plan.md) | Ground requirements in current code, name dependencies and risks, and define acceptance before implementation. This workflow runs inline; no planner agent is required. |
-| Define quality gates | [eval-harness](C:/Users/matri/.codex/plugins/cache/ecc/ecc/2.2.3/skills/eval-harness/SKILL.md) | Specify capability and regression evaluations before prompt or runtime changes. Separate deterministic, model-assisted, and human grading. |
-| Implement each increment | [tdd-workflow](C:/Users/matri/.codex/plugins/cache/ecc/ecc/2.2.3/skills/tdd-workflow/SKILL.md) | Demonstrate an intended failing test, make the smallest change that passes it, then refactor. Preserve task-to-test-to-RED/GREEN evidence. |
-| Close each milestone | [verification-loop](C:/Users/matri/.codex/plugins/cache/ecc/ecc/2.2.3/skills/verification-loop/SKILL.md) | Verify build, types, lint, tests/coverage, security-sensitive changes, and the actual task diff; report failures and omissions. |
+| Choose the workflow | ECC `ecc-guide` skill | Resolve the installed guidance from its files. |
+| Plan | ECC `plan` workflow | Ground requirements in current code, name dependencies and risks, and define acceptance before implementation. This workflow runs inline; no planner agent is required. |
+| Define quality gates | ECC `eval-harness` skill | Specify capability and regression evaluations before prompt or runtime changes. Separate deterministic, model-assisted, and human grading. |
+| Implement each increment | ECC `tdd-workflow` skill | Demonstrate an intended failing test, make the smallest change that passes it, then refactor. Preserve task-to-test-to-RED/GREEN evidence. |
+| Close each milestone | ECC `verification-loop` skill | Verify build, types, lint, tests/coverage, security-sensitive changes, and the actual task diff; report failures and omissions. |
 
 This request is for a plan. ECC's plan workflow also says to wait for confirmation before code changes. A subsequent instruction to implement this plan supplies that confirmation; routine authorised checks should not trigger repeated approval questions.
 
@@ -266,4 +266,4 @@ These are design references, not a substitute for selecting and reviewing the la
 - [x] Legacy workflows and archive compatibility pass.
 - [x] ECC TDD evidence and final verification report are saved; checkpoint limitations are explicit.
 
-M1–M3 software mechanics and UI are implemented and tested; their boxes remain open for the broader acceptance gates, including qualified legal review. The ECC follow-up implements passage/issue/party/purpose projection and reference enforcement, fixes source-drift and ballot-recovery regressions, clears dependency vulnerabilities, and passes the 80% aggregate coverage gate. See [the follow-up verification](../qa/courtroom-hardening.md). Remaining acceptance work is successful bounded live evaluation and independent behavioral/qualified packet review. The protocol remains opt-in. Scripted success does not close the live-quality gate.
+M1–M3 software mechanics and UI are implemented; their boxes remain open for the broader acceptance gates, including qualified legal review. The ECC follow-up implements passage/issue/party/purpose projection and reference enforcement and addresses source-drift and ballot-recovery regressions. Check the current candidate's CI for dependency audit and aggregate coverage results. See the [release review worksheet](../qa/courtroom-release-review.md). Remaining acceptance work is successful bounded live evaluation and independent behavioral/qualified packet review. The protocol remains opt-in. Scripted success does not close the live-quality gate.

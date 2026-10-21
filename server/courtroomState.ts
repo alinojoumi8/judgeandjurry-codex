@@ -61,7 +61,8 @@ export function reduceCourtroomCommand(state: CourtroomState, action: CourtroomA
       next.objectionEventId = undefined
       next.questionBlocked = action.outcome === 'sustained'
       if (action.outcome === 'sustained') next.questionEventId = undefined
-      next.pendingInstruction = action.effects.limitingInstruction
+      if (state.pendingInstruction && action.effects.limitingInstruction && action.effects.limitingInstruction !== state.pendingInstruction) throw new Error('Deliver the pending instruction before requiring another instruction.')
+      next.pendingInstruction = action.effects.limitingInstruction ?? state.pendingInstruction
     }
   } else if (action.type === 'finish_examination') {
     requireExaminer()
@@ -87,7 +88,8 @@ export function reduceCourtroomCommand(state: CourtroomState, action: CourtroomA
     if (state.pendingInstruction || state.objectionEventId) throw new Error('Resolve pending obligations before presentation.')
   } else if (action.type === 'apply_effects') {
     requireJudge()
-    next.pendingInstruction = action.effects.limitingInstruction
+    if (state.pendingInstruction && action.effects.limitingInstruction && action.effects.limitingInstruction !== state.pendingInstruction) throw new Error('Deliver the pending instruction before requiring another instruction.')
+    next.pendingInstruction = action.effects.limitingInstruction ?? state.pendingInstruction
   } else if (action.type === 'propose_correction') {
     if (!counsel) throw new Error('Only counsel may propose a charge correction.')
     next.pendingCorrections = [...(state.pendingCorrections ?? []), eventId]
