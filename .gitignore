@@ -41,3 +41,5 @@ videos/
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
 coverage/
+__pycache__/
+*.py[cod]
