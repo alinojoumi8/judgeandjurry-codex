@@ -1,13 +1,13 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { ballotConsistencyUnits, groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { ballotConsistencyUnits, groundingUnits } from '../server/grounding'
 const doubt = JSON.parse(readFileSync('docs/qa/jury/v138-full-control-current-permitted-doubt-positive-capture.json', 'utf8'))
 const trait = JSON.parse(readFileSync('docs/qa/jury/v138-full-control-v107-current-profile-positive-capture.json', 'utf8'))
 function check(c: any, q = structuredClone(c.request), text = c.draft.content, status = 'unsupported', withProfile = true) {
   const actor = q.courtroomActor
   const profile = q.jurorProfiles.find((p: any) => p.juror === actor.id)
-  return parseGroundingReview(JSON.stringify({ findings: [{ unitId: 'content:1', status, explanation: 'Captured current assessment rejection.', citations: [] }] }),
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: [{ unitId: 'content:1', status, explanation: 'Captured current assessment rejection.', citations: [] }] }),
     [{ id: 'content:1', text }], q.evidence, q.groundingContext,
     { actorId: actor.id, assessments: q.courtroomAssessments, profile: withProfile ? profile : undefined },
     { packet: q.packet, events: q.courtroomEvents, actorRoles: actor.roles, partyRoles: q.approvedPartyRoles, actor, stage: q.stage }).status
@@ -17,10 +17,11 @@ describe('current negative assessment is not an exhibit inventory', () => {
   it('preserves the explicit negative correction while still withholding the failed whole ballot', () => {
     const c = JSON.parse(readFileSync('docs/qa/jury/v138-full-control-v137-negative-proof-correction-capture.json', 'utf8'))
     const q = c.request
-    const review = parseGroundingReview(JSON.stringify({ findings: c.checkerResult.review.findings }), [...groundingUnits(c.draft), ...ballotConsistencyUnits(c.draft)], q.evidence, q.groundingContext,
+    const review = reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: c.checkerResult.review.findings }), [...groundingUnits(c.draft), ...ballotConsistencyUnits(c.draft)], q.evidence, q.groundingContext,
       { actorId: q.courtroomActor.id, assessments: q.courtroomAssessments },
       { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, actor: q.courtroomActor, stage: q.stage })
-    expect(review.findings.find(f => f.unitId === 'content:1')?.status).toBe('analysis')
+    expect(review.findings.find(f => f.unitId === 'content:1')?.status).toBe('unsupported')
+    expect(review.scopeValidationUnitIds).toContain('content:1')
     expect(review.status).toBe('failed')
     expect(review.findings.find(f => f.unitId === 'ballot-consistency-0:1')?.status).toBe('contradicted')
   })

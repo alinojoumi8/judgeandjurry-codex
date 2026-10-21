@@ -96,6 +96,8 @@ export function CaseModelEditor({ model, sources, busy, onSave }: { model: CaseM
 export function AdmissionEditor({ sources, ledger, busy, onSave }: { sources: WorkflowSource[]; ledger?: AdmissionLedger; busy: boolean; onSave: (uses: AdmissionLedger['evidenceUses'], reason: string) => Promise<void> }) {
   const [uses, setUses] = useState<AdmissionLedger['evidenceUses']>(sources.map((item) => ledger?.evidenceUses.find((use) => use.evidenceId === item.id) ?? { evidenceId: item.id, status: 'reserved', purposes: [], redactions: [], hiddenFrom: [], note: '' }))
   const [reason, setReason] = useState(ledger?.reason ?? 'Source-use assumptions for this simulation; not a court ruling.')
+  const [paragraphDrafts, setParagraphDrafts] = useState<Record<string, string>>({})
+  const [paragraphErrors, setParagraphErrors] = useState<Record<string, string>>({})
   const update = (index: number, input: Partial<typeof uses[number]>) => setUses(uses.map((item, i) => i === index ? { ...item, ...input } : item))
   return <section className="scenario-editor" aria-label="Source-use editor"><h3>Document-use settings</h3><p>These settings apply to a new run. Earlier runs keep their saved settings. Mark uncertain sources as reserved until their use is decided.</p>
     <label>Reason for these settings<textarea value={reason} onChange={(event) => setReason(event.target.value)} /></label>
@@ -103,13 +105,21 @@ export function AdmissionEditor({ sources, ledger, busy, onSave }: { sources: Wo
       <label>Source status<select value={use.status} onChange={(event) => update(index, { status: event.target.value as typeof use.status })}>{['admitted', 'limited', 'excluded', 'reserved', 'redacted'].map((status) => <option key={status}>{status}</option>)}</select></label>
       <label>Permitted purposes (one per line)<textarea value={use.purposes.join('\n')} onChange={(event) => update(index, { purposes: event.target.value.split('\n').filter(Boolean) })} /></label>
       <label>Exact phrases to redact (one per line)<textarea value={use.redactions.join('\n')} onChange={(event) => update(index, { redactions: event.target.value.split('\n').filter(Boolean) })} /></label>
-      <label>Permitted paragraph numbers (comma separated; blank allows all)<input value={use.scope?.paragraphs?.join(', ') ?? ''} onChange={event => update(index, { scope: { ...use.scope, paragraphs: event.target.value.trim() ? event.target.value.split(',').map(Number) : undefined } })} /></label>
+      <label>Permitted paragraph numbers (comma separated; blank allows all)<input value={paragraphDrafts[use.evidenceId] ?? use.scope?.paragraphs?.join(', ') ?? ''} aria-invalid={Boolean(paragraphErrors[use.evidenceId])} aria-describedby={paragraphErrors[use.evidenceId] ? `paragraph-error-${use.evidenceId}` : undefined} onChange={event => {
+        const raw = event.target.value
+        const values = raw.split(',').map(value => value.trim()).filter(Boolean)
+        const invalid = raw.trim() !== '' && (!values.length || values.some(value => !/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) < 1))
+        setParagraphDrafts({ ...paragraphDrafts, [use.evidenceId]: raw })
+        setParagraphErrors({ ...paragraphErrors, [use.evidenceId]: invalid ? 'Enter positive whole paragraph numbers separated by commas, or clear the field to allow all paragraphs.' : '' })
+        if (!invalid) update(index, { scope: { ...use.scope, paragraphs: raw.trim() ? values.map(Number) : undefined } })
+      }} /></label>
+      {paragraphErrors[use.evidenceId] && <p role="alert" id={`paragraph-error-${use.evidenceId}`}>{paragraphErrors[use.evidenceId]}</p>}
       <label>Permitted issue IDs (comma separated; blank allows all)<input value={use.scope?.issueIds?.join(', ') ?? ''} onChange={event => update(index, { scope: { ...use.scope, issueIds: event.target.value.trim() ? event.target.value.split(',').map(s => s.trim()) : undefined } })} /></label>
       <label>Permitted party IDs (comma separated; blank allows all)<input value={use.scope?.partyIds?.join(', ') ?? ''} onChange={event => update(index, { scope: { ...use.scope, partyIds: event.target.value.trim() ? event.target.value.split(',').map(s => s.trim()) : undefined } })} /></label>
       <label>Prohibited purposes (one per line)<textarea value={use.scope?.prohibitedPurposes?.join('\n') ?? ''} onChange={event => update(index, { scope: { ...use.scope, prohibitedPurposes: event.target.value.split('\n').filter(Boolean) } })} /></label>
       <label>Use note<textarea value={use.note} onChange={(event) => update(index, { note: event.target.value })} /></label>
       <div>Hide source from{['juror', 'foreperson', 'crown', 'defence', 'witness', 'judge', 'adjudicator', 'staff', 'respondent', 'plaintiff'].map((role) => <label key={role} className="workflow-check"><input type="checkbox" checked={use.hiddenFrom.includes(role)} onChange={(event) => update(index, { hiddenFrom: event.target.checked ? [...use.hiddenFrom, role] : use.hiddenFrom.filter((item) => item !== role) })} />{role}</label>)}</div>
     </fieldset>)}
-    <button type="button" className="primary-action" disabled={busy || !uses.length} onClick={() => void onSave(uses, reason)}>Save document-use settings</button>
+    <button type="button" className="primary-action" disabled={busy || !uses.length || Object.values(paragraphErrors).some(Boolean)} onClick={() => void onSave(uses, reason)}>Save document-use settings</button>
   </section>
 }

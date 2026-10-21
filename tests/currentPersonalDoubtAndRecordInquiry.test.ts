@@ -1,7 +1,7 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { groundingUnits } from '../server/grounding'
 const load = (file: string) => JSON.parse(readFileSync(`docs/qa/jury/${file}.json`, 'utf8'))
 const personal = load('v140-personal-no-doubt-capture')
 const inquiry = load('v140-calibration-full-control-v138-historical-adoption-neutral-inquiry')
@@ -9,7 +9,7 @@ const report = load('v140-calibration-full-control-v137-negative-proof-reported'
 function check(c: any, q = c.request, draft = c.draft ?? c.result, status = 'unsupported', recordCitations: any[] = [], whole = false) {
   const units = groundingUnits(draft)
   if (whole) units.push({ id: 'whole', kind: 'ballot_consistency', text: JSON.stringify(draft) })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Actual captured source and record boundary.', citations: [], recordCitations })) }), units,
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Actual captured source and record boundary.', citations: [], recordCitations })) }), units,
     q.evidence, q.groundingContext, undefined, { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, actor: q.courtroomActor, stage: q.stage })
 }
 describe('personal source weighting is not an asserted source fact', () => {
