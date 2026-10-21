@@ -135,13 +135,13 @@ describe('consolidated V212 calibration fidelity diagnostics', () => {
   })
   it.each(['false-visible-initial-scope', 'false-default-classification-knowledge'])('withholds unchanged invalid %s reviews at the existing limit', async id => {
     const item = captured(id)
-    const { model, sent } = client([item.checkerResponses[0].content])
+    const { model, sent } = client([item.checkerResponses[id === 'false-visible-initial-scope' ? 1 : 0].content])
     expect((await model.reviewGrounding(item.request, item.result)).status).toBe('failed')
     expect(sent).toHaveLength(3)
   })
   it.each(['false-visible-initial-scope', 'false-default-classification-knowledge'])('does not bypass disabled retries for %s', async id => {
     const item = captured(id)
-    const { model, sent } = client([item.checkerResponses[0].content, correctedReview(item)], 0)
+    const { model, sent } = client([item.checkerResponses[id === 'false-visible-initial-scope' ? 1 : 0].content, correctedReview(item)], 0)
     expect((await model.reviewGrounding(item.request, item.result)).status).toBe('failed')
     expect(sent).toHaveLength(1)
   })

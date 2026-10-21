@@ -30,6 +30,6 @@
     "finishedAt": "2026-10-12T06:35:16.635Z",
     "elapsedMs": 23801.36300000013
   },
-  "requestFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v155-current-comparison\\live-c70f0587b06d232fdf0586ee07cf0d8b0d8690a1eef246bfe094c48469a398c6-1791785441023\\full-control-v155-quoted-doubt-correction-positive\\http-0001\\request-body.txt",
-  "responseFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v155-current-comparison\\live-c70f0587b06d232fdf0586ee07cf0d8b0d8690a1eef246bfe094c48469a398c6-1791785441023\\full-control-v155-quoted-doubt-correction-positive\\http-0001\\response-body.raw"
+  "requestFile": "tmp/qa/courtroom/jury-v155-current-comparison/live-c70f0587b06d232fdf0586ee07cf0d8b0d8690a1eef246bfe094c48469a398c6-1791785441023/full-control-v155-quoted-doubt-correction-positive/http-0001/request-body.txt",
+  "responseFile": "tmp/qa/courtroom/jury-v155-current-comparison/live-c70f0587b06d232fdf0586ee07cf0d8b0d8690a1eef246bfe094c48469a398c6-1791785441023/full-control-v155-quoted-doubt-correction-positive/http-0001/response-body.raw"
 }
