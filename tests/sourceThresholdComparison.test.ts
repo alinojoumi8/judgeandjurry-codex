@@ -7,6 +7,16 @@ function check(text: string, sourceText = 'The report records a total of $8,000.
   return parseGroundingReview(JSON.stringify({ findings: [{ unitId: 'content:1', status, explanation: 'A numerical comparison does not prove the remaining elements.', citations: [{ exhibitId: 'E-001', paragraph: 1 }] }] }), [{ id: 'content:1', text }], [{ ...supportedOpeningSource, exhibitId: 'E-001', text: sourceText }], '', undefined, { packet: '', actorRoles: [], partyRoles: [], events })
 }
 describe('source-backed threshold comparisons', () => {
+  it.each([
+    ['The quoted amount exceeds $2 m (E-001).', 'The report records $1.5 million.', 'failed'],
+    ['The quoted amount is below $2 m (E-001).', 'The report records $1.5 million.', 'passed'],
+    ['The quoted amount exceeds $2 million (E-001).', 'The report records $3 m.', 'passed'],
+    ['The quoted amount is below $2 million (E-001).', 'The report records $3 m.', 'failed'],
+    ['The quoted amount exceeds $2 k (E-001).', 'The report records $1,500.', 'failed'],
+    ['The quoted amount exceeds $2 b (E-001).', 'The report records $3 billion.', 'passed'],
+  ])('uses the full monetary suffix in both comparison operands: %s', (text, source, status) => {
+    expect(check(text, source).status).toBe(status)
+  })
   it.each(['The quoted amount exceeds $5,000 (E-001).', 'The supplied amounts support an issue exceeding $5,000, yet value alone cannot prove the remaining elements (E-001).', 'The recorded total is above $5,000 (E-001).'])('permits a comparison without inventing a transaction of exactly the threshold: %s', text => {
     expect(check(text).errors).toEqual([])
   })
