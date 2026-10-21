@@ -1,3 +1,4 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { describe, expect, it } from 'vitest'
 import { groundingUnits, parseGroundingReview } from '../server/grounding'
 import { hearingCheckerCases } from '../samples/courtroom-realism/hearing-checks'
@@ -7,43 +8,44 @@ const events = [
   { eventId: 'peer-9', type: 'juror_deliberation_turn', actorId: 'juror-09', payload: { contribution: "Mira's attributed account proves receipt." } },
 ]
 function check(text: string, recordCitations: Array<{ eventId: string }> = [], visible = events, status = 'analysis') {
-  return parseGroundingReview(JSON.stringify({ findings: [{ unitId: 'content:1', status, citations: [], recordCitations }] }), [{ id: 'content:1', text }], [], '', undefined, { packet: '', events: visible, actorRoles: ['juror'], partyRoles: [] })
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: [{ unitId: 'content:1', status, citations: [], recordCitations }] }), [{ id: 'content:1', text }], [], '', undefined, { packet: '', events: visible, actorRoles: ['juror'], partyRoles: [] })
 }
 describe('visible jury argument ledger', () => {
   it('verifies an expressly rejected inference against the actual Defence submission', () => {
     const control = hearingCheckerCases().find(c => c.id === 'opponent-polarity-positive')!
     const encoded = JSON.stringify({ findings: [{ unitId: 'content:1', status: 'supported', citations: [], recordCitations: [{ eventId: 'd1' }] }] })
     const setup = { packet: control.request.packet, events: control.request.courtroomEvents!, actorRoles: ['crown'], partyRoles: control.request.approvedPartyRoles! }
-    expect(parseGroundingReview(encoded, groundingUnits(control.draft), [], '', undefined, setup).status).toBe('passed')
-    expect(parseGroundingReview(encoded, groundingUnits(control.draft), [], '', undefined, { ...setup, partyRoles: [{ id: 'ellis', role: 'crown' }] }).status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', encoded, groundingUnits(control.draft), [], '', undefined, setup).status).toBe('passed')
+    expect(reviewWithIndependentScopeCheck('analysis', encoded, groundingUnits(control.draft), [], '', undefined, { ...setup, partyRoles: [{ id: 'ellis', role: 'crown' }] }).status).toBe('failed')
   })
   it('supplies the public-control speaker role needed to verify its concession', () => {
     const control = hearingCheckerCases().find(c => c.id === 'submission-attribution-positive')!
     const encoded = JSON.stringify({ findings: [{ unitId: 'content:1', status: 'supported', citations: [], recordCitations: [{ eventId: 's1' }] }, { unitId: 'content:2', status: 'analysis', citations: [] }] })
-    expect(parseGroundingReview(encoded, groundingUnits(control.draft), control.request.evidence, control.request.groundingContext, undefined, { packet: control.request.packet, events: control.request.courtroomEvents!, actorRoles: control.request.courtroomActor!.roles, partyRoles: control.request.approvedPartyRoles! }).status).toBe('passed')
+    expect(reviewWithIndependentScopeCheck('analysis', encoded, groundingUnits(control.draft), control.request.evidence, control.request.groundingContext, undefined, { packet: control.request.packet, events: control.request.courtroomEvents!, actorRoles: control.request.courtroomActor!.roles, partyRoles: control.request.approvedPartyRoles! }).status).toBe('passed')
   })
   it('supports visible public concessions without treating them as evidence truth', () => {
     const text = "The Crown's closing concedes the supplied record does not meet the burden."
     const setup = { packet: '', events: [{ eventId: 'closing', type: 'public_submission', actorId: 'crown', payload: { text: 'The Crown cannot establish the fictional blue-token receipt condition beyond a reasonable doubt on this record.' } }], actorRoles: ['juror'], partyRoles: [{ id: 'crown', role: 'crown' }] }
     const encoded = JSON.stringify({ findings: [{ unitId: 'content:1', status: 'supported', citations: [], recordCitations: [{ eventId: 'closing' }] }] })
-    expect(parseGroundingReview(encoded, [{ id: 'content:1', text }], [], '', undefined, setup).status).toBe('passed')
-    expect(parseGroundingReview(encoded, [{ id: 'content:1', text: 'Juror-03 argued that the burden is unmet.' }], [], '', undefined, setup).status).toBe('failed')
-    expect(parseGroundingReview(encoded, [{ id: 'content:1', text }], [], '', undefined, { ...setup, events: [{ ...setup.events[0], type: 'private_submission' }] }).status).toBe('failed')
-    expect(parseGroundingReview(encoded.replace('"supported"', '"analysis"'), [{ id: 'content:1', text }], [], '', undefined, { ...setup, partyRoles: [{ id: 'crown', role: 'defence' }] }).status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', encoded, [{ id: 'content:1', text }], [], '', undefined, setup).status).toBe('passed')
+    expect(reviewWithIndependentScopeCheck('analysis', encoded, [{ id: 'content:1', text: 'Juror-03 argued that the burden is unmet.' }], [], '', undefined, setup).status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', encoded, [{ id: 'content:1', text }], [], '', undefined, { ...setup, events: [{ ...setup.events[0], type: 'private_submission' }] }).status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', encoded.replace('"supported"', '"analysis"'), [{ id: 'content:1', text }], [], '', undefined, { ...setup, partyRoles: [{ id: 'crown', role: 'defence' }] }).status).toBe('failed')
   })
   it('does not use a party attribution to exempt a separate source summary in the same unit', () => {
     const text = "The Crown's submission acknowledges the proof limit, and E-001 records only Mira's stated uncertainty about token receipt."
     const encoded = JSON.stringify({ findings: [{ unitId: 'content:1', status: 'supported', citations: [{ exhibitId: 'E-001', paragraph: 1 }], recordCitations: [{ eventId: 'closing' }] }] })
     const evidence = [{ exhibitId: 'E-001', text: 'Mira states: I saw Fictional Ellis standing at the desk. I do not know whether Ellis received any token.' }] as Parameters<typeof parseGroundingReview>[2]
     const setup = { packet: '', events: [{ eventId: 'closing', type: 'public_submission', actorId: 'crown', payload: { text: 'The Crown acknowledges the proof limit.' } }], actorRoles: ['juror'], partyRoles: [{ id: 'crown', role: 'crown' }] }
-    expect(parseGroundingReview(encoded, [{ id: 'content:1', text }], evidence, '', undefined, setup).status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', encoded, [{ id: 'content:1', text }], evidence, '', undefined, setup).status).toBe('failed')
   })
   it('retries a checker rejection of a wholly verbatim visible quotation with an omitted locator', () => {
     const text = `Prior turns said "${events[0].payload.contribution}"`
     const result = check(text, [], events, 'unsupported')
     expect(result.status).toBe('failed')
     expect(result.validationErrors?.some(error => error.includes('record citation'))).toBe(true)
-    expect(result.findings[0].status).toBe('analysis')
+    expect(result.findings[0].status).toBe('unsupported')
+    expect(result.scopeValidationUnitIds).toContain('content:1')
     expect(check(text, [{ eventId: 'peer-3' }], events).status).toBe('passed')
     expect(check('Juror-09 said "The burden remains unmet."', [], events, 'unsupported').findings[0].status).toBe('unsupported')
     expect(check('Prior turns said "The burden remains unmet." Therefore the burden is satisfied.', [], events, 'unsupported').findings[0].status).toBe('unsupported')
@@ -107,21 +109,21 @@ describe('visible jury argument ledger', () => {
     const setup = { packet: '', events: visible, actorRoles: ['juror'], partyRoles: [] }
     const evidence = [{ exhibitId: 'E-001', text: 'Mira states: I saw a handover.' }] as Parameters<typeof parseGroundingReview>[2]
     const context = 'E-001: attribution-only use.'
-    expect(parseGroundingReview(encoded, [{ id: 'content:1', text }], evidence, context, undefined, setup).status).toBe('passed')
-    expect(parseGroundingReview(encoded, [{ id: 'content:1', text: text + ' Therefore I find the burden satisfied.' }], evidence, context, undefined, setup).status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', encoded, [{ id: 'content:1', text }], evidence, context, undefined, setup).status).toBe('passed')
+    expect(reviewWithIndependentScopeCheck('analysis', encoded, [{ id: 'content:1', text: text + ' Therefore I find the burden satisfied.' }], evidence, context, undefined, setup).status).toBe('failed')
   })
   it('reports a real incorrect receipt-denial argument without asserting source truth', () => {
     const visible = [{ eventId: 'wrong-denial', type: 'juror_deliberation_turn', actorId: 'juror-03', payload: { contribution: 'The source records an explicit receipt disclaimer.' } }]
     const text = 'Juror-03 claimed "The source records an explicit receipt disclaimer."'
     const encoded = JSON.stringify({ findings: [{ unitId: 'content:1', status: 'analysis', citations: [], recordCitations: [{ eventId: 'wrong-denial' }] }] })
     const evidence = [{ exhibitId: 'E-001', text: 'Mira states: I do not know whether Ellis received a token.' }] as Parameters<typeof parseGroundingReview>[2]
-    expect(parseGroundingReview(encoded, [{ id: 'content:1', text }], evidence, '', undefined, { packet: '', events: visible, actorRoles: ['juror'], partyRoles: [] }).status).toBe('passed')
+    expect(reviewWithIndependentScopeCheck('analysis', encoded, [{ id: 'content:1', text }], evidence, '', undefined, { packet: '', events: visible, actorRoles: ['juror'], partyRoles: [] }).status).toBe('passed')
   })
   it('does not treat a quoted peer first-person conclusion as author adoption', () => {
     const contribution = 'The source records an explicit receipt disclaimer; therefore I conclude no handover occurred.'
     const text = `Juror-03 said "${contribution}"`
     const encoded = JSON.stringify({ findings: [{ unitId: 'content:1', status: 'analysis', citations: [], recordCitations: [{ eventId: 'quote' }] }] })
     const evidence = [{ exhibitId: 'E-001', text: 'Mira states: I do not know whether Ellis received a token.' }] as Parameters<typeof parseGroundingReview>[2]
-    expect(parseGroundingReview(encoded, [{ id: 'content:1', text }], evidence, '', undefined, { packet: '', events: [{ eventId: 'quote', actorId: 'juror-03', type: 'juror_deliberation_turn', payload: { contribution } }], actorRoles: ['juror'], partyRoles: [] }).status).toBe('passed')
+    expect(reviewWithIndependentScopeCheck('analysis', encoded, [{ id: 'content:1', text }], evidence, '', undefined, { packet: '', events: [{ eventId: 'quote', actorId: 'juror-03', type: 'juror_deliberation_turn', payload: { contribution } }], actorRoles: ['juror'], partyRoles: [] }).status).toBe('passed')
   })
 })

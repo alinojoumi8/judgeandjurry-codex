@@ -1,10 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe,expect,it } from 'vitest'
-import { groundingUnits,parseGroundingReview } from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const capture=JSON.parse(readFileSync('docs/qa/jury/v89-captured-departure-denial-false-rejection.json','utf8')),q=capture.request
 function check(text:string,evidence=q.evidence) {
  const units=groundingUnits({title:'',content:text,citations:[]})
- return parseGroundingReview(JSON.stringify({findings:units.map(unit=>({unitId:unit.id,status:'contradicted',citations:[{exhibitId:'E-002',paragraph:1}]}))}),units,evidence,q.groundingContext).status
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:units.map(unit=>({unitId:unit.id,status:'contradicted',citations:[{exhibitId:'E-002',paragraph:1}]}))}),units,evidence,q.groundingContext).status
 }
 describe('departure narration does not establish personal observation',()=>{
  it('preserves the exact bounded captured denial despite checker rejection',()=>expect(check(capture.result.content)).toBe('passed'))

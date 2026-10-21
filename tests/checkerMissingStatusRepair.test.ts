@@ -33,10 +33,12 @@ describe('checker status schema repair before semantic judgment', () => {
     expect((await client.reviewGrounding(request, { ...draft, content: 'Primary verification established the handover.' })).status).toBe('failed')
     expect(bodies).toHaveLength(1)
   })
-  it('corrects a false metadata rejection without sampling another checker judgment', async () => {
+  it('withholds a repeated metadata rejection until the checker independently clears it', async () => {
     const { client, bodies } = clientFor([{ findings: [{ ...missing, status: 'unsupported', explanation: 'The claim invents a verification outcome.' }] }])
-    expect((await client.reviewGrounding(request, draft)).status).toBe('passed')
-    expect(bodies).toHaveLength(1)
+    const review = await client.reviewGrounding(request, draft)
+    expect(review.status).toBe('failed')
+    expect(review.findings[0].status).toBe('unsupported')
+    expect(bodies).toHaveLength(3)
   })
   it.each([0, 2])('withholds an unrepaired missing status at the bounded retry limit %s', async maxRetries => {
     const { client, bodies } = clientFor([{ findings: [missing] }], maxRetries)

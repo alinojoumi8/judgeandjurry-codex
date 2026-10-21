@@ -1,10 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { ballotConsistencyUnits, groundingUnits, parseGroundingReview } from '../server/grounding'
+import { ballotConsistencyUnits, groundingUnits } from '../server/grounding'
 const c = JSON.parse(readFileSync(new URL('../docs/qa/jury/v137-calibration-full-control-v137-negative-proof-unconvinced.json', import.meta.url), 'utf8'))
 function check(q = structuredClone(c.request), draft = structuredClone(c.result), wholeFailed = false) {
   const units = [...groundingUnits(draft), ...ballotConsistencyUnits(draft)]
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status: unit.id.startsWith('juror-change-') || (wholeFailed && unit.kind === 'ballot_consistency') ? 'unsupported' : 'analysis', explanation: 'Captured present stability review.', citations: [] })) }), units, q.evidence, q.groundingContext,
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status: unit.id.startsWith('juror-change-') || (wholeFailed && unit.kind === 'ballot_consistency') ? 'unsupported' : 'analysis', explanation: 'Captured present stability review.', citations: [] })) }), units, q.evidence, q.groundingContext,
     { actorId: q.courtroomActor.id, assessments: q.courtroomAssessments },
     { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, stage: q.stage }).status
 }

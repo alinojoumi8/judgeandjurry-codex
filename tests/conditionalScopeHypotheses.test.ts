@@ -1,12 +1,12 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { groundingUnits } from '../server/grounding'
 const observation = JSON.parse(readFileSync('docs/qa/jury/v127-conditional-observation-control-capture.json', 'utf8'))
 const permission = JSON.parse(readFileSync('docs/qa/jury/v127-changed-permission-control-capture.json', 'utf8'))
 function check(capture: any, content = capture.control.draft.content, status = 'unsupported', q = capture.control.request, whole = false) {
   const units = whole ? [{ id: 'ballot-consistency-1', kind: 'ballot_consistency' as const, text: content }] : groundingUnits({ title: '', content, citations: capture.control.draft.citations })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({
     unitId: unit.id, status, explanation: 'Captured conditional-premise rejection.',
     citations: q.evidence.map((e: any) => ({ exhibitId: e.exhibitId, paragraph: 1 })),
   })) }), units, q.evidence, q.groundingContext, undefined, {

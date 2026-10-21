@@ -1,6 +1,7 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 import type { StageRequest } from '../server/minimax'
 
 const capture = JSON.parse(readFileSync(new URL('../docs/qa/jury/v133-qualified-verification-unknown-positive-capture.json', import.meta.url), 'utf8'))
@@ -9,7 +10,7 @@ const text = capture.draft.content as string
 function check(content = text, q = request, status = 'unsupported', wholeBallot = false) {
   const units = groundingUnits({ title: '', content, citations: [], jurors: [] })
   if (wholeBallot) units.push({ id: 'ballot:whole', kind: 'ballot_consistency', text: content })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Captured qualified verification uncertainty.', citations: [] })) }), units, q.evidence, q.groundingContext, undefined,
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Captured qualified verification uncertainty.', citations: [] })) }), units, q.evidence, q.groundingContext, undefined,
     { packet: q.packet, events: q.courtroomEvents ?? [], actorRoles: q.courtroomActor?.roles ?? [], partyRoles: q.approvedPartyRoles ?? [], stage: q.stage }).status
 }
 

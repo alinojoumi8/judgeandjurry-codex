@@ -1,10 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import {readFileSync} from 'node:fs'
 import {describe,expect,it} from 'vitest'
-import {groundingUnits,parseGroundingReview} from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const c=JSON.parse(readFileSync('docs/qa/jury/v91-captured-possible-conflict-positive.json','utf8'))
 function check(content:string,context=c.request.groundingContext,status='unsupported'){
  const units=groundingUnits({title:'',content,citations:[]})
- return parseGroundingReview(JSON.stringify({findings:units.map(u=>({unitId:u.id,status,explanation:'The checker treated uncertainty as an established claim.',citations:[]}))}),units,c.request.evidence,context).status
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:units.map(u=>({unitId:u.id,status,explanation:'The checker treated uncertainty as an established claim.',citations:[]}))}),units,c.request.evidence,context).status
 }
 describe('qualified comparison and neutral classification questions',()=>{
  it('preserves own current referential sufficiency weighing',()=>expect(check('I weigh that conflict in my current sufficiency assessment.')).toBe('passed'))

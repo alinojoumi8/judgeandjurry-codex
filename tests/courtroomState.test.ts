@@ -3,6 +3,17 @@ import { initialCourtroomState, reduceCourtroomCommand } from '../server/courtro
 import type { CourtroomState } from '../server/courtroomTypes'
 
 describe('judge-controlled courtroom', () => {
+  it.each(['rule', 'apply_effects'] as const)('keeps the pending instruction through %s without a replacement', type => {
+    const pending = { ...initialCourtroomState('run'), juryPresent: false, pendingInstruction: 'Use the statement only for its permitted purpose.', objectionEventId: type === 'rule' ? 'objection' : undefined }
+    const effects = { targetEventIds: [], evidence: [], reasons: 'Another ruling.', authorityIds: [] }
+    const next = reduceCourtroomCommand(pending, type === 'rule' ? { type, outcome: 'overruled', effects } : { type, effects }, 'judge', 'judge', 'later-ruling')
+    expect(next.pendingInstruction).toBe(pending.pendingInstruction)
+    expect(() => reduceCourtroomCommand(next, { type: 'jury_return' }, 'judge', 'judge', 'return')).toThrow(/instruction/)
+    const instructed = reduceCourtroomCommand(next, { type: 'instruct', text: pending.pendingInstruction }, 'judge', 'judge', 'instruction')
+    expect(reduceCourtroomCommand(instructed, { type: 'jury_return' }, 'judge', 'judge', 'return').juryPresent).toBe(true)
+    expect(() => reduceCourtroomCommand(pending, type === 'rule' ? { type, outcome: 'overruled', effects: { ...effects, limitingInstruction: 'A different obligation.' } } : { type, effects: { ...effects, limitingInstruction: 'A different obligation.' } }, 'judge', 'judge', 'overwrite')).toThrow(/pending instruction/)
+    expect(pending.pendingInstruction).toBe('Use the statement only for its permitted purpose.')
+  })
   const initial = (): CourtroomState => ({ ...initialCourtroomState('run'), witnessId: 'w1', calledByPartyId: 'crown', examination: 'direct' })
   it('suspends objections, rejects answers, and permits replacement questions after sustaining', () => {
     let state = reduceCourtroomCommand(initial(), { type: 'question', witnessId: 'w1', text: 'Original' }, 'crown', 'crown', 'q1')

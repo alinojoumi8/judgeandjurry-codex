@@ -1,12 +1,12 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { groundingUnits } from '../server/grounding'
 const captures = ['conditional-source', 'excluded', 'negated-source'].map(kind =>
   JSON.parse(readFileSync(`docs/qa/jury/v143-calibration-full-control-v142-excerpt-${kind}.json`, 'utf8')))
 const original = JSON.parse(readFileSync('docs/qa/jury/v141-contiguous-quote-capture.json', 'utf8'))
 function check(q: any, draft: any, findings: any[]) {
-  return parseGroundingReview(JSON.stringify({ findings }), groundingUnits(draft), q.evidence, q.groundingContext, undefined,
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings }), groundingUnits(draft), q.evidence, q.groundingContext, undefined,
     { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, stage: q.stage })
 }
 

@@ -1,6 +1,7 @@
+import { reviewWithIndependentScopeCheck, fixtureCheckerWithIndependentFollowup } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 import { MiniMaxClient, type StageRequest } from '../server/minimax'
 
 const c = JSON.parse(readFileSync('docs/qa/jury/v152-burden-counterfactual-capture.json', 'utf8'))
@@ -8,13 +9,13 @@ const raw = JSON.parse(readFileSync('docs/qa/jury/v152-burden-counterfactual-che
 const request = c.request as StageRequest
 function check(q = request, text = c.result.content, status = 'unsupported') {
  const units = groundingUnits({ ...c.result, content: text })
- return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Counterfactual not supplied.', citations: [] })) }), units,
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Counterfactual not supplied.', citations: [] })) }), units,
   q.evidence, q.groundingContext, undefined, { packet: q.packet, events: q.courtroomEvents ?? [], actorRoles: q.courtroomActor!.roles, partyRoles: q.approvedPartyRoles ?? [], actor: q.courtroomActor, stage: q.stage }).status
 }
 
 describe('explicit change of burden allocation preserves the supplied hypothetical standard', () => {
- it('preserves the actual complete counterfactual through the production checker client', async () => {
-  const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 2000, maxRetries: 0 }, undefined, async () => Response.json({ choices: [{ message: { content: raw } }] }))
+ it('requires an independent new review of the complete counterfactual through the production checker client', async () => {
+  const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 2000, maxRetries: 1 }, undefined, fixtureCheckerWithIndependentFollowup('analysis', raw))
   expect((await client.reviewGrounding(request, c.result)).status).toBe('passed')
  })
  it.each(['analysis', 'supported', 'unsupported', 'contradicted'])('preserves the complete bounded hypothesis under checker %s', status => expect(check(undefined, undefined, status)).toBe('passed'))

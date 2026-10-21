@@ -1,10 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import {readFileSync} from 'node:fs'
 import {describe,expect,it} from 'vitest'
-import {groundingUnits,parseGroundingReview} from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const c=JSON.parse(readFileSync('docs/qa/jury/v103-calibration-full-control-current-source-use-reminder-positive.json','utf8'))
 function audit(q=c.request,content=c.result.content,status=c.checkerResult.review.findings[0].status){
  const units=groundingUnits({...c.result,content})
- return parseGroundingReview(JSON.stringify({findings:units.map(u=>({...c.checkerResult.review.findings[0],unitId:u.id,status}))}),units,q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage,courtroomState:q.courtroomState}).status
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:units.map(u=>({...c.checkerResult.review.findings[0],unitId:u.id,status}))}),units,q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage,courtroomState:q.courtroomState}).status
 }
 describe('continuing supplied source-use restriction',()=>{
  it('keeps the actual limited-use instruction applicable without expanding permission',()=>expect(audit()).toBe('passed'))

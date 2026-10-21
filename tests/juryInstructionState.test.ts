@@ -1,9 +1,9 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { describe, expect, it } from 'vitest'
-import { parseGroundingReview } from '../server/grounding'
 import { MiniMaxClient } from '../server/minimax'
 
 const present = { juryPresent: true, examination: 'complete' }
-const check = (text: string, state = present) => parseGroundingReview(
+const check = (text: string, state = present) => reviewWithIndependentScopeCheck('analysis',
   JSON.stringify({ findings: [{ unitId: 'content:1', status: 'analysis', citations: [] }] }),
   [{ id: 'content:1', text }], [], '', undefined,
   { packet: 'Account only; no contents or guilt proof.', events: [], actorRoles: ['defence'], partyRoles: [], courtroomState: state },
@@ -11,7 +11,7 @@ const check = (text: string, state = present) => parseGroundingReview(
 
 describe('current jury instruction state', () => {
   it('keeps a current no-pending observation distinct from delivery proof', () => {
-    const audit = (text: string, state: { juryPresent: boolean; examination: string; pendingInstruction?: string } | null = present) => parseGroundingReview(
+    const audit = (text: string, state: { juryPresent: boolean; examination: string; pendingInstruction?: string } | null = present) => reviewWithIndependentScopeCheck('analysis',
       JSON.stringify({ findings: [{ unitId: 'content:1', status: 'unsupported', citations: [] }] }),[{ id: 'content:1', text }],[], '', undefined,
       { packet: 'Fictional instruction.', events: [], actorRoles: ['defence'], partyRoles: [], courtroomState: state ?? undefined },
     ).status

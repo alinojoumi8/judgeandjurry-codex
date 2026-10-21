@@ -1,10 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 import type { EvidenceItem, StageResult } from '../server/types'
 
 const account = 'Mira states: I saw Rowan hand the sealed envelope to Ellis. I do not know what the envelope contained.'
 function audit(text: string, source = account, status = 'supported') {
-  return parseGroundingReview(JSON.stringify({ findings: [{ unitId: 'content:1', status, citations: [{ exhibitId: 'E-001', paragraph: 1 }] }] }), [{ id: 'content:1', text }], [{ exhibitId: 'E-001', text: source } as EvidenceItem])
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: [{ unitId: 'content:1', status, citations: [{ exhibitId: 'E-001', paragraph: 1 }] }] }), [{ id: 'content:1', text }], [{ exhibitId: 'E-001', text: source } as EvidenceItem])
 }
 describe('jury source and observation boundaries', () => {
   it.each(['supported', 'analysis'])('does not add collective desk presence to one observed person under %s', status => {
@@ -25,7 +26,7 @@ describe('jury source and observation boundaries', () => {
   })
   it.each(['supported', 'analysis'])('does not replace permission to assess an admitted disputed account with exclusive attribution under %s', status => {
     const encoded = JSON.stringify({ findings: [{ unitId: 'content:1', status, citations: [{ exhibitId: 'E-001', paragraph: 1 }] }] })
-    const check = (text: string, context: string) => parseGroundingReview(encoded, [{ id: 'content:1', text }], [{ exhibitId: 'E-001', text: account } as EvidenceItem], context).status
+    const check = (text: string, context: string) => reviewWithIndependentScopeCheck('analysis', encoded, [{ id: 'content:1', text }], [{ exhibitId: 'E-001', text: account } as EvidenceItem], context).status
     const permitted = 'E-001: admitted; permitted purposes: Assess the fictional condition using the attributed disputed account.'
     expect(check('E-001 is attribution-only.', permitted)).toBe('failed')
     expect(check('The supplied account is insufficient as matter of law.', permitted)).toBe('failed')
@@ -77,9 +78,9 @@ describe('jury source and observation boundaries', () => {
     expect(audit('E-001 does not establish continuous observation.', source, status).status).toBe('passed')
     expect(audit('Tavi states the token never left Rowan\'s hand.', 'Tavi states: The token never left Rowan\'s hand.', status).status).toBe('passed')
     const review = JSON.stringify({ findings: [{ unitId: 'content:1', status, citations: [{ exhibitId: 'E-001', paragraph: 1 }] }] })
-    expect(parseGroundingReview(review, [{ id: 'content:1', text: 'Neither is a primary source.' }], [{ exhibitId: 'E-001', text: source } as EvidenceItem], 'E-001: admitted; unclassified; primary status is unknown.').status).toBe('failed')
-    expect(parseGroundingReview(review, [{ id: 'content:1', text: 'Neither is classified as a primary source.' }], [{ exhibitId: 'E-001', text: source } as EvidenceItem], 'E-001: admitted; unclassified; primary status is unknown.').status).toBe('passed')
-    const check = (text: string) => parseGroundingReview(review, [{ id: 'content:1', text }], [{ exhibitId: 'E-001', text: source } as EvidenceItem], 'E-001 is unclassified; primary/documentary status is not supplied.').status
+    expect(reviewWithIndependentScopeCheck('analysis', review, [{ id: 'content:1', text: 'Neither is a primary source.' }], [{ exhibitId: 'E-001', text: source } as EvidenceItem], 'E-001: admitted; unclassified; primary status is unknown.').status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', review, [{ id: 'content:1', text: 'Neither is classified as a primary source.' }], [{ exhibitId: 'E-001', text: source } as EvidenceItem], 'E-001: admitted; unclassified; primary status is unknown.').status).toBe('passed')
+    const check = (text: string) => reviewWithIndependentScopeCheck('analysis', review, [{ id: 'content:1', text }], [{ exhibitId: 'E-001', text: source } as EvidenceItem], 'E-001 is unclassified; primary/documentary status is not supplied.').status
     expect(check('E-001 is not a primary document.')).toBe('failed')
     expect(check('No primary-document status for E-001 is supplied.')).toBe('passed')
   })
@@ -105,7 +106,7 @@ describe('jury source and observation boundaries', () => {
   it.each(['supported', 'analysis'])('rejects proof of a condition from an exclusively attributed source under %s', status => {
     const context = "E-001: limited; permitted purposes: Accurately attribute Mira's disputed account; not proof of contents or guilt."
     const review = JSON.stringify({ findings: [{ unitId: 'content:1', status, citations: [{ exhibitId: 'E-001', paragraph: 1 }] }] })
-    const check = (text: string, scope = context) => parseGroundingReview(review, [{ id: 'content:1', text }], [{ exhibitId: 'E-001', text: account } as EvidenceItem], scope).status
+    const check = (text: string, scope = context) => reviewWithIndependentScopeCheck('analysis', review, [{ id: 'content:1', text }], [{ exhibitId: 'E-001', text: account } as EvidenceItem], scope).status
     expect(check("Mira's attributed account meets the Crown's burden on the receipt element.")).toBe('failed')
     expect(check('The limited-use rule excludes only contents or guilt, not the receipt element.')).toBe('failed')
     expect(check('I find the supplied element satisfied on the attributed account.')).toBe('failed')
@@ -153,7 +154,7 @@ describe('jury source and observation boundaries', () => {
   })
   it.each(['unsupported', 'contradicted'])('resolves an exact bounded contents-point correction against its actual quoted source under %s', status => {
     const text = 'It is incorrect to say my approved account does not address any point about the contents.'
-    const check = (draft = text, source = account, cited = true) => parseGroundingReview(
+    const check = (draft = text, source = account, cited = true) => reviewWithIndependentScopeCheck('analysis',
       JSON.stringify({ findings: [{ unitId: 'content:1', status, explanation: 'Checker wrongly treats unknown contents as no contents point.', citations: cited ? [{ exhibitId: 'E-001', paragraph: 1 }] : [] }] }),
       [{ id: 'content:1', text: draft }], [{ exhibitId: 'E-001', text: source } as EvidenceItem],
     ).status
@@ -174,19 +175,19 @@ describe('jury source and observation boundaries', () => {
   it('rejects a promise to meet the burden with attribution-only material', () => {
     const unit = { id: 'content:1', text: 'The Crown will meet that burden only with the approved evidence actually presented.' }
     const review = JSON.stringify({ findings: [{ unitId: unit.id, status: 'analysis', citations: [] }] })
-    expect(parseGroundingReview(review, [unit], [{ exhibitId: 'E-001', text: account } as EvidenceItem], 'E-001 may be used only to attribute the account; it does not prove contents or guilt.').status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', review, [unit], [{ exhibitId: 'E-001', text: account } as EvidenceItem], 'E-001 may be used only to attribute the account; it does not prove contents or guilt.').status).toBe('failed')
     const denial = { id: 'content:1', text: 'The Crown does not promise it will meet the burden with attribution-only material.' }
-    expect(parseGroundingReview(review, [denial], [{ exhibitId: 'E-001', text: account } as EvidenceItem], 'E-001 may be used only to attribute the account.').status).toBe('passed')
+    expect(reviewWithIndependentScopeCheck('analysis', review, [denial], [{ exhibitId: 'E-001', text: account } as EvidenceItem], 'E-001 may be used only to attribute the account.').status).toBe('passed')
   })
   it.each(['E-001: attribution-only use.', 'E-001 is not proof of envelope contents or guilt.'])('recognizes the approved use-limit wording %s', context => {
     const unit = { id: 'content:1', text: 'The Crown will meet that burden only with the approved evidence actually presented.' }
     const review = JSON.stringify({ findings: [{ unitId: unit.id, status: 'analysis', citations: [] }] })
-    expect(parseGroundingReview(review, [unit], [{ exhibitId: 'E-001', text: account } as EvidenceItem], context).status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', review, [unit], [{ exhibitId: 'E-001', text: account } as EvidenceItem], context).status).toBe('failed')
   })
   it('does not impose one exhibit restriction on another admitted source', () => {
     const unit = { id: 'content:1', text: 'The Crown will meet the burden using the permitted receipt evidence.' }
     const review = JSON.stringify({ findings: [{ unitId: unit.id, status: 'analysis', citations: [] }] })
-    expect(parseGroundingReview(review, [unit], [{ exhibitId: 'E-001', text: account } as EvidenceItem, { exhibitId: 'E-002', text: 'A permitted receipt account.' } as EvidenceItem], 'E-001: attribution-only use.\nE-002: admitted; assess the fictional receipt condition.').status).toBe('passed')
+    expect(reviewWithIndependentScopeCheck('analysis', review, [unit], [{ exhibitId: 'E-001', text: account } as EvidenceItem, { exhibitId: 'E-002', text: 'A permitted receipt account.' } as EvidenceItem], 'E-001: attribution-only use.\nE-002: admitted; assess the fictional receipt condition.').status).toBe('passed')
   })
   it.each(['supported', 'analysis'])('rejects an exhaustive summary that omits the supplied knowledge statement under %s', status => {
     expect(audit('My approved account does not go beyond identifying the giver and the recipient, so I cannot add further details.', account, status).status).toBe('failed')
@@ -198,18 +199,18 @@ describe('jury source and observation boundaries', () => {
     const unit = { id: 'content:1', text: 'No prior juror-04 vote recorded; my position is stable.' }
     const review = JSON.stringify({ findings: [{ unitId: unit.id, status: 'analysis', citations: [] }] })
     const history = { actorId: 'juror-04', assessments: [{ round: 'initial', usable: true }] }
-    expect(parseGroundingReview(review, [unit], [], '', history).status).toBe('failed')
-    expect(parseGroundingReview(review, [{ ...unit, text: 'No prior vote to change.' }], [], '', history).status).toBe('failed')
-    expect(parseGroundingReview(review, [unit], [], '', { ...history, assessments: [] }).status).toBe('passed')
-    expect(parseGroundingReview(review, [{ ...unit, text: 'My initial vote remains stable.' }], [], '', history).status).toBe('passed')
-    expect(parseGroundingReview(review, [{ ...unit, text: 'No prior juror-07 vote recorded.' }], [], '', history).status).toBe('passed')
-    expect(parseGroundingReview(review, [{ ...unit, text: 'It is incorrect to say no prior vote to change.' }], [], '', history).status).toBe('passed')
+    expect(reviewWithIndependentScopeCheck('analysis', review, [unit], [], '', history).status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', review, [{ ...unit, text: 'No prior vote to change.' }], [], '', history).status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', review, [unit], [], '', { ...history, assessments: [] }).status).toBe('passed')
+    expect(reviewWithIndependentScopeCheck('analysis', review, [{ ...unit, text: 'My initial vote remains stable.' }], [], '', history).status).toBe('passed')
+    expect(reviewWithIndependentScopeCheck('analysis', review, [{ ...unit, text: 'No prior juror-07 vote recorded.' }], [], '', history).status).toBe('passed')
+    expect(reviewWithIndependentScopeCheck('analysis', review, [{ ...unit, text: 'It is incorrect to say no prior vote to change.' }], [], '', history).status).toBe('passed')
   })
   it('rejects converting attribution-only observation into an established event', () => {
     const review = JSON.stringify({ findings: [{ unitId: 'content:1', status: 'analysis', citations: [] }] })
     const evidence = [{ exhibitId: 'E-001', text: account } as EvidenceItem]
     const context = 'E-001: limited; permitted purposes: Accurately attribute the account; not proof of contents or guilt.'
-    const check = (text: string, scope = context) => parseGroundingReview(review, [{ id: 'content:1', text }], evidence, scope).status
+    const check = (text: string, scope = context) => reviewWithIndependentScopeCheck('analysis', review, [{ id: 'content:1', text }], evidence, scope).status
     expect(check("E-001 (Mira's account) establishes only that Mira saw Rowan hand the envelope to Ellis.")).toBe('failed')
     expect(check('The account proves that Rowan handed the envelope to Ellis.')).toBe('failed')
     expect(check('E-001 establishes that Mira describes seeing Rowan hand the envelope to Ellis.')).toBe('passed')

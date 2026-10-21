@@ -1,13 +1,13 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { parseGroundingReview } from '../server/grounding'
 import type { StageRequest } from '../server/minimax'
 
 const capture = JSON.parse(readFileSync(new URL('../docs/qa/jury/v121-full-recorded-ruling-absence-positive-capture.json', import.meta.url), 'utf8'))
 const request = capture.job.request as StageRequest
 const question = request.courtroomEvents!.filter(e => e.type === 'witness_question').at(-1)!
 function check(status: string, events = request.courtroomEvents!, text = capture.job.draft.content, stage = request.stage) {
-  return parseGroundingReview(JSON.stringify({ findings: [{ unitId: 'content:1', status, explanation: 'Captured record-status classification.', citations: [] }] }),
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: [{ unitId: 'content:1', status, explanation: 'Captured record-status classification.', citations: [] }] }),
     [{ id: 'content:1', text }], request.evidence, request.groundingContext, undefined,
     { packet: request.packet, events, actorRoles: request.courtroomActor!.roles, partyRoles: request.approvedPartyRoles!, stage, courtroomState: request.courtroomState })
 }

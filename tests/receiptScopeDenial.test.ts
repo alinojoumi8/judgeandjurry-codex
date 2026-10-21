@@ -1,11 +1,12 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe,expect,it } from 'vitest'
-import { groundingUnits,parseGroundingReview } from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const c=JSON.parse(readFileSync('docs/qa/jury/v84-captured-token-knowledge-denial-false-rejection.json','utf8'))
 const q=c.request
 function check(evidence=q.evidence,content=c.result.content) {
  const units=groundingUnits({title:'',content,citations:[]})
- return parseGroundingReview(JSON.stringify({findings:units.map(unit=>({unitId:unit.id,status:'unsupported',citations:[]}))}),units,evidence,q.groundingContext).status
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:units.map(unit=>({unitId:unit.id,status:'unsupported',citations:[]}))}),units,evidence,q.groundingContext).status
 }
 describe('record-limited receipt uncertainty correction',()=>{
  it('preserves the actual accurate no-broad-disclaimer correction',()=>expect(check()).toBe('passed'))

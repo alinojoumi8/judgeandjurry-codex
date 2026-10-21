@@ -1,6 +1,7 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { ballotConsistencyUnits, groundingUnits, parseGroundingReview } from '../server/grounding'
+import { ballotConsistencyUnits, groundingUnits } from '../server/grounding'
 import { MiniMaxClient, type StageRequest } from '../server/minimax'
 
 const c = JSON.parse(readFileSync('docs/qa/jury/v151-final-task-initial-history-capture.json', 'utf8'))
@@ -11,7 +12,7 @@ function check(q = request, status = 'analysis', text = c.result.jurors[0].mindC
  const actualUnits = units.map(unit => unit.id.startsWith('juror-change-') ? { ...unit, text } : unit)
  const findings = c.checkerResult.review.findings.map((finding: any) => finding.unitId.startsWith('juror-change-') ? { ...finding, status, citations: status === 'supported' ? [{ exhibitId: 'E-001', paragraph: 1 }] : [] } : failedWhole && finding.unitId.startsWith('ballot-consistency-') ? { ...finding, status: 'unsupported' } : finding)
  const setup = { packet: q.packet, events: q.courtroomEvents ?? [], actorRoles: q.courtroomActor?.roles ?? [], partyRoles: q.approvedPartyRoles ?? [], actor: q.courtroomActor, stage: q.stage, ballotRound: q.ballotRound }
- return parseGroundingReview(JSON.stringify({ findings }), actualUnits, q.evidence, q.groundingContext, { actorId: q.courtroomActor!.id, assessments: q.courtroomAssessments ?? [] }, setup).status
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings }), actualUnits, q.evidence, q.groundingContext, { actorId: q.courtroomActor!.id, assessments: q.courtroomAssessments ?? [] }, setup).status
 }
 const initial = { ...request, ballotRound: 'initial' as const, packet: request.packet.replace('private final ballot', 'private initial ballot') }
 

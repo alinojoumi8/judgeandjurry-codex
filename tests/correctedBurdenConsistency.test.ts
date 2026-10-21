@@ -1,6 +1,7 @@
+import { reviewWithIndependentScopeCheck, fixtureCheckerWithIndependentFollowup } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { ballotConsistencyUnits, parseGroundingReview } from '../server/grounding'
+import { ballotConsistencyUnits } from '../server/grounding'
 import { MiniMaxClient, type StageRequest } from '../server/minimax'
 
 const c = JSON.parse(readFileSync('docs/qa/jury/v155-correction-consistency-capture.json', 'utf8'))
@@ -8,7 +9,7 @@ const raw = JSON.parse(readFileSync('docs/qa/jury/v155-correction-consistency-ch
 const request = c.request as StageRequest
 function check(result = c.result, q = request, status = 'contradicted') {
  const units = ballotConsistencyUnits(result)
- return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status,
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status,
   explanation: 'The disowned doubt threshold is asserted to be adopted doubt.', citations: [] })) }),
   units, q.evidence, q.groundingContext, { actorId: q.courtroomActor!.id, assessments: q.courtroomAssessments ?? [] },
   { packet: q.packet, events: q.courtroomEvents ?? [], actorRoles: q.courtroomActor!.roles, partyRoles: q.approvedPartyRoles ?? [], actor: q.courtroomActor, stage: q.stage, ballotRound: q.ballotRound }).status
@@ -16,16 +17,16 @@ function check(result = c.result, q = request, status = 'contradicted') {
 const ballot = () => structuredClone(c.result)
 
 describe('a complete burden correction is disowned error rather than an adopted doubt assessment', () => {
- it('preserves the exact current ballot through the production checker', async () => {
-  const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 2000, maxRetries: 0 }, undefined,
-   async () => Response.json({ choices: [{ message: { content: raw } }] }))
+ it('requires a fresh independent judgment for the captured current ballot', async () => {
+  const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 2000, maxRetries: 1 }, undefined,
+   fixtureCheckerWithIndependentFollowup('analysis', raw))
   expect((await client.reviewGrounding(request, c.result)).status).toBe('passed')
  })
- it('preserves the separately captured quoted live correction', async () => {
+ it('requires a fresh independent judgment for the captured quoted correction', async () => {
   const quoted=JSON.parse(readFileSync('docs/qa/jury/v155-quoted-correction-consistency-capture.json','utf8'))
   const response=JSON.parse(readFileSync('docs/qa/jury/v155-quoted-correction-consistency-checker-raw.json','utf8')).checkerContent
-  const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 2000, maxRetries: 0 }, undefined,
-   async () => Response.json({ choices: [{ message: { content: response } }] }))
+  const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 2000, maxRetries: 1 }, undefined,
+   fixtureCheckerWithIndependentFollowup('analysis', response))
   expect((await client.reviewGrounding(quoted.request,quoted.result)).status).toBe('passed')
  })
  it.each(['analysis','unsupported','contradicted'])('preserves exact whole-ballot coherence under checker %s', status => expect(check(undefined,undefined,status)).toBe('passed'))

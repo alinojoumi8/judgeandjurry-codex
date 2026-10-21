@@ -38,7 +38,7 @@ OPENAI_COMPATIBLE_API_KEY=ollama
 OPENAI_COMPATIBLE_MODEL=qwen2.5:14b
 ```
 
-For external MiniMax calls, set `MODEL_PROVIDER=minimax` and provide `MINIMAX_API_KEY` in `.env.local`. The default model is `MiniMax-M3` and the default MiniMax base URL is `https://api.minimax.io/v1`.
+For external MiniMax calls, set `MODEL_PROVIDER=minimax` and provide `MINIMAX_API_KEY` in `.env.local`. The default model is `MiniMax-M3.1-Flash-Preview` and the default MiniMax base URL is `https://api.minimax.io/v1`.
 
 Model calls use `MODEL_TIMEOUT_MS` and `MODEL_MAX_RETRIES` for timeout and retry/backoff control, `MODEL_MAX_OUTPUT_TOKENS` for the output budget (default 6,000 tokens on local runtimes and 16,000 on external providers, whose reasoning tokens share the budget), and `MODEL_TEMPERATURE` to override the per-stage sampling defaults.
 
@@ -52,7 +52,7 @@ The **Courtroom protocol** option enables the new `courtroom_v1` path for an Ont
 
 Document-use settings also accept permitted paragraph numbers, issue and party IDs, and prohibited purposes. Unknown or mismatched scope is withheld; original paragraph numbers survive projection. A reference cannot bypass these restrictions. Restriction meaning still needs semantic review. `npm run coverage:all` measures the isolated browser journeys alongside server tests and enforces 80% aggregate lines, statements, functions and branches. See the [release review worksheet](qa/courtroom-release-review.md) for independent behavioral and legal review.
 
-Run `npm run test:courtroom` for the browser journey and `npm run eval:courtroom` for fictional scripted evaluations. Live evaluation is explicit (`npm run eval:courtroom -- --live`) and budgeted; see [evaluation details](evals/courtroom-realism.md). [Implementation evidence and remaining release gates](qa/courtroom-realism-tdd.md) include incomplete overall coverage, dependency audit findings, pending qualified legal review and the failed live source-verification pilot.
+Run `npm run test:courtroom` for the browser journey and `npm run eval:courtroom` for fictional scripted evaluations. Live evaluation is explicit (`npm run eval:courtroom -- --live`) and budgeted; see [evaluation details](evals/courtroom-realism.md). Coverage and dependency audit are current repository gates; check the candidate's CI results. The [release review worksheet](qa/courtroom-release-review.md) tracks independent behavioral and qualified legal review separately from mechanical checks and live source-verification acceptance.
 
 The **Full Proceeding** workspace uses three separate procedure adapters: Ontario criminal jury, Ontario Capital Markets Tribunal, and Ontario civil (judge-alone or six-person jury). Procedure order and permitted moves are deterministic. Criminal guilt is decided only from twelve independent per-count ballots; OSC proceedings create no juror records; civil jury mode requires a valid jury notice and applies the five-of-six rule. Synthetic panels are not statistically representative and are not verdict predictions.
 
@@ -216,13 +216,13 @@ The default upload limit is 250MB. Change it with `JUDGE_JURY_MAX_UPLOAD_BYTES` 
 
 ## Archives, Recovery, and Database Upgrades
 
-Matter archives use the versioned `judge-jury-matter` JSON format. Format version 2 deduplicates preserved source blobs by SHA-256 and includes corpus manifests, derived OCR/transcripts, approved case models, theories, disclosure findings, motions/rulings, admission ledgers, trial events, actor snapshots, ballots, decision sheets, and provider audit metadata. Import verifies the archive checksum and every blob hash, creates collision-safe IDs, and rewrites internal references. Version 1 imports remain supported and receive empty v2 workflow collections; unsupported future versions fail closed.
+Matter archives use the versioned `judge-jury-matter` JSON format. Version 3 is used for matters containing `courtroom_v1` runs and includes courtroom state, command receipts and original serialized actor requests; legacy-only matters continue exporting version 2. Both preserve source blobs by SHA-256, corpus manifests, derived OCR/transcripts, approved case models, theories, disclosure findings, motions/rulings, admission ledgers, trial events, actor snapshots, ballots, decision sheets, and provider audit metadata. Import verifies the archive checksum and every blob hash, creates collision-safe IDs, and rewrites current internal references while retaining execution provenance. Version 1 imports remain supported and receive empty v2 workflow collections; unsupported future versions fail closed.
 
 - `GET /api/matters/:matterId/archive` exports a matter archive.
 - `POST /api/matters/import` imports a matter archive.
 - `POST /api/system/backup` creates a consistent SQLite backup under `data/backups/` using SQLite's online backup API.
 
-Database changes are applied transactionally and tracked with SQLite `PRAGMA user_version` (v3 corpus, v4 case/motion/admission workflow, v5 event engine). Keep `data/judge-jury.sqlite`, `data/evidence/`, and `data/corpus/blobs/` together during manual recovery. See [Recovery and archive compatibility](recovery-and-archives.md).
+Database changes are applied transactionally and tracked with SQLite `PRAGMA user_version`, currently 8 (v3 corpus, v4 case/motion/admission workflow, v5 event engine, v6 courtroom records, v7 evidence scopes, v8 preview hashes). Keep `data/judge-jury.sqlite`, `data/evidence/`, and `data/corpus/blobs/` together during manual recovery. See [Recovery and archive compatibility](recovery-and-archives.md).
 
 ## Local and Remote API Safety
 

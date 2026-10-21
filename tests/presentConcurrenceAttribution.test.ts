@@ -1,10 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import {readFileSync} from 'node:fs'
 import {describe,expect,it} from 'vitest'
-import {groundingUnits,parseGroundingReview} from '../server/grounding'
+import { groundingUnits } from '../server/grounding'
 const captured=JSON.parse(readFileSync('docs/qa/jury/v100-captured-present-concurrence-false-rejection.json','utf8'))
 function audit(q=captured.request,text=captured.result.content){
  const units=groundingUnits({...captured.result,content:text})
- return parseGroundingReview(JSON.stringify({findings:units.map(u=>({...captured.checkerResult.review.findings[0],unitId:u.id,text:u.text}))}),units,q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:units.map(u=>({...captured.checkerResult.review.findings[0],unitId:u.id,text:u.text}))}),units,q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
 }
 describe('present own agreement with an actual opposing submission',()=>{
  it('does not demand a prior Defence position for its own present agreement',()=>expect(audit()).toBe('passed'))

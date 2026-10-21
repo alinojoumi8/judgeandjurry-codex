@@ -1,12 +1,12 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { groundingUnits } from '../server/grounding'
 const conflict = JSON.parse(readFileSync('docs/qa/jury/v119-calibration-affirmatively-conflicts-negative.json', 'utf8'))
 const qualification = JSON.parse(readFileSync('docs/qa/jury/v119-calibration-corroborating-exhibit-qualification-positive.json', 'utf8'))
 function audit(c: typeof conflict, text = c.result.content, status = c.checkerResult.review.findings[0].status, exhibits: string[] = [], evidence = c.request.evidence) {
   const q = c.request, units = groundingUnits({ title: '', content: text, citations: [] })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Captured checker classification.', citations: exhibits.map(exhibitId => ({ exhibitId, paragraph: 1 })) })) }), units, evidence, q.groundingContext, undefined,
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'Captured checker classification.', citations: exhibits.map(exhibitId => ({ exhibitId, paragraph: 1 })) })) }), units, evidence, q.groundingContext, undefined,
     { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, stage: q.stage }).status
 }
 

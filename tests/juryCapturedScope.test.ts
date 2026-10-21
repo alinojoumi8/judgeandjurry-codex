@@ -1,11 +1,11 @@
+import { reviewWithIndependentScopeCheck } from './independentScopeCheck'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { groundingUnits, parseGroundingReview } from '../server/grounding'
-
+import { groundingUnits } from '../server/grounding'
 describe('exhaustive source summary after a comparison clause',()=>{
  const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v79-captured-elided-only-summary-failure.json',import.meta.url),'utf8')),q=c.request
- const audit=(text:string)=>parseGroundingReview(JSON.stringify({findings:[{unitId:'content:1',status:'analysis',citations:[]}]}),[{id:'content:1',text}],q.evidence,q.groundingContext).status
- it('rejects the actual V79 accepted exhaustive omission',()=>expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext).status).toBe('failed'))
+ const audit=(text:string)=>reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:[{unitId:'content:1',status:'analysis',citations:[]}]}),[{id:'content:1',text}],q.evidence,q.groundingContext).status
+ it('rejects the actual V79 accepted exhaustive omission',()=>expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext).status).toBe('failed'))
  it.each([
   'E-002 does not negate it, only records non-observation of a handover and Morgan leaving with the token.',
   'E-002 does not disprove that account, records only non-observation and departure.',
@@ -19,8 +19,8 @@ describe('exhaustive source summary after a comparison clause',()=>{
 
 describe('V77 non-occurrence instruction attribution', () => {
  const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v77-captured-nonoccurrence-rule-failure.json',import.meta.url),'utf8')),q=c.request
- const audit=(text:string,instruction?:string)=>parseGroundingReview(JSON.stringify({findings:[{unitId:'content:1',status:'analysis',citations:[]}]}),[{id:'content:1',text}],q.evidence,q.groundingContext,undefined,{packet:q.packet,events:instruction?[{type:'judicial_instruction',payload:{text:instruction}}]:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
- it('rejects the captured accepted response without changing the valid low profile description',()=>expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,{actorId:q.courtroomActor.id,assessments:[],profile:q.jurorProfiles[0]},{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status).toBe('failed'))
+ const audit=(text:string,instruction?:string)=>reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:[{unitId:'content:1',status:'analysis',citations:[]}]}),[{id:'content:1',text}],q.evidence,q.groundingContext,undefined,{packet:q.packet,events:instruction?[{type:'judicial_instruction',payload:{text:instruction}}]:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
+ it('rejects the captured accepted response without changing the valid low profile description',()=>expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,{actorId:q.courtroomActor.id,assessments:[],profile:q.jurorProfiles[0]},{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status).toBe('failed'))
  it.each([
   'Tavi non-observation per the supplied rules does not negate Mira account.',
   'Per supplied instructions, non-observation does not negate the account.',
@@ -31,7 +31,7 @@ describe('V77 non-occurrence instruction attribution', () => {
  ])('requires this claimed non-occurrence rule in the actual charge: %s',text=>expect(audit(text)).toBe('failed'))
  it('rejects the actual V78 plural-rules capture',()=>{
   const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v78-captured-supplied-rules-failure.json',import.meta.url),'utf8')),q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status).toBe('failed')
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status).toBe('failed')
  })
  it('permits an own comparison and an actually supplied comparison instruction',()=>{
   expect(audit('In my assessment, non-observation does not establish that no handover occurred.')).toBe('passed')
@@ -41,7 +41,7 @@ describe('V77 non-occurrence instruction attribution', () => {
 
 describe('V75 actual accepted field regressions', () => {
  const captured=JSON.parse(readFileSync(new URL('../docs/qa/jury/v75-captured-comparison-rule-failure.json',import.meta.url),'utf8')),q=captured.request
- const audit=(text:string,instruction?:string)=>parseGroundingReview(JSON.stringify({findings:[{unitId:'content:1',status:'analysis',citations:[]}]}),[{id:'content:1',text}],q.evidence,q.groundingContext,undefined,{packet:q.packet,events:instruction?[{eventId:'actual-charge',type:'judicial_instruction',actorId:'judge-1',phase:'instructions',payload:{text:instruction}}]:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
+ const audit=(text:string,instruction?:string)=>reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:[{unitId:'content:1',status:'analysis',citations:[]}]}),[{id:'content:1',text}],q.evidence,q.groundingContext,undefined,{packet:q.packet,events:instruction?[{eventId:'actual-charge',type:'judicial_instruction',actorId:'judge-1',phase:'instructions',payload:{text:instruction}}]:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
  it('permits an own comparison and an actually recorded comparison rule',()=>{
   expect(audit("I assess Tavi's non-observation as not directly negating Mira's account.")).toBe('passed')
   expect(audit('Under the limited-use rule, non-observation does not negate a handover.','Non-observation does not negate a handover.')).toBe('passed')
@@ -49,7 +49,7 @@ describe('V75 actual accepted field regressions', () => {
  it.each(['Under the limited-use rule, non-observation does not negate a handover.','The source-use principle that non-observation does not negate a handover supports my assessment.'])('requires the claimed rule in the actual charge: %s',text=>expect(audit(text)).toBe('failed'))
  it.each(['primary-record','comparison-rule'])('rejects captured %s overclaim',name=>{
   const c=JSON.parse(readFileSync(new URL(`../docs/qa/jury/v75-captured-${name}-failure.json`,import.meta.url),'utf8')),q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    {actorId:q.courtroomActor.id,assessments:q.courtroomAssessments??[],profile:q.jurorProfiles?.[0]},
    {packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status).toBe('failed')
  })
@@ -59,8 +59,8 @@ import type { EvidenceItem, StageResult } from '../server/types'
 
 describe('departure description does not supply personal observation',()=>{
  const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v76-captured-stated-departure-observation-failure.json',import.meta.url),'utf8')),q=c.request
- const audit=(text:string,evidence=q.evidence)=>parseGroundingReview(JSON.stringify({findings:[{unitId:'content:1',status:'analysis',citations:[]}]}),[{id:'content:1',text}],evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
- it('rejects the actual accepted V76 response',()=>expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status).toBe('failed'))
+ const audit=(text:string,evidence=q.evidence)=>reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:[{unitId:'content:1',status:'analysis',citations:[]}]}),[{id:'content:1',text}],evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
+ it('rejects the actual accepted V76 response',()=>expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status).toBe('failed'))
  it.each(["Tavi's stated observation of departure with the token raises doubt.","Tavi's observation of Rowan's departure leaves doubt.","Tavi's reported observation of departure with the token leaves doubt."])('requires actual observation: %s',text=>expect(audit(text)).toBe('failed'))
  it('preserves narration, negated observation and an explicit personal observation',()=>{
   expect(audit("Tavi's account narrates departure with the token.")).toBe('passed')
@@ -76,7 +76,7 @@ describe('captured V26 scope errors', () => {
     const captureName = name.replace(/^v\d+:/, '')
     const c = JSON.parse(readFileSync(new URL(`../docs/qa/jury/${version}-captured-${captureName}-failure.json`, import.meta.url), 'utf8')) as { request: StageRequest; result: StageResult }
     const q = c.request, findings = c.result.grounding!.findings
-    const review = parseGroundingReview(JSON.stringify({ findings }), version === 'v49' ? groundingUnits(c.result) : findings.map(f => ({ id: f.unitId, text: f.text })), q.evidence, q.groundingContext,
+    const review = reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings }), version === 'v49' ? groundingUnits(c.result) : findings.map(f => ({ id: f.unitId, text: f.text })), q.evidence, q.groundingContext,
       { actorId: q.courtroomActor!.id, assessments: q.courtroomAssessments ?? [] },
       { packet: q.packet, events: q.courtroomEvents ?? [], actorRoles: q.courtroomActor!.roles, partyRoles: q.approvedPartyRoles ?? [], stage: q.stage, courtroomState: q.courtroomState })
     expect(review.status).toBe('failed')
@@ -86,15 +86,15 @@ describe('captured V26 scope errors', () => {
 const mira = { exhibitId: 'E-001', text: 'Mira states: I saw Fictional Morgan hand the sealed envelope to Fictional Ellis. I do not know what the envelope contained.' } as EvidenceItem
 const tavi = { exhibitId: 'E-002', text: 'Tavi states: I saw Fictional Ellis standing at the desk. Fictional Morgan left with the blue token still in their hand. I did not see a handover.' } as EvidenceItem
 const assessment = 'E-001: admitted; permitted purposes: Assess the fictional condition using the attributed disputed account.\nE-002: admitted; permitted purposes: Assess the fictional condition using the attributed disputed account.'
-const check = (text: string, evidence = [mira, tavi], context = assessment) => parseGroundingReview(
+const check = (text: string, evidence = [mira, tavi], context = assessment) => reviewWithIndependentScopeCheck('analysis',
   JSON.stringify({ findings: [{ unitId: 'content:1', status: 'analysis', citations: evidence.map(e => ({ exhibitId: e.exhibitId, paragraph: 1 })) }] }), [{ id: 'content:1', text }], evidence, context,
 ).status
 it('preserves the actual negated affirmative comparison falsely rejected by the V74 checker', () => {
  const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v74-captured-negated-affirmative-false-rejection.json',import.meta.url),'utf8'))
- const review=parseGroundingReview(JSON.stringify(c.review),groundingUnits(c.draft),c.request.evidence,c.request.groundingContext)
+ const review=reviewWithIndependentScopeCheck('analysis', JSON.stringify(c.review),groundingUnits(c.draft),c.request.evidence,c.request.groundingContext)
  expect(review.status).toBe('passed')
  const opposing=c.request.evidence.map((e:EvidenceItem,i:number)=>i===1?{...e,text:'Tavi states: Fictional Rowan did not hand a blue token to Fictional Ellis at the desk.'}:e)
- expect(parseGroundingReview(JSON.stringify(c.review),groundingUnits(c.draft),opposing,c.request.groundingContext).status).toBe('failed')
+ expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify(c.review),groundingUnits(c.draft),opposing,c.request.groundingContext).status).toBe('failed')
 })
 describe('record scope and assessment boundaries', () => {
   it('preserves classification status and the correctly named possession actor', () => {
@@ -206,10 +206,10 @@ describe('bounded inverse contradiction correction', () => {
   it('preserves the actual captured inverse claim with verified complete source quotations', () => {
     const c = JSON.parse(readFileSync(new URL('../docs/qa/jury/v30-captured-direct-polarity-failure.json', import.meta.url), 'utf8')) as { request: StageRequest; result: StageResult }
     const findings = c.result.grounding!.findings, units = findings.map(f => ({ id: f.unitId, text: f.text }))
-    expect(parseGroundingReview(JSON.stringify({ findings }), units, c.request.evidence, c.request.groundingContext).status).toBe('passed')
-    expect(parseGroundingReview(JSON.stringify({ findings: findings.map(f => ({ ...f, citations: [] })) }), units, c.request.evidence, c.request.groundingContext).status).toBe('failed')
-    expect(parseGroundingReview(JSON.stringify({ findings }), units, c.request.evidence.map(e => e.exhibitId === 'E-002' ? { ...e, text: 'Tavi states: No handover occurred.' } : e), c.request.groundingContext).status).toBe('failed')
-    expect(parseGroundingReview(JSON.stringify({ findings }), [{ ...units[0], text: units[0].text + ' The envelope contained cash.' }], c.request.evidence, c.request.groundingContext).status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings }), units, c.request.evidence, c.request.groundingContext).status).toBe('passed')
+    expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: findings.map(f => ({ ...f, citations: [] })) }), units, c.request.evidence, c.request.groundingContext).status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings }), units, c.request.evidence.map(e => e.exhibitId === 'E-002' ? { ...e, text: 'Tavi states: No handover occurred.' } : e), c.request.groundingContext).status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings }), [{ ...units[0], text: units[0].text + ' The envelope contained cash.' }], c.request.evidence, c.request.groundingContext).status).toBe('failed')
   })
 })
 
@@ -217,13 +217,13 @@ describe('captured neutral and entailed source false rejections', () => {
   it.each(['neutral-authentication', 'entailed-self-departure'])('preserves the bounded %s control', name => {
     const c = JSON.parse(readFileSync(new URL(`../docs/qa/jury/v36-captured-${name}-false-rejection.json`, import.meta.url), 'utf8')) as { request: StageRequest; result: StageResult }
     const findings = c.result.grounding!.findings, units = findings.map(f => ({ id: f.unitId, text: f.text }))
-    expect(parseGroundingReview(JSON.stringify({ findings }), units, c.request.evidence, c.request.groundingContext).status).toBe('passed')
-    expect(parseGroundingReview(JSON.stringify({ findings }), units.map(u => ({ ...u, text: u.text + ' The envelope contained cash.' })), c.request.evidence, c.request.groundingContext).status).toBe('failed')
+    expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings }), units, c.request.evidence, c.request.groundingContext).status).toBe('passed')
+    expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings }), units.map(u => ({ ...u, text: u.text + ' The envelope contained cash.' })), c.request.evidence, c.request.groundingContext).status).toBe('failed')
     if (name === 'entailed-self-departure') {
-      expect(parseGroundingReview(JSON.stringify({ findings: findings.map(f => ({ ...f, citations: [] })) }), units, c.request.evidence, c.request.groundingContext).status).toBe('failed')
+      expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: findings.map(f => ({ ...f, citations: [] })) }), units, c.request.evidence, c.request.groundingContext).status).toBe('failed')
       const changed = c.request.evidence.map(e => e.exhibitId === 'E-002' ? { ...e, text: 'Tavi states: Fictional Morgan left with the blue token still in hand.' } : e)
       const quoted = findings.map(f => ({ ...f, citations: [{ exhibitId: 'E-002', paragraph: 1 }] }))
-      expect(parseGroundingReview(JSON.stringify({ findings: quoted }), units, changed, c.request.groundingContext).status).toBe('failed')
+      expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: quoted }), units, changed, c.request.groundingContext).status).toBe('failed')
     }
   })
 })
@@ -265,7 +265,7 @@ describe('possession narration is not possession observation', () => {
 describe('minimum-source rules come from the pinned charge', () => {
   it('preserves an expressly supplied fictional rule without importing advocacy', () => {
     const text = "The Crown's burden requires more than a single attributed account."
-    const audit = (packet: string) => parseGroundingReview(JSON.stringify({ findings: [{ unitId: 'content:1', status: 'analysis', citations: [] }] }), [{ id: 'content:1', text }], [mira, tavi], assessment, undefined, { packet, events: [], actorRoles: ['juror'], partyRoles: [] }).status
+    const audit = (packet: string) => reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: [{ unitId: 'content:1', status: 'analysis', citations: [] }] }), [{ id: 'content:1', text }], [mira, tavi], assessment, undefined, { packet, events: [], actorRoles: ['juror'], partyRoles: [] }).status
     const pinned = 'Pinned legal packet fixture: ' + JSON.stringify({ instructions: [{ text }] })
     expect(audit(pinned)).toBe('passed')
     expect(audit('Approved Crown advocacy: ' + text)).toBe('failed')
@@ -315,7 +315,7 @@ describe('a mixed public-record attribution does not shield an own source premis
     const c = JSON.parse(readFileSync(new URL('../docs/qa/jury/v41-captured-coordinated-record-shield-failure.json', import.meta.url), 'utf8')) as { request: StageRequest; result: StageResult }
     const audit = (text: string, recordText: string) => {
       const event = c.request.courtroomEvents!.find(e => e.type === 'public_submission' && e.actorId === 'crown')!
-      return parseGroundingReview(JSON.stringify({ findings: [{ unitId: 'content:1', status: 'analysis', citations: [], recordCitations: [{ eventId: event.eventId, actorId: event.actorId, quote: recordText }] }] }), [{ id: 'content:1', text }], c.request.evidence, c.request.groundingContext, undefined, { packet: c.request.packet, events: [{ ...event, payload: { ...event.payload, text: recordText } }], actorRoles: ['juror'], partyRoles: c.request.approvedPartyRoles! }).status
+      return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: [{ unitId: 'content:1', status: 'analysis', citations: [], recordCitations: [{ eventId: event.eventId, actorId: event.actorId, quote: recordText }] }] }), [{ id: 'content:1', text }], c.request.evidence, c.request.groundingContext, undefined, { packet: c.request.packet, events: [{ ...event, payload: { ...event.payload, text: recordText } }], actorRoles: ['juror'], partyRoles: c.request.approvedPartyRoles! }).status
     }
     expect(audit("The attributed accounts are incompatible, and the Crown's own submission concedes the record does not resolve the condition.", 'The supplied record does not resolve the condition.')).toBe('failed')
     expect(audit("The attributed accounts remain disputed, and the Crown's own submission concedes the record does not resolve the condition.", 'The supplied record does not resolve the condition.')).toBe('passed')
@@ -329,7 +329,7 @@ describe('V42 captured false-rejection boundaries', () => {
   it.each(['limited-proof', 'verified-classification'])('preserves the bounded %s claim without overriding an actual model rejection', name => {
     const c = JSON.parse(readFileSync(new URL(`../docs/qa/jury/v42-captured-${name}-false-rejection.json`, import.meta.url), 'utf8'))
     const q = c.request, units = [{ id: 'content:1', text: c.draft.content }]
-    const evaluate = (status: string) => parseGroundingReview(JSON.stringify({ findings: [{ unitId: 'content:1', status, citations: [] }] }), units, q.evidence, q.groundingContext,
+    const evaluate = (status: string) => reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: [{ unitId: 'content:1', status, citations: [] }] }), units, q.evidence, q.groundingContext,
       { actorId: q.courtroomActor?.id, assessments: q.courtroomAssessments ?? [] },
       { packet: q.packet, events: q.courtroomEvents ?? [], actorRoles: q.courtroomActor?.roles ?? [], partyRoles: q.approvedPartyRoles ?? [], stage: q.stage, courtroomState: q.courtroomState })
     expect(evaluate('analysis').status).toBe('passed')
@@ -362,18 +362,18 @@ describe('plural contradiction source boundary', () => {
 
 
 describe('pure conditional assessment false rejection', () => {
- const rejected=(text: string)=>parseGroundingReview(JSON.stringify({findings:[{unitId:'content:1',status:'unsupported',citations:[]}]}),[{id:'content:1',text}],[mira,tavi],assessment).status
+ const rejected=(text: string)=>reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:[{unitId:'content:1',status:'unsupported',citations:[]}]}),[{id:'content:1',text}],[mira,tavi],assessment).status
  it('preserves a wholly hypothetical assessment implication after a model false rejection',()=>expect(rejected('If that account directly negates the handover, it matters to assessment.')).toBe('passed'))
  it('does not clear an added assertion, an attribution or an invented assessment permission',()=>{
   expect(rejected('If that account directly negates the handover, it matters to assessment. That account directly negates the handover.')).toBe('failed')
   expect(rejected('If the Crown says that account directly negates the handover, it matters to assessment.')).toBe('failed')
   expect(rejected('If that account directly negates the handover, the instruction requires using it as proof.')).toBe('failed')
-  expect(parseGroundingReview(JSON.stringify({findings:[{unitId:'content:1',status:'unsupported',citations:[]}]}),[{id:'content:1',text:'If that account directly negates the handover, it matters to assessment.'}],[mira], 'E-001: limited; permitted purposes: Accurately attribute the disputed account.').status).toBe('failed')
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:[{unitId:'content:1',status:'unsupported',citations:[]}]}),[{id:'content:1',text:'If that account directly negates the handover, it matters to assessment.'}],[mira], 'E-001: limited; permitted purposes: Accurately attribute the disputed account.').status).toBe('failed')
  })
 })
 
 describe('source guidance is not a recorded judicial instruction', () => {
- const compare = (text: string, instructions: string[] = [], events: Array<{eventId:string;type:string;actorId:string;payload:Record<string,unknown>}> = []) => parseGroundingReview(JSON.stringify({findings:[{unitId:'content:1',status:'analysis',citations:[]}]}), [{id:'content:1',text}], [mira,tavi], assessment, undefined, {packet:'Pinned legal packet test: '+JSON.stringify({instructions:instructions.map(text=>({text}))}),events,actorRoles:['juror'],partyRoles:[]}).status
+ const compare = (text: string, instructions: string[] = [], events: Array<{eventId:string;type:string;actorId:string;payload:Record<string,unknown>}> = []) => reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:[{unitId:'content:1',status:'analysis',citations:[]}]}), [{id:'content:1',text}], [mira,tavi], assessment, undefined, {packet:'Pinned legal packet test: '+JSON.stringify({instructions:instructions.map(text=>({text}))}),events,actorRoles:['juror'],partyRoles:[]}).status
  const rule='Non-observation does not directly contradict a handover.'
  it('rejects a rule attributed to an instruction that does not contain it',()=>{
   expect(compare('The instruction states non-observation does not directly contradict.')).toBe('failed')
@@ -381,7 +381,7 @@ describe('source guidance is not a recorded judicial instruction', () => {
  })
  it('rejects the captured limited-use attribution in every accepted field',()=>{
   const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v66-captured-instruction-comparison-failure.json',import.meta.url),'utf8')),q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    {actorId:q.courtroomActor.id,assessments:q.courtroomAssessments??[],profile:q.jurorProfiles?.[0]},
    {packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status).toBe('failed')
  })
@@ -435,7 +435,7 @@ describe('event timing and polarity survive paraphrases', () => {
  it.each(['stood-while', 'handover-conflict'])('rejects the actual accepted V50 %s output', name => {
   const c = JSON.parse(readFileSync(new URL(`../docs/qa/jury/v50-captured-${name}-failure.json`, import.meta.url), 'utf8'))
   const q = c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}), groundingUnits(c.result), q.evidence, q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}), groundingUnits(c.result), q.evidence, q.groundingContext,
    {actorId:q.courtroomActor.id, assessments:q.courtroomAssessments ?? []},
    {packet:q.packet,events:q.courtroomEvents ?? [],actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles ?? [],stage:q.stage,courtroomState:q.courtroomState}).status).toBe('failed')
  })
@@ -451,7 +451,7 @@ describe('proof verbs do not change a source incapacity rule', () => {
  })
  it('rejects the actual accepted V51 ballot', () => {
   const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v51-captured-exclusive-prove-bar-failure.json',import.meta.url),'utf8')), q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    {actorId:q.courtroomActor.id,assessments:q.courtroomAssessments ?? []},
    {packet:q.packet,events:q.courtroomEvents ?? [],actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles ?? [],stage:q.stage,courtroomState:q.courtroomState}).status).toBe('failed')
  })
@@ -465,13 +465,13 @@ describe('received event polarity and verified-status wording', () => {
  })
  it('rejects the actual accepted V52 received-event claim', () => {
   const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v52-captured-received-conflict-failure.json',import.meta.url),'utf8')),q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    {actorId:q.courtroomActor.id,assessments:q.courtroomAssessments ?? []},
    {packet:q.packet,events:q.courtroomEvents ?? [],actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles ?? [],stage:q.stage,courtroomState:q.courtroomState}).status).toBe('failed')
  })
  it('preserves exact unknown verified-documentary-status wording, but no strengthened absence or supplied classification', () => {
   const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v52-captured-verified-documentary-false-rejection.json',import.meta.url),'utf8')),q=c.control.request
-  const audit=(text:string,context=q.groundingContext)=>parseGroundingReview(JSON.stringify({findings:[{unitId:'content:1',status:'unsupported',citations:[]}]}),[{id:'content:1',text}],q.evidence,context).status
+  const audit=(text:string,context=q.groundingContext)=>reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:[{unitId:'content:1',status:'unsupported',citations:[]}]}),[{id:'content:1',text}],q.evidence,context).status
   expect(audit('No verified documentary support is supplied; documentary status remains unknown.')).toBe('passed')
   expect(audit('No documentary support is supplied; documentary status remains unknown.')).toBe('failed')
   expect(audit('No verified documentary support is supplied; documentary status remains unknown. Additional evidence does not exist.')).toBe('failed')
@@ -488,7 +488,7 @@ describe('qualified possessives preserve the departing actor', () => {
  })
  it('rejects the actual accepted V55 exhibit-qualified possessive', () => {
   const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v55-captured-exhibit-possessive-departure-failure.json',import.meta.url),'utf8')),q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    {actorId:q.courtroomActor.id,assessments:q.courtroomAssessments ?? []},
    {packet:q.packet,events:q.courtroomEvents ?? [],actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles ?? [],stage:q.stage,courtroomState:q.courtroomState}).status).toBe('failed')
  })
@@ -499,7 +499,7 @@ describe('qualified possessives preserve the departing actor', () => {
  })
  it('rejects the actual accepted V53 qualified possessive', () => {
   const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v53-captured-qualified-possessive-departure-failure.json',import.meta.url),'utf8')),q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    {actorId:q.courtroomActor.id,assessments:q.courtroomAssessments ?? []},
    {packet:q.packet,events:q.courtroomEvents ?? [],actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles ?? [],stage:q.stage,courtroomState:q.courtroomState}).status).toBe('failed')
  })
@@ -518,7 +518,7 @@ describe('documentary absence requires supplied classification', () => {
  })
  it('rejects every actual V54 ballot field accepting documentary absence', () => {
   const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v54-captured-documentary-corroboration-failure.json',import.meta.url),'utf8')),q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    {actorId:q.courtroomActor.id,assessments:q.courtroomAssessments ?? []},
    {packet:q.packet,events:q.courtroomEvents ?? [],actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles ?? [],stage:q.stage,courtroomState:q.courtroomState}).status).toBe('failed')
  })
@@ -537,13 +537,13 @@ describe('witness names do not supply gendered honorifics', () => {
 describe('captured V56 proof and explicit classification boundaries', () => {
  it.each(['unverified-proof-bar','corrob-primary-absence'])('rejects actual accepted %s response', name => {
   const c=JSON.parse(readFileSync(new URL(`../docs/qa/jury/v56-captured-${name}-failure.json`,import.meta.url),'utf8')),q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    {actorId:q.courtroomActor.id,assessments:q.courtroomAssessments ?? []},
    {packet:q.packet,events:q.courtroomEvents ?? [],actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles ?? [],stage:q.stage,courtroomState:q.courtroomState}).status).toBe('failed')
  })
  it('preserves exact supplied documentary absence despite a rejecting checker', () => {
   const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v56-captured-explicit-documentary-false-rejection.json',import.meta.url),'utf8')),q=c.control.request
-  const audit=(text:string,context=q.groundingContext)=>parseGroundingReview(JSON.stringify({findings:[{unitId:'content:1',status:'unsupported',citations:[]}]}),[{id:'content:1',text}],q.evidence,context).status
+  const audit=(text:string,context=q.groundingContext)=>reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:[{unitId:'content:1',status:'unsupported',citations:[]}]}),[{id:'content:1',text}],q.evidence,context).status
   expect(audit('The record is without documentary corroboration.')).toBe('passed')
   expect(audit('The record is without documentary corroboration.',q.groundingContext.replaceAll('Record classification: verified no supplied source provides documentary corroboration.','Record classification: unknown.'))).toBe('failed')
   expect(audit('The record is without documentary corroboration. No evidence exists.')).toBe('failed')
@@ -556,7 +556,7 @@ describe('captured V56 proof and explicit classification boundaries', () => {
 describe('observation nouns preserve supplied eyewitness scope', () => {
  it.each(['stated-observation','two-observations','departure-observation'])('rejects actual V57 %s response',name=>{
   const c=JSON.parse(readFileSync(new URL(`../docs/qa/jury/v57-captured-${name}-failure.json`,import.meta.url),'utf8')),q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    {actorId:q.courtroomActor.id,assessments:q.courtroomAssessments ?? []},
    {packet:q.packet,events:q.courtroomEvents ?? [],actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles ?? [],stage:q.stage,courtroomState:q.courtroomState}).status).toBe('failed')
  })
@@ -568,7 +568,7 @@ describe('observation nouns preserve supplied eyewitness scope', () => {
 describe('actual outgoing profile descriptions',()=>{
  it('rejects a high skepticism claim against the captured 8/100 profile while allowing the corrected native scale',()=>{
   const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v59-captured-profile-scale-failure.json',import.meta.url),'utf8')),q=c.request
-  const audit=(value:number)=>parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  const audit=(value:number)=>reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    {actorId:q.courtroomActor.id,assessments:q.courtroomAssessments??[],profile:{skepticismLevel:value,burdenSensitivity:10}},
    {packet:q.packet,events:q.courtroomEvents??[],actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles??[],stage:q.stage,courtroomState:q.courtroomState}).status
   expect(audit(8)).toBe('failed')
@@ -579,7 +579,7 @@ describe('actual outgoing profile descriptions',()=>{
 describe('documentary absence keeps unknown classification',()=>{
  it('rejects the actual accepted V60 documentary absence rationale',()=>{
   const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v60-captured-corrob-documentary-absence-failure.json',import.meta.url),'utf8')),q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    {actorId:q.courtroomActor.id,assessments:q.courtroomAssessments??[],profile:q.jurorProfiles[0]},
    {packet:q.packet,events:q.courtroomEvents??[],actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles??[],stage:q.stage,courtroomState:q.courtroomState}).status).toBe('failed')
  })
@@ -590,20 +590,20 @@ describe('documentary absence keeps unknown classification',()=>{
 describe('captured V61 incompatibility and scoped checker rejections',()=>{
  it('rejects accepted cannot-both-be-correct against non-observation',()=>{
   const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v61-captured-both-correct-failure.json',import.meta.url),'utf8')),q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    undefined,{packet:q.packet,events:q.courtroomEvents??[],actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles??[],stage:q.stage}).status).toBe('failed')
  })
  it.each(['The accounts cannot both be correct.', 'On the central point they cannot both be accurate.', 'Both accounts cannot be true.'])('rejects categorical incompatibility: %s',text=>expect(check(text)).toBe('failed'))
  it.each(['If the accounts cannot both be correct, that would require incompatible propositions.', 'The accounts may conflict; I retain doubt.', 'It is not established that the accounts cannot both be correct.'])('preserves qualified comparison: %s',text=>expect(check(text)).toBe('passed'))
  it.each(['classified-documentary-positive','strategy-element-proof-absence-positive'])('preserves the exact actual scoped %s control against checker rejection',id=>{
   const c=JSON.parse(readFileSync(new URL(`../docs/qa/jury/v61-captured-${id}-false-rejection.json`,import.meta.url),'utf8')),q=c.control.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.review.findings}),groundingUnits(c.control.draft),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.review.findings}),groundingUnits(c.control.draft),q.evidence,q.groundingContext,
    undefined,{packet:q.packet,events:q.courtroomEvents??[],actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles??[],stage:q.stage}).status).toBe('passed')
  })
  it('does not extend exact classification or strategy repairs to different scopes',()=>{
   for(const id of ['classified-documentary-positive','strategy-element-proof-absence-positive']){
    const c=JSON.parse(readFileSync(new URL(`../docs/qa/jury/v61-captured-${id}-false-rejection.json`,import.meta.url),'utf8')),q=c.control.request
-   const audit=(text:string,context=q.groundingContext,roles=q.courtroomActor.roles)=>parseGroundingReview(JSON.stringify({findings:[{unitId:'content:1',status:'unsupported',citations:[]}]}),[{id:'content:1',text}],q.evidence,context,undefined,{packet:q.packet,events:q.courtroomEvents??[],actorRoles:roles,partyRoles:q.approvedPartyRoles??[],stage:q.stage}).status
+   const audit=(text:string,context=q.groundingContext,roles=q.courtroomActor.roles)=>reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:[{unitId:'content:1',status:'unsupported',citations:[]}]}),[{id:'content:1',text}],q.evidence,context,undefined,{packet:q.packet,events:q.courtroomEvents??[],actorRoles:roles,partyRoles:q.approvedPartyRoles??[],stage:q.stage}).status
    expect(audit(c.control.draft.content+' No evidence exists.')).toBe('failed')
    if(id==='classified-documentary-positive') expect(audit(c.control.draft.content,q.groundingContext.replaceAll('unclassified; unknown','primary_document; verified'))).toBe('failed')
    else expect(audit(c.control.draft.content,q.groundingContext,['crown'])).toBe('failed')
@@ -614,7 +614,7 @@ describe('captured V61 incompatibility and scoped checker rejections',()=>{
 describe('captured V62 event polarity and primary verification',()=>{
  it.each(['event-polarity','primary-verification'])('rejects the actual accepted %s response',name=>{
   const c=JSON.parse(readFileSync(new URL(`../docs/qa/jury/v62-captured-${name}-failure.json`,import.meta.url),'utf8')),q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    {actorId:q.courtroomActor.id,assessments:q.courtroomAssessments??[],profile:q.jurorProfiles?.[0]},
    {packet:q.packet,events:q.courtroomEvents??[],actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles??[],stage:q.stage}).status).toBe('failed')
  })
@@ -626,7 +626,7 @@ describe('captured V62 event polarity and primary verification',()=>{
 describe('unknown verification across source clauses',()=>{
  it('rejects the actual V63 singular joined verification claim',()=>{
   const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v63-captured-independent-verification-failure.json',import.meta.url),'utf8')),q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    undefined,{packet:q.packet,events:q.courtroomEvents??[],actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles??[],stage:q.stage}).status).toBe('failed')
  })
  it.each(["Mira's account (E-001) rests on attribution alone and is not independently verified.", 'E-001 is unverified.', 'Neither statement has been independently verified.', 'There is no independent verification for these accounts.'])('rejects unknown verification asserted absent: %s',text=>expect(check(text,[mira,tavi],assessment+'\nE-001: unclassified; unknown;\nE-002: unclassified; unknown;')).toBe('failed'))
@@ -636,7 +636,7 @@ describe('unknown verification across source clauses',()=>{
 describe('qualified comparison keeps non-observation compatible',()=>{
  it.each(['both-correct-not-established-positive','event-conflict-not-established-positive'])('preserves actual falsely rejected %s',id=>{
   const c=JSON.parse(readFileSync(new URL(`../docs/qa/jury/v64-captured-${id}-false-rejection.json`,import.meta.url),'utf8')),q=c.control.request
-  const audit=(text:string,evidence=q.evidence)=>parseGroundingReview(JSON.stringify({findings:[{unitId:'content:1',status:'contradicted',citations:[]}]}),[{id:'content:1',text}],evidence,q.groundingContext,
+  const audit=(text:string,evidence=q.evidence)=>reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:[{unitId:'content:1',status:'contradicted',citations:[]}]}),[{id:'content:1',text}],evidence,q.groundingContext,
    undefined,{packet:q.packet,events:q.courtroomEvents??[],actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles??[],stage:q.stage}).status
   expect(audit(c.control.draft.content)).toBe('passed')
   expect(audit(c.control.draft.content+' No evidence exists.')).toBe('failed')
@@ -647,13 +647,13 @@ describe('qualified comparison keeps non-observation compatible',()=>{
 describe('record citations do not exempt independent clauses',()=>{
  const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v65-captured-mixed-record-source-failure.json',import.meta.url),'utf8')),q=c.request
  const event=q.courtroomEvents.find((e:{type:string;actorId:string})=>e.type==='public_submission'&&e.actorId==='crown')
- const audit=(text:string)=>parseGroundingReview(JSON.stringify({findings:[{unitId:'content:1',status:'analysis',citations:[{exhibitId:'E-001',paragraph:1},{exhibitId:'E-002',paragraph:1}],recordCitations:[{eventId:event.eventId}]}]}),[{id:'content:1',text}],q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
- it('rejects the actual mixed accepted rationale',()=>expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status).toBe('failed'))
+ const audit=(text:string)=>reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:[{unitId:'content:1',status:'analysis',citations:[{exhibitId:'E-001',paragraph:1},{exhibitId:'E-002',paragraph:1}],recordCitations:[{eventId:event.eventId}]}]}),[{id:'content:1',text}],q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
+ it('rejects the actual mixed accepted rationale',()=>expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status).toBe('failed'))
  it.each(['E-001 and E-002 conflict directly on the same handover', 'Tavi observed Rowan departing with the token', 'No documentary corroboration exists', 'The token never left Rowan hand'])('rejects independent claim with a valid record citation: %s',claim=>expect(audit(claim+"; the Crown's own submission concedes the record does not resolve it.")).toBe('failed'))
  it.each(["The Crown's own submission concedes the record does not resolve it.", "E-001 describes Mira handover account; the Crown's own submission concedes the record does not resolve it."])('preserves pure record attribution and supported mixed clauses: %s',text=>expect(audit(text)).toBe('passed'))
  it('preserves actual present Defence agreement without invented prior agreement',()=>{
   const capture=JSON.parse(readFileSync(new URL('../docs/qa/jury/v65-captured-present-agreement-false-rejection.json',import.meta.url),'utf8')),request=capture.control.request
-  const evaluate=(events=request.courtroomEvents)=>parseGroundingReview(JSON.stringify({findings:capture.result.review.findings}),groundingUnits(capture.control.draft),request.evidence,request.groundingContext,undefined,{packet:request.packet,events,actorRoles:request.courtroomActor.roles,partyRoles:request.approvedPartyRoles,stage:request.stage}).status
+  const evaluate=(events=request.courtroomEvents)=>reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:capture.result.review.findings}),groundingUnits(capture.control.draft),request.evidence,request.groundingContext,undefined,{packet:request.packet,events,actorRoles:request.courtroomActor.roles,partyRoles:request.approvedPartyRoles,stage:request.stage}).status
   expect(evaluate()).toBe('passed')
   expect(evaluate(request.courtroomEvents.filter((e:{actorId:string})=>e.actorId!=='crown'))).toBe('failed')
  })
@@ -662,7 +662,7 @@ describe('record citations do not exempt independent clauses',()=>{
 describe('categorical contradiction and verification absence keep their premises',()=>{
  it.each(['genuine-contradiction','without-independent-verification'])('rejects captured V67 %s',name=>{
   const c=JSON.parse(readFileSync(new URL(`../docs/qa/jury/v67-captured-${name}-failure.json`,import.meta.url),'utf8')),q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    {actorId:q.courtroomActor.id,assessments:q.courtroomAssessments??[],profile:q.jurorProfiles?.[0]},
    {packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status).toBe('failed')
  })
@@ -680,7 +680,7 @@ describe('categorical contradiction and verification absence keep their premises
 describe('corroboration existence needs scope or actual support',()=>{
  it('rejects captured V68 unqualified existence assertion',()=>{
   const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v68-captured-corroboration-existence-failure.json',import.meta.url),'utf8')),q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    {actorId:q.courtroomActor.id,assessments:q.courtroomAssessments??[],profile:q.jurorProfiles?.[0]},
    {packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status).toBe('failed')
  })
@@ -697,8 +697,8 @@ describe('corroboration existence needs scope or actual support',()=>{
 describe('qualified contradiction survives a false checker denial',()=>{
  it('preserves actual V69 qualification only with compatible full source propositions',()=>{
   const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v69-captured-qualified-contradiction-false-rejection.json',import.meta.url),'utf8')),q=c.control.request
-  const audit=(text:string,evidence=q.evidence)=>parseGroundingReview(JSON.stringify({findings:[{unitId:'content:1',status:'contradicted',citations:[]}]}),[{id:'content:1',text}],evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.review.findings}),groundingUnits(c.control.draft),q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status).toBe('passed')
+  const audit=(text:string,evidence=q.evidence)=>reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:[{unitId:'content:1',status:'contradicted',citations:[]}]}),[{id:'content:1',text}],evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.review.findings}),groundingUnits(c.control.draft),q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status).toBe('passed')
   expect(audit(c.control.draft.content+' No evidence exists.')).toBe('failed')
   expect(audit(c.control.draft.content,q.evidence.map((e:EvidenceItem)=>({...e,text:e.text.replace('I did not see a handover.','No handover occurred.')})))).toBe('failed')
  })
@@ -708,7 +708,7 @@ describe('qualified contradiction survives a false checker denial',()=>{
 describe('coordinated documentary absence preserves unknown classification',()=>{
  it('rejects the actual V72 accepted documentary absence',()=>{
   const c=JSON.parse(readFileSync(new URL('../docs/qa/jury/v72-captured-coordinated-documentary-absence-failure.json',import.meta.url),'utf8')),q=c.request
-  expect(parseGroundingReview(JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
+  expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.result.grounding.findings}),groundingUnits(c.result),q.evidence,q.groundingContext,
    {actorId:q.courtroomActor.id,assessments:q.courtroomAssessments??[],profile:q.jurorProfiles?.[0]},
    {packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status).toBe('failed')
  })
@@ -718,7 +718,7 @@ describe('coordinated documentary absence preserves unknown classification',()=>
 
 describe('affirmative conflict and corroborating exhibit absence need premises',()=>{
  const capture=JSON.parse(readFileSync(new URL('../docs/qa/jury/v73-captured-affirmative-conflict-corroborating-exhibit-failure.json',import.meta.url),'utf8')),q=capture.request
- it('rejects the actual accepted V73 ballot',()=>expect(parseGroundingReview(JSON.stringify({findings:capture.result.grounding.findings}),groundingUnits(capture.result),q.evidence,q.groundingContext,
+ it('rejects the actual accepted V73 ballot',()=>expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:capture.result.grounding.findings}),groundingUnits(capture.result),q.evidence,q.groundingContext,
   {actorId:q.courtroomActor.id,assessments:q.courtroomAssessments??[],profile:q.jurorProfiles?.[0]},
   {packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor.roles,partyRoles:q.approvedPartyRoles,stage:q.stage}).status).toBe('failed'))
  it.each(['Departure affirmatively conflicts with receipt.', 'The accounts have an affirmative conflict on receipt.', 'E-001 and E-002 conflict affirmatively on receipt.'])('rejects categorical incompatibility: %s',text=>expect(check(text)).toBe('failed'))
