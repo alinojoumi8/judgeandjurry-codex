@@ -91,7 +91,8 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sourceSize, setSourceSize] = useState<Awaited<ReturnType<typeof preflightTrialRun>> | null>(null)
-  const latestLedgerId = ledgers[0]?.id
+  const settingsLedger = ledgers.find((ledger) => !ledger.trialRunId)
+  const latestLedgerId = settingsLedger?.id
 
   useEffect(() => { setSourceSize(null) }, [caseModel?.id, latestLedgerId, adapter, civilDecisionMaker, useWitnesses, courtroomProtocol])
 
@@ -220,18 +221,18 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
       externalDisclosureConfirmed: externalConfirmed,
     })
   const checkSourceSize = async (config = newTrialConfig()) => {
-    if (!caseModel || !ledgers[0]) throw new Error('Save the model and document-use settings first.')
-    const result = await preflightTrialRun(matterId, caseModel.id, config, ledgers[0].id)
+    if (!caseModel || !settingsLedger) throw new Error('Save the model and document-use settings first.')
+    const result = await preflightTrialRun(matterId, caseModel.id, config, settingsLedger.id)
     setSourceSize(result)
     return result
   }
   const createAndStartTrial = async () => {
     if (!caseModel || caseModel.status !== 'approved') throw new Error('Approve the neutral case model first.')
-    if (!ledgers[0]) throw new Error('Save the document-use settings before starting a proceeding.')
+    if (!settingsLedger) throw new Error('Save the document-use settings before starting a proceeding.')
     const config = newTrialConfig()
     const preflight = await checkSourceSize(config)
     if (!preflight.fits) throw new Error(preflight.message)
-    const created = await createTrialRun(matterId, caseModel.id, config, ledgers[0].id)
+    const created = await createTrialRun(matterId, caseModel.id, config, settingsLedger.id)
     localStorage.setItem(`workflow:${matterId}:run`, created.run.id)
     setRuns((current) => [created.run, ...current])
     setTrial(await startAutonomousTrial(created.run.id))
@@ -242,7 +243,7 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
   const displayedAdapter = trial?.run.procedureAdapter ?? adapter
   const panel = displayedAdapter === 'ontario_criminal_jury_v1' ? '12 jurors' : displayedAdapter === 'ontario_capital_markets_v1' ? '3 adjudicators' : (displayedConfig?.civilDecisionMaker ?? civilDecisionMaker) === 'jury' ? '6 jurors' : 'Judge alone'
   const consent = displayedConfig?.externalDisclosureConfirmed ?? externalConfirmed
-  const activeLedger = ledgers.find((ledger) => ledger.id === trial?.run.admissionLedgerId) ?? ledgers[0]
+  const activeLedger = trial ? ledgers.find((ledger) => ledger.id === trial.run.admissionLedgerId) : settingsLedger
 
   if (restoring) return <section className="workflow-restoring" aria-live="polite">Restoring saved proceeding…</section>
 
@@ -368,8 +369,8 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
         )}
 
         {step === 6 && (
-            <div className="workflow-stack"><p>Excluded, reserved, and role-hidden material is filtered before each actor call. Saving new settings preserves earlier versions.</p>{activeLedger && <div className="notice-card"><strong>Admission ledger v{activeLedger.version}</strong><span>{activeLedger.reason}</span></div>}<RecordCoverage scope={trial?.recordCoverage?.scope ?? caseModel?.recordScope} sources={trial?.recordCoverage?.sources ?? sources} ledger={activeLedger} warnings={trial?.recordCoverage?.warnings} /><AdmissionEditor key={`${ledgers[0]?.id ?? 'new'}:${sources.length}`} sources={sources} ledger={ledgers[0]} busy={busy} onSave={(evidenceUses, reason) => run(async () => {
-              const saved = await saveAdmissionLedger(matterId, { parentVersionId: ledgers[0]?.id, reason, evidenceUses })
+            <div className="workflow-stack"><p>Excluded, reserved, and role-hidden material is filtered before each actor call. Saving new settings preserves earlier versions.</p>{activeLedger && <div className="notice-card"><strong>Admission ledger v{activeLedger.version}</strong><span>{activeLedger.reason}</span></div>}<RecordCoverage scope={trial?.recordCoverage?.scope ?? caseModel?.recordScope} sources={trial?.recordCoverage?.sources ?? sources} ledger={activeLedger} warnings={trial?.recordCoverage?.warnings} /><AdmissionEditor key={`${settingsLedger?.id ?? 'new'}:${sources.length}`} sources={sources} ledger={settingsLedger} busy={busy} onSave={(evidenceUses, reason) => run(async () => {
+              const saved = await saveAdmissionLedger(matterId, { parentVersionId: settingsLedger?.id, reason, evidenceUses })
               setLedgers((current) => [saved, ...current])
             })} /></div>
         )}
@@ -380,14 +381,14 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
             <SummaryGrid items={[["Files", String(estimate.files)], ["Expected model calls", String(estimate.calls)], ["Expected runtime", `${estimate.minutes} minutes`], ["External disclosure", externalConfirmed ? 'Confirmed' : 'Not confirmed']]} />
               <label className="workflow-check"><input type="checkbox" checked={externalConfirmed} onChange={(event) => setExternalConfirmed(event.target.checked)} /> I confirm the permitted sources may be disclosed to the configured external model for a new run.</label>
               <label className="workflow-check"><input type="checkbox" checked={useWitnesses} onChange={(event) => setUseWitnesses(event.target.checked)} /> Include source-bound witness examinations from the approved model.</label>
-              <RecordCoverage scope={caseModel?.recordScope} sources={sources} ledger={ledgers[0]} />
-              {!ledgers[0] && <p role="status">Save document-use settings in Admitted Record before starting.</p>}
+              <RecordCoverage scope={caseModel?.recordScope} sources={sources} ledger={settingsLedger} />
+              {!settingsLedger && <p role="status">Save document-use settings in Admitted Record before starting.</p>}
             <label className="workflow-check"><input type="checkbox" checked={reviewMotions} onChange={(event) => setReviewMotions(event.target.checked)} /> Pause for review after motion rulings.</label>
             {adapter !== 'ontario_capital_markets_v1' && <label className="workflow-check"><input type="checkbox" checked={reviewInstructions} onChange={(event) => setReviewInstructions(event.target.checked)} /> Pause for review after judicial instructions.</label>}
             <p className="disclaimer">Synthetic panels are not statistically representative and do not predict real verdicts. This workflow is for preparation and stress testing.</p>
-            <button type="button" disabled={busy || !caseModel || !ledgers[0]} onClick={() => void run(async () => { await checkSourceSize() })}>Check source size</button>
+            <button type="button" disabled={busy || !caseModel || !settingsLedger} onClick={() => void run(async () => { await checkSourceSize() })}>Check source size</button>
             {sourceSize && <div className="notice-card" role="status"><strong>Selected source context: {sourceSize.characters.toLocaleString()} / {sourceSize.characterBudget.toLocaleString()} characters</strong><p>{sourceSize.message}</p><small>Largest source contributions: {sourceSize.sources.slice(0, 5).map(source => `${source.exhibitId}: ${source.characters.toLocaleString()}`).join(' · ')}</small>{!sourceSize.fits && <button type="button" onClick={() => setStep(6)}>Choose documents and paragraphs</button>}</div>}
-              <button className="primary-action" type="button" disabled={busy || !caseModel || caseModel.status !== 'approved' || !ledgers[0] || trial?.run.status === 'running'} onClick={() => void run(createAndStartTrial)}><Play size={16} /> Create and run full proceeding</button>
+              <button className="primary-action" type="button" disabled={busy || !caseModel || caseModel.status !== 'approved' || !settingsLedger || trial?.run.status === 'running'} onClick={() => void run(createAndStartTrial)}><Play size={16} /> Create and run full proceeding</button>
             {trial && <RunStatus trial={trial} />}
             {trial?.run.config.courtroomProtocol && caseModel && <CourtroomPanel trial={trial} model={caseModel} sources={sources} motions={motions} onChanged={setTrial} />}
             {trial && ['failed', 'ready'].includes(trial.run.status) && <button type="button" disabled={busy} onClick={() => void run(async () => setTrial(await startAutonomousTrial(trial.run.id)))}><Play size={16} /> Resume saved proceeding</button>}

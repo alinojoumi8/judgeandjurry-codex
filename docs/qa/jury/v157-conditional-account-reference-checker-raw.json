@@ -30,6 +30,6 @@
     "finishedAt": "2026-10-13T23:07:27.400Z",
     "elapsedMs": 3522.844800000079
   },
-  "requestFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v157-current-comparison\\live-f98f790539dcec930d4c200935d76d858aa1d0869848e4b24d866103030ce52a-1791932007777\\full-control-v123-proof-actual-assessment-positive\\http-0001\\request-body.txt",
-  "responseFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v157-current-comparison\\live-f98f790539dcec930d4c200935d76d858aa1d0869848e4b24d866103030ce52a-1791932007777\\full-control-v123-proof-actual-assessment-positive\\http-0001\\response-body.raw"
+  "requestFile": "tmp/qa/courtroom/jury-v157-current-comparison/live-f98f790539dcec930d4c200935d76d858aa1d0869848e4b24d866103030ce52a-1791932007777/full-control-v123-proof-actual-assessment-positive/http-0001/request-body.txt",
+  "responseFile": "tmp/qa/courtroom/jury-v157-current-comparison/live-f98f790539dcec930d4c200935d76d858aa1d0869848e4b24d866103030ce52a-1791932007777/full-control-v123-proof-actual-assessment-positive/http-0001/response-body.raw"
 }

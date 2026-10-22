@@ -6,6 +6,8 @@ import { MiniMaxClient, createMiniMaxConfig } from '../server/minimax'
 import { EvaluationModel, EvaluationTransport, reliability } from '../server/courtroomEvaluation'
 import { TrialEngineService } from '../server/trialEngine'
 import { nowIso } from '../server/time'
+import { legalPacketReadiness } from '../server/legalPacket'
+import { rejectsInvalidPacket } from './packetGateEvaluation'
 
 const mode = process.argv.includes('--live') ? 'live' : 'scripted'
 const openingPilot = process.argv.includes('--opening-pilot')
@@ -33,9 +35,11 @@ for (const scenario of scenarios) for (let attempt = 1; attempt <= repetitions; 
   let failureAudits: unknown[] | undefined
   try {
     if (scenario === 'legal-packet-defect') {
-      const defect = f.store.workflow.createCaseModel({ ...f.model, status: undefined as never, legalPacket: { ...f.model.legalPacket!, contentHash: 'bad' } })
-      try { f.engine.createRun({ matterId: f.matter.id, caseModelId: defect.id, config: f.run.config }); checks.packetGate = false }
-      catch { checks.packetGate = true }
+      const defect = f.store.workflow.createCaseModel({ ...f.model, legalPacket: { ...f.model.legalPacket!, contentHash: 'bad' } })
+      checks.packetGate = rejectsInvalidPacket(
+        () => f.engine.createRun({ matterId: f.matter.id, caseModelId: defect.id, admissionLedgerId: f.run.admissionLedgerId, config: f.run.config }),
+        legalPacketReadiness(defect).errors,
+      )
     } else {
       f.store.workflow.updateTrialRun(f.run.id, { phase: 'evidence', status: 'running' })
       const issue = (id: string, action: Parameters<typeof f.engine.courtroomCommand>[1]['action']) => f.engine.courtroomCommand(f.run.id, { commandId: id, actorId: 'judge-1', expectedSequence: f.engine.courtroom(f.run.id).lastSequence, action })

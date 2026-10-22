@@ -30,6 +30,6 @@
     "finishedAt": "2026-10-14T00:14:12.633Z",
     "elapsedMs": 6458.207500000019
   },
-  "requestFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v159-current-comparison\\live-c3bc6153bfabf1380145853fed5a2a8f3c305de0ea0d6c6dabf414a9c95cdd7a-1791936486912\\v73-fresh-affirmative-corrob-2\\http-0005\\request-body.txt",
-  "responseFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v159-current-comparison\\live-c3bc6153bfabf1380145853fed5a2a8f3c305de0ea0d6c6dabf414a9c95cdd7a-1791936486912\\v73-fresh-affirmative-corrob-2\\http-0005\\response-body.raw"
+  "requestFile": "tmp/qa/courtroom/jury-v159-current-comparison/live-c3bc6153bfabf1380145853fed5a2a8f3c305de0ea0d6c6dabf414a9c95cdd7a-1791936486912/v73-fresh-affirmative-corrob-2/http-0005/request-body.txt",
+  "responseFile": "tmp/qa/courtroom/jury-v159-current-comparison/live-c3bc6153bfabf1380145853fed5a2a8f3c305de0ea0d6c6dabf414a9c95cdd7a-1791936486912/v73-fresh-affirmative-corrob-2/http-0005/response-body.raw"
 }

@@ -82,6 +82,7 @@ export interface Motion {
 export interface AdmissionLedger {
   id: string
   matterId: string
+  trialRunId?: string
   version: number
   reason: string
   evidenceUses: Array<{

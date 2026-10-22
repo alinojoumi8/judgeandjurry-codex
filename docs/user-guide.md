@@ -23,7 +23,9 @@ This is decision-support software only. It is not legal advice and does not prod
 
 ```powershell
 npm install
-Copy-Item .env.example .env.local
+if (-not (Test-Path -LiteralPath .env.local)) {
+    Copy-Item -LiteralPath .env.example -Destination .env.local
+}
 npm run dev
 ```
 
@@ -38,7 +40,7 @@ OPENAI_COMPATIBLE_API_KEY=ollama
 OPENAI_COMPATIBLE_MODEL=qwen2.5:14b
 ```
 
-For external MiniMax calls, set `MODEL_PROVIDER=minimax` and provide `MINIMAX_API_KEY` in `.env.local`. The default model is `MiniMax-M3.1-Flash-Preview` and the default MiniMax base URL is `https://api.minimax.io/v1`.
+For external MiniMax calls, set `MODEL_PROVIDER=minimax` and provide `MINIMAX_API_KEY` in `.env.local`. The default model is `MiniMax-M3.1-Flash` and the default MiniMax base URL is `https://api.minimax.io/v1`. This is the GA model listed in the [official API guide](https://platform.minimax.io/docs/guides/text-generation). An explicit `MINIMAX_MODEL` value takes precedence, including existing preview-model configurations; setup does not rewrite an existing environment file.
 
 Model calls use `MODEL_TIMEOUT_MS` and `MODEL_MAX_RETRIES` for timeout and retry/backoff control, `MODEL_MAX_OUTPUT_TOKENS` for the output budget (default 6,000 tokens on local runtimes and 16,000 on external providers, whose reasoning tokens share the budget), and `MODEL_TEMPERATURE` to override the per-stage sampling defaults.
 

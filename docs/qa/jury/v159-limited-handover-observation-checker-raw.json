@@ -30,6 +30,6 @@
     "finishedAt": "2026-10-14T00:11:14.835Z",
     "elapsedMs": 7759.779300000024
   },
-  "requestFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v159-current-comparison\\live-c3bc6153bfabf1380145853fed5a2a8f3c305de0ea0d6c6dabf414a9c95cdd7a-1791936486912\\captured-documentary-corroboration-negative-3\\http-0005\\request-body.txt",
-  "responseFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v159-current-comparison\\live-c3bc6153bfabf1380145853fed5a2a8f3c305de0ea0d6c6dabf414a9c95cdd7a-1791936486912\\captured-documentary-corroboration-negative-3\\http-0005\\response-body.raw"
+  "requestFile": "tmp/qa/courtroom/jury-v159-current-comparison/live-c3bc6153bfabf1380145853fed5a2a8f3c305de0ea0d6c6dabf414a9c95cdd7a-1791936486912/captured-documentary-corroboration-negative-3/http-0005/request-body.txt",
+  "responseFile": "tmp/qa/courtroom/jury-v159-current-comparison/live-c3bc6153bfabf1380145853fed5a2a8f3c305de0ea0d6c6dabf414a9c95cdd7a-1791936486912/captured-documentary-corroboration-negative-3/http-0005/response-body.raw"
 }

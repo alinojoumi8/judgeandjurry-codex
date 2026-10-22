@@ -5,7 +5,7 @@ import { MiniMaxClient } from '../server/minimax'
 const capture = JSON.parse(readFileSync('docs/qa/jury/v188-captured-profile-denial.json', 'utf8'))
 const corrected = JSON.parse(capture.checkerContent)
 Object.assign(corrected.findings.find((f: any) => f.unitId === 'juror-0:1'), {
-  status: 'analysis', explanation: 'The actual skepticismLevel8 is low on the supplied0-100 scale. This current credit assessment describes that matching profile without adding a source premise.',
+  status: 'analysis', explanation: 'The actual skepticismLevel 8 is low on the supplied 0-100 scale. This current credit assessment describes that matching profile without adding a source premise.',
 })
 function harness(outputs: string[], maxRetries = 2) {
   const sent: any[] = []

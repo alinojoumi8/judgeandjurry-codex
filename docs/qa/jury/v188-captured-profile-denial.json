@@ -327,6 +327,6 @@
   },
   "responseHash": "8081ced01a89e3ba704fdf9d295ec94b36a1c211316d7b068fc4d9639e006965",
   "rawReceipt": "http-0003/exchange.json",
-  "diagnosis": "Actual profile skepticismLevel8 is low on explicit0-100 scale. Auditor instead rejects that matching self-description as8rather thanlow. Existing numeric-band recovery misses this relational denial wording. Source/comparison/metadata/whole-ballot findings otherwise supported oranalysis.",
+  "diagnosis": "Actual profile skepticismLevel 8 is low on the explicit 0-100 scale. The auditor instead rejects that matching self-description as 8 rather than low. Existing numeric-band recovery misses this relational denial wording. Source, comparison, metadata and whole-ballot findings are otherwise supported or analysis.",
   "qualifiedHumanReview": null
 }

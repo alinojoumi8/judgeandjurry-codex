@@ -27,16 +27,41 @@ async function editor() {
   const input = element.querySelector('input')
   const save = Array.from(element.querySelectorAll('button')).find((button: any) => button.textContent === 'Save document-use settings') as HTMLButtonElement
   if (!input || !save) throw new Error('The paragraph editor did not render.')
-  const type = async (value: string) => {
+  const type = async (value: string, target = input) => {
     await act(async () => {
-      Object.getOwnPropertyDescriptor(Reflect.get(globalThis, 'HTMLInputElement').prototype, 'value')!.set!.call(input, value)
-      input.dispatchEvent(new Event('input', { bubbles: true }))
+      Object.getOwnPropertyDescriptor(Reflect.get(globalThis, 'HTMLInputElement').prototype, 'value')!.set!.call(target, value)
+      target.dispatchEvent(new Event('input', { bubbles: true }))
     })
   }
   return { element, input, save, type, onSave }
 }
 
 describe('paragraph scope editing', () => {
+  it.each(['issue', 'party'])('keeps %s-ID commas editable and saves only nonempty IDs', async field => {
+    const { element, save, type, onSave } = await editor()
+    const label = Array.from(element.querySelectorAll('label')).find((item: any) => item.textContent.startsWith(`Permitted ${field} IDs`)) as HTMLLabelElement
+    const target = label.querySelector('input')!
+    await type(`${field}-2,`, target)
+    expect(target.value).toBe(`${field}-2,`)
+    await type(`${field}-2, ${field}-3,`, target)
+    await act(async () => save.click())
+    expect(onSave.mock.calls[0][0][0].scope).toMatchObject({ paragraphs: [2], [`${field}Ids`]: [`${field}-2`, `${field}-3`] })
+  })
+  it.each(['issue', 'party'])('blocks comma-only %s scope until corrected or explicitly cleared', async field => {
+    const { element, save, type, onSave } = await editor()
+    const label = Array.from(element.querySelectorAll('label')).find((item: any) => item.textContent.startsWith(`Permitted ${field} IDs`)) as HTMLLabelElement
+    const target = label.querySelector('input')!
+    await type(',,', target)
+    expect(target.value).toBe(',,')
+    expect(target.getAttribute('aria-invalid')).toBe('true')
+    expect(save.disabled).toBe(true)
+    await act(async () => save.click())
+    expect(onSave).not.toHaveBeenCalled()
+    await type('', target)
+    await act(async () => save.click())
+    expect(onSave.mock.calls[0][0][0].scope).toMatchObject({ paragraphs: [2], [`${field}Ids`]: undefined })
+    if (field === 'party') expect(onSave.mock.calls[0][0][0].scope?.issueIds).toEqual(['issue-1'])
+  })
   it('keeps a trailing comma editable and saves only the stated positive paragraphs', async () => {
     const { input, save, type, onSave } = await editor()
     await type('1, 2,')

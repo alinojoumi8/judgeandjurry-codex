@@ -88,7 +88,9 @@ From your checkout, in PowerShell:
 
 ```powershell
 npm ci
-Copy-Item .env.example .env.local
+if (-not (Test-Path -LiteralPath .env.local)) {
+    Copy-Item -LiteralPath .env.example -Destination .env.local
+}
 npm run dev
 ```
 

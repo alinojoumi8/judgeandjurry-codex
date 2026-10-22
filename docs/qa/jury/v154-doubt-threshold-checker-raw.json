@@ -30,6 +30,6 @@
     "finishedAt": "2026-10-12T05:41:37.041Z",
     "elapsedMs": 10563.890899999999
   },
-  "requestFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v154-current-comparison\\live-57ddbbca812b02c38cea5a0fa47a87e543456c36c05b3ab6621700fa2e3295ab-1791783504304\\captured-handover-conflict-negative-3\\http-0005\\request-body.txt",
-  "responseFile": "\\\\?\\D:\\myprojects\\judgeandjurry-codex\\tmp\\qa\\courtroom\\jury-v154-current-comparison\\live-57ddbbca812b02c38cea5a0fa47a87e543456c36c05b3ab6621700fa2e3295ab-1791783504304\\captured-handover-conflict-negative-3\\http-0005\\response-body.raw"
+  "requestFile": "tmp/qa/courtroom/jury-v154-current-comparison/live-57ddbbca812b02c38cea5a0fa47a87e543456c36c05b3ab6621700fa2e3295ab-1791783504304/captured-handover-conflict-negative-3/http-0005/request-body.txt",
+  "responseFile": "tmp/qa/courtroom/jury-v154-current-comparison/live-57ddbbca812b02c38cea5a0fa47a87e543456c36c05b3ab6621700fa2e3295ab-1791783504304/captured-handover-conflict-negative-3/http-0005/response-body.raw"
 }

@@ -970,7 +970,7 @@ export function createMiniMaxConfig(): ModelProviderConfig {
     provider,
     apiKey: process.env.MINIMAX_API_KEY || process.env.MINIMAX_TOKEN,
     baseUrl: process.env.MINIMAX_BASE_URL || 'https://api.minimax.io/v1',
-    model: process.env.MINIMAX_MODEL || 'MiniMax-M3.1-Flash-Preview',
+    model: process.env.MINIMAX_MODEL || 'MiniMax-M3.1-Flash',
     timeoutMs: envNumber('MODEL_TIMEOUT_MS', 60_000),
     maxRetries: envNumber('MODEL_MAX_RETRIES', 2),
   }

@@ -98,6 +98,8 @@ export function AdmissionEditor({ sources, ledger, busy, onSave }: { sources: Wo
   const [reason, setReason] = useState(ledger?.reason ?? 'Source-use assumptions for this simulation; not a court ruling.')
   const [paragraphDrafts, setParagraphDrafts] = useState<Record<string, string>>({})
   const [paragraphErrors, setParagraphErrors] = useState<Record<string, string>>({})
+  const [idDrafts, setIdDrafts] = useState<Record<string, string>>({})
+  const [idErrors, setIdErrors] = useState<Record<string, string>>({})
   const update = (index: number, input: Partial<typeof uses[number]>) => setUses(uses.map((item, i) => i === index ? { ...item, ...input } : item))
   return <section className="scenario-editor" aria-label="Source-use editor"><h3>Document-use settings</h3><p>These settings apply to a new run. Earlier runs keep their saved settings. Mark uncertain sources as reserved until their use is decided.</p>
     <label>Reason for these settings<textarea value={reason} onChange={(event) => setReason(event.target.value)} /></label>
@@ -114,12 +116,22 @@ export function AdmissionEditor({ sources, ledger, busy, onSave }: { sources: Wo
         if (!invalid) update(index, { scope: { ...use.scope, paragraphs: raw.trim() ? values.map(Number) : undefined } })
       }} /></label>
       {paragraphErrors[use.evidenceId] && <p role="alert" id={`paragraph-error-${use.evidenceId}`}>{paragraphErrors[use.evidenceId]}</p>}
-      <label>Permitted issue IDs (comma separated; blank allows all)<input value={use.scope?.issueIds?.join(', ') ?? ''} onChange={event => update(index, { scope: { ...use.scope, issueIds: event.target.value.trim() ? event.target.value.split(',').map(s => s.trim()) : undefined } })} /></label>
-      <label>Permitted party IDs (comma separated; blank allows all)<input value={use.scope?.partyIds?.join(', ') ?? ''} onChange={event => update(index, { scope: { ...use.scope, partyIds: event.target.value.trim() ? event.target.value.split(',').map(s => s.trim()) : undefined } })} /></label>
+      {(['issueIds', 'partyIds'] as const).map(field => {
+        const key = `${use.evidenceId}:${field}`
+        const errorId = `scope-error-${use.evidenceId}-${field}`
+        return <div key={field}><label>Permitted {field === 'issueIds' ? 'issue' : 'party'} IDs (comma separated; blank allows all)<input value={idDrafts[key] ?? use.scope?.[field]?.join(', ') ?? ''} aria-invalid={Boolean(idErrors[key])} aria-describedby={idErrors[key] ? errorId : undefined} onChange={event => {
+          const raw = event.target.value
+          const values = raw.split(',').map(value => value.trim()).filter(Boolean)
+          const invalid = raw.trim() !== '' && !values.length
+          setIdDrafts(current => ({ ...current, [key]: raw }))
+          setIdErrors(current => ({ ...current, [key]: invalid ? 'Enter IDs separated by commas, or clear the field to allow all.' : '' }))
+          if (!invalid) update(index, { scope: { ...use.scope, [field]: raw.trim() ? values : undefined } })
+        }} /></label>{idErrors[key] && <p role="alert" id={errorId}>{idErrors[key]}</p>}</div>
+      })}
       <label>Prohibited purposes (one per line)<textarea value={use.scope?.prohibitedPurposes?.join('\n') ?? ''} onChange={event => update(index, { scope: { ...use.scope, prohibitedPurposes: event.target.value.split('\n').filter(Boolean) } })} /></label>
       <label>Use note<textarea value={use.note} onChange={(event) => update(index, { note: event.target.value })} /></label>
       <div>Hide source from{['juror', 'foreperson', 'crown', 'defence', 'witness', 'judge', 'adjudicator', 'staff', 'respondent', 'plaintiff'].map((role) => <label key={role} className="workflow-check"><input type="checkbox" checked={use.hiddenFrom.includes(role)} onChange={(event) => update(index, { hiddenFrom: event.target.checked ? [...use.hiddenFrom, role] : use.hiddenFrom.filter((item) => item !== role) })} />{role}</label>)}</div>
     </fieldset>)}
-    <button type="button" className="primary-action" disabled={busy || !uses.length || Object.values(paragraphErrors).some(Boolean)} onClick={() => void onSave(uses, reason)}>Save document-use settings</button>
+    <button type="button" className="primary-action" disabled={busy || !uses.length || Object.values(paragraphErrors).some(Boolean) || Object.values(idErrors).some(Boolean)} onClick={() => void onSave(uses, reason)}>Save document-use settings</button>
   </section>
 }

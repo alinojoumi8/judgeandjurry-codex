@@ -32,11 +32,13 @@ const evidence: EvidenceItem[] = [
 ]
 
 describe('model provider reliability', () => {
-  it('defaults MiniMax to M3.1 Flash Preview and preserves explicit model overrides', () => {
+  it('defaults MiniMax to the documented GA Flash model and preserves explicit model overrides', () => {
     const previous = { ...process.env }
     try {
       process.env.MODEL_PROVIDER = 'minimax'
       delete process.env.MINIMAX_MODEL
+      expect(createMiniMaxConfig().model).toBe('MiniMax-M3.1-Flash')
+      process.env.MINIMAX_MODEL = 'MiniMax-M3.1-Flash-Preview'
       expect(createMiniMaxConfig().model).toBe('MiniMax-M3.1-Flash-Preview')
       process.env.MINIMAX_MODEL = 'custom-model'
       expect(createMiniMaxConfig().model).toBe('custom-model')
