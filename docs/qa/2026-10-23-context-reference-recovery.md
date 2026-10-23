@@ -21,6 +21,8 @@ Purpose fields preserve typed newlines while saving normalized lists. Transient 
 
 A conditional argument that an appropriately linked recorded figure could support the approved value element does not require the threshold in a transaction quotation. The condition does not establish the link or override a separate semantic rejection.
 
+The same approved comparison recognizes hyphenated proposed-count captions, embedded party submissions and evidence-standard wording. Actual filed-charge amounts still require source support; an exercise model cannot supply them.
+
 ## Regression and replay coverage
 
 New regressions cover duplicate source representations and full history, projected headroom and runtime overflow, explicit allowed/denied source purposes, terminal audit access, initial-versus-final counts, legacy preflight responses, real two-page PDF rasterization and hash/boundary failures, invalid supplied-page references, added elements and mixed threshold amounts. Captured failures are replayed privately, with fictional controls committed as regression source. A rejected contradictory ballot remains rejected even after correcting a separate false diagnostic.
