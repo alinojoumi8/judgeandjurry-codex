@@ -175,17 +175,24 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
   // Classify each threshold occurrence by its local proof-list scope. The
   // approved number never exempts a neighboring payment of the same amount.
   const listThreshold = new RegExp(String.raw`\b(?:the\s+|a\s+)?(?:value|subject matter)(?:\s+of\s+[^$;.!?]{1,90}?)?\s+(?:exceeds|exceeded|exceeding|over|greater than)\s*(${amount})`, 'gi')
-  const proofDirective = /\bCrown\b[^;.!?]{0,80}\bmust\s+(?:(?:still|also)\s+)?(?:prove|establish)\b/i
+  const approvedBurdenDirective = /\b(?:(?:current )?(?:approved|supplied)(?: exercise)?|current exercise) (?:issue|(?:value )?element) requires? (?:the )?Crown to (?:prove|establish)\b/i
+  const proofDirective = (value: string) => /\bCrown\b[^;.!?]{0,80}\bmust\s+(?:(?:still|also)\s+)?(?:prove|establish)\b/i.test(value) || approvedBurdenDirective.test(value)
   const removeListedThreshold = (statement: string, claimed: string, offset: number, input: string) => {
     const prefix = input.slice(0, offset).split(/(?<=[.!?])\s+/).at(-1) ?? ''
     // Ignore quoted requirements and source reports when locating the actual
     // author's directive. Every source/payment amount keeps its own support.
     const instructionPrefix = prefix.replace(/["“][^"”]*["”]/g, ' ')
     if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(instructionPrefix)) return statement
-    if (!proofDirective.test(instructionPrefix)) return statement
+    if (!proofDirective(instructionPrefix)) return statement
     const localPrefix = instructionPrefix.split(';').at(-1) ?? ''
     if (/\bE-\d+\b|\b(?:records?|reports?|states?|says?|received|transferred|paid|deposited|withdrew)\b/i.test(localPrefix)) return statement
-    if (!proofDirective.test(localPrefix) && !/^\s*(?:(?:and|or|that|together with|including|with)\s+)*$/i.test(localPrefix)) return statement
+    if (!proofDirective(localPrefix) && !/^\s*(?:(?:and|or|that|together with|including|with)\s+)*$/i.test(localPrefix)) return statement
+    if (approvedBurdenDirective.test(localPrefix)) {
+      if (/\b(?:not|never|without)\b/i.test(localPrefix)) return statement
+      const clause = localPrefix + input.slice(offset).split(/;|(?<=[.!?])\s+/)[0]
+      if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(clause)) return statement
+      return removeProposedThreshold(statement, claimed, offset, input)
+    }
     return removeThreshold(statement, claimed, offset, input)
   }
   const countCaption = new RegExp(String.raw`\bFor (?:this|the) proposed [\p{L} ’'-]{2,80} (?:exceeding|over|greater than)\s*(${amount})\s+count(?=\s*,)`, 'giu')

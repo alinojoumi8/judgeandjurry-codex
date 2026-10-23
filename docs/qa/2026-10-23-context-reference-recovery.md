@@ -21,7 +21,7 @@ Purpose fields preserve typed newlines while saving normalized lists. Transient 
 
 A conditional argument that an appropriately linked recorded figure could support the approved value element does not require the threshold in a transaction quotation. The condition does not establish the link or override a separate semantic rejection.
 
-The same approved comparison recognizes hyphenated proposed-count captions, embedded party submissions and evidence-standard wording. Actual filed-charge amounts still require source support; an exercise model cannot supply them.
+The same approved comparison recognizes hyphenated proposed-count captions, embedded party submissions, evidence-standard wording and explicit approved-issue burden directives. The latter require one matching current approved threshold and currency. Adjacent source amounts, third-party quotations and actual filed-charge claims retain their own support checks; an exercise model cannot supply them.
 
 ## Regression and replay coverage
 
