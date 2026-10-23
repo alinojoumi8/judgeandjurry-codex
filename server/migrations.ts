@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-export const currentSchemaVersion = 8
+export const currentSchemaVersion = 9
 
 export function applySchemaMigrations(db: DatabaseSync): void {
   createBaseSchema(db)
@@ -20,6 +20,7 @@ export function applySchemaMigrations(db: DatabaseSync): void {
     migrateCourtroomProtocol,
     db => ensureColumn(db, 'evidence_uses', 'scope_json', 'TEXT'),
     db => ensureColumn(db, 'corpus_manifest_entries', 'preview_sha256', 'TEXT'),
+    db => ensureColumn(db, 'evidence', 'private_note', "TEXT NOT NULL DEFAULT ''"),
   ]
   for (let version = current + 1; version <= currentSchemaVersion; version += 1) {
     db.exec('BEGIN IMMEDIATE')

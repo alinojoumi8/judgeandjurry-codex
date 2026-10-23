@@ -167,7 +167,7 @@ describe('release hardening', () => {
     const counter = check
       .prepare('SELECT next_exhibit_number FROM matter_counters WHERE matter_id = ?')
       .get('m1') as { next_exhibit_number: number }
-    expect(version.user_version).toBe(8)
+    expect(version.user_version).toBe(9)
     expect(counter.next_exhibit_number).toBe(5)
     for (const table of [
       'corpus_jobs',

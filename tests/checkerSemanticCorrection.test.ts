@@ -18,16 +18,15 @@ describe('uniform checker correction after a semantic recheck', () => {
       if (mode === 'object-array') corrected.findings[1].supportTypes = { item: 'source' }
       if (mode === 'still-rejected') corrected.findings[1] = { ...corrected.findings[1], status: 'unsupported', explanation: 'The claim has no adequate support.' }
       const flattened = { findings: { 'title:1': heading, ...row } }
-      const value = bodies.length === 1 ? first : mode === 'flattened' || body.tools[0].function.parameters.properties.findings.type !== 'array' ? flattened : corrected
-      return Response.json({ choices: [{ message: { content: null, tool_calls: [{ type: 'function', function: { name: 'record_grounding_review', arguments: JSON.stringify(value) } }] } }] })
+      const value = bodies.length === 1 ? first : mode === 'flattened' || body.tools[0].function.parameters.properties.reviewJson.type !== 'string' ? flattened : corrected
+      return Response.json({ choices: [{ message: { content: null, tool_calls: [{ type: 'function', function: { name: 'record_grounding_review', arguments: JSON.stringify(bodies.length > 1 ? { reviewJson: JSON.stringify(value) } : value) } }] } }] })
     })
     return client.reviewGrounding({ stage: 'crown_opening', packet: '', previousTurns: '', groundingContext: 'E-001: primary; selected_extracts; Only this supplied excerpt is available.', evidence: [{ ...supportedOpeningSource, exhibitId: 'E-001', text: 'The supplied report excerpt records a deposit.' }] }, draft).then(review => {
       expect(bodies).toHaveLength(2)
       expect(review.status).toBe(mode === 'complete' ? 'passed' : 'failed')
-      const schema = bodies[1].tools[0].function.parameters.properties.findings
-      expect(schema.type).toBe('array')
-      expect(schema.items.required).toContain('unitId')
-      expect(schema.items.properties.unitId.enum).toEqual(['title:1', 'content:1'])
+      const schema = bodies[1].tools[0].function.parameters
+      expect(schema.required).toEqual(['reviewJson'])
+      expect(schema.properties.reviewJson.type).toBe('string')
       expect(bodies[1].messages[1].content).toContain('findings is a flat array')
       expect(bodies[1].messages[1].content).not.toContain('findings is an object keyed')
       expect(bodies[0].messages[1].content.split('Draft units to check:\n')[1]).toBe(bodies[1].messages[1].content.split('Draft units to check:\n')[1])

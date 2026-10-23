@@ -107,7 +107,10 @@ function assertsContentsAbsence(text: string) {
   })
 }
 function dollarAmounts(text: string): number[] {
-  return [...text.matchAll(new RegExp(String.raw`(?:\$\s*|\b(?:CAD|USD|CDN)\s+)(\d[\d,]*(?:\.\d+)?)(${monetarySuffix})`, 'gi'))]
+  // Normalize only horizontal OCR spacing at a decimal point. Preserve the
+  // original passage and offsets, and never join amounts across source lines.
+  const monetaryText = text.replace(/(\d)[ \t]+\.(?=[ \t]*\d{2}\b)/g, '$1.').replace(/(\d)\.[ \t]+(?=\d{2}\b)/g, '$1.')
+  return [...monetaryText.matchAll(new RegExp(String.raw`(?:\$\s*|\b(?:CAD|USD|CDN)\s+)(\d[\d,]*(?:\.\d+)?)(${monetarySuffix})`, 'gi'))]
     .map((match) => Number(match[1].replaceAll(',', '')) * ({ million: 1e6, billion: 1e9, thousand: 1e3, m: 1e6, b: 1e9, k: 1e3 }[match[2]?.trim().toLowerCase() ?? ''] ?? 1))
 }
 
@@ -140,6 +143,8 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
     const openQuestion = new RegExp(String.raw`\bwhether (?:any )?element amount (?:above|over|exceeding|greater than)\s*(${amount}) is tied to [\w ’'-]+ on this record is a question I (?:still )?cannot answer\b`, 'gi')
   const doubt = new RegExp(String.raw`\bI (?:still )?doubt (?:whether )?[^$;.!?]{0,180}\bvalue\s+(?:exceeding|over|greater than)\s*(${amount})`, 'gi')
   const burdenAssessment = new RegExp(String.raw`\bI (?:find|conclude) (?:that )?the Crown has not (?:proved|proven|established) (?:beyond a reasonable doubt )?(?:that )?[^$;.!?:]{0,180}\b(?:value|(?:matched )?(?:loss|deprivation))\s+(?:exceeding|over|greater than)\s*(${amount})`, 'gi')
+  const unprovedValue = new RegExp(String.raw`\bvalue\s+(?:exceeding|over|greater than)\s*(${amount})\s+(?:is|are) not (?:proved|proven|established) beyond a reasonable doubt\b`, 'gi')
+  const proposedValue = new RegExp(String.raw`\bThe proposed value element of (?:more than|over|greater than)\s*(${amount}) is therefore a Crown question the recorded figure could support, but the Crown must prove it beyond a reasonable doubt\b`, 'gi')
   const requirement = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+(?:[([]E-\d+(?:\s*[,;]\s*E-\d+)*[)\]]\s*)*)The Crown must (?:(?:still|also) )?(?:prove|establish|tie)\b[^$;.!?"“”]{0,180}\b(?:value|amount|loss|deprivation)\s+(?:exceeding|over|greater than)\s*(${amount})`, 'gi')
   const caption = new RegExp(String.raw`^(?:Crown|Defence) (?:Opening|Closing|Rebuttal)\s*[-—:]\s*Proposed Fraud (?:Exceeding|Over|Greater Than)\s*(${amount})(?: Count)?(?:(?: Against |\s*[-—:]\s*)[\p{L}][\p{L} ’'-]{0,80})?[.!?]?$`, 'iu')
   const proposedBurden = new RegExp(String.raw`(?:^|(?<=[;.!?])\s+)(?:Members of (?:the )?Jury(?: Panel)?,\s+)?the Crown must (?:prove|establish) (?:every|each) element of (?:the )?proposed fraud (?:exceeding|over|greater than)\s*(${amount})\s+count beyond a reasonable doubt(?=$|[;.!?])`, 'gi')
@@ -165,7 +170,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
       }
       return updated
     }
-    let factualText = comparison.factualText.replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(requirement, removeThreshold).replace(proposedQuestion, removeProposedThreshold).replace(proposedBurden, removeProposedThreshold)
+    let factualText = comparison.factualText.replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(requirement, removeThreshold).replace(proposedQuestion, removeProposedThreshold).replace(proposedBurden, removeProposedThreshold)
   if (title) factualText = factualText.replace(caption, removeProposedThreshold)
     return { factualText, errors: [...comparison.errors, ...proposedErrors], labels: [...new Set(used)], event: used.length ? event : undefined }
 }

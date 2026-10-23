@@ -11,6 +11,7 @@ import {
 
 import { downloadEvidenceSource } from '../api'
 import type { AgentTurn, EvidenceItem } from '../types'
+import { EvidenceNoteEditor } from './EvidenceNoteEditor'
 
 interface EvidenceInspectorProps {
   evidence: EvidenceItem[]
@@ -163,10 +164,7 @@ export function EvidenceInspector({
             )}
           </div>
 
-          <div className="note-box">
-            <textarea placeholder="Add a note about this evidence..." />
-            <button type="button">Save Note</button>
-          </div>
+          <EvidenceNoteEditor key={selected.id} matterId={selected.matterId} evidenceId={selected.id} />
         </>
       ) : (
         <div className="empty-inspector">

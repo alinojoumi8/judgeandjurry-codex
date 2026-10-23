@@ -560,6 +560,16 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     }),
   )
 
+  app.get('/api/matters/:matterId/evidence/:evidenceId/note', (request, response) => {
+    response.json({ note: store.getEvidenceNote(routeParam(request, 'matterId'), routeParam(request, 'evidenceId')) })
+  })
+  app.put('/api/matters/:matterId/evidence/:evidenceId/note', (request, response) => {
+    const input = z.object({ note: z.string().max(20_000) }).strict().parse(request.body)
+    const matterId = routeParam(request, 'matterId'), evidenceId = routeParam(request, 'evidenceId')
+    store.saveEvidenceNote(matterId, evidenceId, input.note)
+    response.json({ note: store.getEvidenceNote(matterId, evidenceId) })
+  })
+
   app.post(
     '/api/matters/:matterId/simulations',
     asyncHandler(async (request, response) => {
