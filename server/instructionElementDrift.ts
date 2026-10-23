@@ -8,11 +8,14 @@ export function instructionElementDriftError(text: string, approved: Issue[] | u
   const delivered = instruction?.payload.issueInstructions as Issue[] | undefined
   const issues = instruction ? instruction.eventId && !instruction.payload.withheld && typeof instruction.payload.text === 'string' && instruction.payload.text.trim() && Array.isArray(delivered) ? delivered : undefined : approved
   const unquoted = text.replace(/[“"][^“”"]*[”"]|(?<!\w)'[^']*'(?!\w)/g, ' ')
-  const required = unquoted.split(/(?<=[.!?;])\s+/).some(sentence => {
+  const required = unquoted.split(/(?<=[.!?;])\s+|\s+(?:but|yet|whereas|however)\s+|,\s*and\s+(?=(?:the\s+)?Crown\b)/i).some(sentence => {
     if (sentence.trim().endsWith('?') || /\b(?:if|would|could|might)\b/i.test(sentence) ||
         /\b(?:incorrect|not true) to say\b|\b(?:need not|does not need to|not required to|must not)\b/i.test(sentence)) return false
-    return /\bCrown must (?:still |also )?(?:prove|establish)\b[^.!?;]{0,240}\breliance\b/i.test(sentence) ||
-      /\breliance\b[^.!?;]{0,100}\b(?:required|necessary|essential|separate) element\b/i.test(sentence)
+    // Remove only the reliance occurrence whose own predicate denies a
+    // requirement. A separate positive requirement must still be checked.
+    const requirements = sentence.replace(/\breliance\b(?=\s+(?:(?:is|are|was|were|remains?)\s+)?(?:not|never)\s+(?:(?:an?|the)\s+)?(?:(?:listed|required|necessary|essential|separate)\s+)*(?:element|required|necessary|essential)\b)/gi, ' ')
+    return /\bCrown must (?:still |also )?(?:prove|establish)\b[^.!?;]{0,240}\breliance\b/i.test(requirements) ||
+      /\breliance\b[^.!?;]{0,100}\b(?:required|necessary|essential|separate) element\b/i.test(requirements)
   })
   if (!required) return undefined
   if (!issues?.length) return 'A required-element claim needs a usable controlling supplied issue model or delivered instruction; an absent or unusable latest instruction cannot authorize this added requirement.'

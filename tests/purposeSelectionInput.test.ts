@@ -51,7 +51,7 @@ async function editor(initial: AdmissionLedger['evidenceUses'][number] = use) {
     const [uses, reason] = onSave.mock.calls.at(-1)!
     return admissionInputSchema.parse({ evidenceUses: uses, reason }).evidenceUses[0]
   }
-  return { element, field, type, save }
+  return { element, field, type, save, onSave }
 }
 
 function expectPreserved(saved: Pick<EvidenceUse, 'scope' | 'note' | 'redactions' | 'hiddenFrom'>) {
@@ -135,6 +135,30 @@ describe('proceeding purpose editing', () => {
     expect(field(label)?.value).toBe('notice ')
     await type(label, 'notice received')
     expect(field(label)?.value).toBe('notice received')
+  })
+
+  it.each(['Permitted purposes', 'Prohibited purposes'])('keeps Enter, second-line typing and trailing blank lines editable in %s', async label => {
+    const { field, type, save, onSave } = await editor()
+    const first = label === 'Permitted purposes' ? 'notice' : 'truth'
+    const second = label === 'Permitted purposes' ? 'chronology' : 'guilt'
+    await type(label, first)
+    let expected = first
+    for (const character of `\n${second}\n\n`) {
+      const textarea = field(label) as HTMLTextAreaElement
+      const key = character === '\n' ? 'Enter' : character
+      textarea.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+      await type(label, textarea.value + character)
+      textarea.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }))
+      expected += character
+      expect(field(label)?.value).toBe(expected)
+    }
+    const saved = await save()
+    const raw = onSave.mock.calls.at(-1)![0][0]
+    expect(label === 'Permitted purposes' ? raw.purposes : raw.scope?.prohibitedPurposes).toEqual([first, second])
+    expect(saved.scope?.purpose).toBe('notice')
+    expectPreserved(saved)
+    expect(() => validateEvidenceScope(saved, source, ['issue-1'], ['party-1'])).not.toThrow()
+    expect(field(label)?.value).toBe(`${first}\n${second}\n\n`)
   })
 
   it('preserves server rejection of an unknown saved purpose', async () => {

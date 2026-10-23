@@ -8,7 +8,7 @@ export function budgetUnavailable(event: TrialRunView['events'][number]): boolea
 
 export function canResumeTrial(trial: TrialRunView): boolean {
   return ['failed', 'ready', 'interrupted'].includes(trial.run.status) &&
-    !/actor context exceeds|source(?: context| record)?.*(?:budget|empty|unavailable)|no (?:permitted|usable|selected) (?:source|evidence)|save a new version|source-use configuration/i.test(trial.run.error ?? '')
+    !/\bactor context exceeds\b|\bsource(?: context| record)?\b.*\b(?:budget|empty|unavailable)\b|\bno (?:permitted|usable|selected) (?:source|evidence)\b|\bsave a new version\b|\bsource-use configuration\b/i.test(trial.run.error ?? '')
 }
 
 export function trialRunStatus(trial: TrialRunView): { label: string; message?: string } {

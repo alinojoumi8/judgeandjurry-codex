@@ -17,6 +17,8 @@ Mixed source-backed payment analysis requires an explicit source support domain 
 
 Editing permitted or prohibited purposes clears an active purpose that is no longer selectable. Other source restrictions are preserved, and conflicting permitted/prohibited lists still require correction before the source can be used.
 
+Purpose fields preserve typed newlines while saving normalized lists. Transient provider resource errors remain resumable. Local denials of an extra reliance requirement do not hide a separate affirmative requirement, and approved count thresholds support the observed fronted or trailing burden wording.
+
 ## Regression and replay coverage
 
 New regressions cover duplicate source representations and full history, projected headroom and runtime overflow, explicit allowed/denied source purposes, terminal audit access, initial-versus-final counts, legacy preflight responses, real two-page PDF rasterization and hash/boundary failures, invalid supplied-page references, added elements and mixed threshold amounts. Captured failures are replayed privately, with fictional controls committed as regression source. A rejected contradictory ballot remains rejected even after correcting a separate false diagnostic.

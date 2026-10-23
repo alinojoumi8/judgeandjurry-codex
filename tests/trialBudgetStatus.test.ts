@@ -2,11 +2,11 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { expect, it } from 'vitest'
 import { GroundingAudit } from '../src/components/GroundingAudit'
-import { trialRunStatus } from '../src/trialRunStatus'
+import { canResumeTrial, trialRunStatus } from '../src/trialRunStatus'
 import type { TrialRunView } from '../src/trialEngineTypes'
 
-function fixture(error = 'Browser end-to-end live budget exhausted; request not sent'): TrialRunView {
-  return { run: { status: 'completed', phase: 'complete' }, decisionSheet: { complete: false, decisions: [], validationWarnings: [] }, events: [
+function fixture(error = 'Browser end-to-end live budget exhausted; request not sent', status: TrialRunView['run']['status'] | 'interrupted' = 'completed'): TrialRunView {
+  return { run: { status, phase: 'complete' }, decisionSheet: { complete: false, decisions: [], validationWarnings: [] }, events: [
     { id: 'unavailable', sequence: 1, phase: 'final_ballots', type: 'final_ballot_recorded', actorId: 'juror-01', payload: {}, modelAudit: { error } },
     { id: 'checked', sequence: 2, phase: 'instructions', type: 'initial_ballot_recorded', actorId: 'juror-01', payload: {}, modelAudit: { grounding: { status: 'passed', findings: [], errors: [], repairs: 0 } } },
     { id: 'rejected', sequence: 3, phase: 'deliberation_review', type: 'juror_deliberation_turn', actorId: 'juror-02', payload: {}, modelAudit: { error: 'The operation was aborted due to timeout', grounding: { status: 'failed', findings: [], errors: ['Attribution failed'], repairs: 0 } } },
@@ -39,4 +39,29 @@ it('does not relabel a complete decision or an active run from an earlier error'
   expect(trialRunStatus(trial).label).toBe('completed')
   trial.run.status = 'running'; trial.decisionSheet = undefined
   expect(trialRunStatus(trial).label).toBe('running')
+})
+
+it.each(['failed', 'ready', 'interrupted'] as const)('allows resuming a %s run after transient provider-resource failures', status => {
+  for (const error of ['resource exhausted: service unavailable', 'Provider resource limit; backend unavailable']) {
+    const trial = fixture(undefined, status)
+    trial.run.error = error
+    expect(canResumeTrial(trial)).toBe(true)
+  }
+})
+
+it.each([
+  'Source context exceeds the character budget.',
+  'Source record is empty.',
+  'Source is unavailable.',
+  'Actor context exceeds its character budget.',
+  'No permitted source is available.',
+  'No usable evidence was supplied.',
+  'No selected source was supplied.',
+  'Select documents and save a new version.',
+  'Source-use configuration is invalid.',
+])('keeps saved-record failures non-resumable: %s', error => {
+  const trial = fixture()
+  trial.run.status = 'failed'
+  trial.run.error = error
+  expect(canResumeTrial(trial)).toBe(false)
 })

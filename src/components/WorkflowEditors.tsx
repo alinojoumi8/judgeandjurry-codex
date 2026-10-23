@@ -100,13 +100,16 @@ export function AdmissionEditor({ sources, ledger, busy, onSave }: { sources: Wo
   const [paragraphErrors, setParagraphErrors] = useState<Record<string, string>>({})
   const [idDrafts, setIdDrafts] = useState<Record<string, string>>({})
   const [idErrors, setIdErrors] = useState<Record<string, string>>({})
+  const [purposeDrafts, setPurposeDrafts] = useState<Record<string, string>>({})
   const update = (index: number, input: Partial<typeof uses[number]>) => setUses(uses.map((item, i) => i === index ? { ...item, ...input } : item))
   return <section className="scenario-editor" aria-label="Source-use editor"><h3>Document-use settings</h3><p>These settings apply to a new run. Earlier runs keep their saved settings. Mark uncertain sources as reserved until their use is decided.</p>
     <label>Reason for these settings<textarea value={reason} onChange={(event) => setReason(event.target.value)} /></label>
     {uses.map((use, index) => <fieldset className="editor-card source-use-editor" key={use.evidenceId}><legend>{sources.find((source) => source.id === use.evidenceId)?.name}</legend>
       <label>Source status<select value={use.status} onChange={(event) => update(index, { status: event.target.value as typeof use.status })}>{['admitted', 'limited', 'excluded', 'reserved', 'redacted'].map((status) => <option key={status}>{status}</option>)}</select></label>
-      <label>Permitted purposes (one per line)<textarea value={use.purposes.join('\n')} onChange={(event) => {
-        const purposes = event.target.value.split('\n').filter(purpose => purpose.trim())
+      <label>Permitted purposes (one per line)<textarea value={purposeDrafts[`${use.evidenceId}:permitted`] ?? use.purposes.join('\n')} onChange={(event) => {
+        const raw = event.target.value
+        setPurposeDrafts(current => ({ ...current, [`${use.evidenceId}:permitted`]: raw }))
+        const purposes = raw.split('\n').map(purpose => purpose.trim()).filter(Boolean)
         const purpose = use.scope?.purpose?.trim()
         update(index, { purposes, scope: use.scope ? { ...use.scope, purpose: purpose && purposes.some(value => value.trim() === purpose) && !use.scope.prohibitedPurposes?.some(value => value.trim() === purpose) ? purpose : undefined } : undefined })
       }} /></label>
@@ -132,8 +135,10 @@ export function AdmissionEditor({ sources, ledger, busy, onSave }: { sources: Wo
           if (!invalid) update(index, { scope: { ...use.scope, [field]: raw.trim() ? values : undefined } })
         }} /></label>{idErrors[key] && <p role="alert" id={errorId}>{idErrors[key]}</p>}</div>
       })}
-      <label>Prohibited purposes (one per line)<textarea value={use.scope?.prohibitedPurposes?.join('\n') ?? ''} onChange={event => {
-        const prohibitedPurposes = event.target.value.split('\n').filter(purpose => purpose.trim())
+      <label>Prohibited purposes (one per line)<textarea value={purposeDrafts[`${use.evidenceId}:prohibited`] ?? use.scope?.prohibitedPurposes?.join('\n') ?? ''} onChange={event => {
+        const raw = event.target.value
+        setPurposeDrafts(current => ({ ...current, [`${use.evidenceId}:prohibited`]: raw }))
+        const prohibitedPurposes = raw.split('\n').map(purpose => purpose.trim()).filter(Boolean)
         const purpose = use.scope?.purpose?.trim()
         update(index, { scope: { ...use.scope, prohibitedPurposes, purpose: purpose && use.purposes.some(value => value.trim() === purpose) && !prohibitedPurposes.some(value => value.trim() === purpose) ? purpose : undefined } })
       }} /></label>
