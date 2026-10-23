@@ -19,6 +19,8 @@ Editing permitted or prohibited purposes clears an active purpose that is no lon
 
 Purpose fields preserve typed newlines while saving normalized lists. Transient provider resource errors remain resumable. Local denials of an extra reliance requirement do not hide a separate affirmative requirement, and approved count thresholds support the observed fronted or trailing burden wording.
 
+A conditional argument that an appropriately linked recorded figure could support the approved value element does not require the threshold in a transaction quotation. The condition does not establish the link or override a separate semantic rejection.
+
 ## Regression and replay coverage
 
 New regressions cover duplicate source representations and full history, projected headroom and runtime overflow, explicit allowed/denied source purposes, terminal audit access, initial-versus-final counts, legacy preflight responses, real two-page PDF rasterization and hash/boundary failures, invalid supplied-page references, added elements and mixed threshold amounts. Captured failures are replayed privately, with fictional controls committed as regression source. A rejected contradictory ballot remains rejected even after correcting a separate false diagnostic.
