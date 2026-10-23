@@ -149,6 +149,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
   const unprovedValue = new RegExp(String.raw`\bvalue\s+(?:exceeding|over|greater than)\s*(${amount})\s+(?:is|are) not (?:proved|proven|established) beyond a reasonable doubt\b`, 'gi')
   const proposedValue = new RegExp(String.raw`\bThe proposed value element of (?:more than|over|greater than)\s*(${amount}) is therefore a Crown question the recorded figure could support, but the Crown must prove it beyond a reasonable doubt\b`, 'gi')
   const conditionalValueElement = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)If (?:a|the) (?:recorded|supplied) figure\b[^$;.!?]{0,250},\s+(?:it|that figure) (?:could|would|may|might) support (?:the )?(?:approved )?(?:value )?element that (?:the )?value(?: of the subject matter of the alleged fraud)?\s+(?:exceeds|exceeding|over|greater than)\s*(${amount})`, 'gi')
+  const conditionalFigureElement = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)If\b(?:[^;.!?]|\.(?=\d)){0,400}\bis established as (?:the )?value of (?:the )?(?:alleged )?subject matter,\s+(?:it|(?:that|the) (?:figure|amount|total)) (?:could|would|may|might) support (?:the )?(?:approved )?(?:value )?element (?:exceeding|over|greater than)\s*(${amount})`, 'gi')
   const requirement = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+(?:[([]E-\d+(?:\s*[,;]\s*E-\d+)*[)\]]\s*)*)(?:For (?:this|the) (?:proposed|supplied|fictional|exercise) count,?\s+)?The (?:Crown|evidence) must (?:(?:still|also) )?(?:prove|establish|tie)\b[^$;.!?"“”]{0,350}\b(?:value|amount|loss|deprivation)\s+(?:exceeding|over|greater than)\s*(${amount})`, 'gi')
   const caption = new RegExp(String.raw`^(?:Crown|Defence) (?:Opening|Closing|Rebuttal)(?:\s*[-—:]\s*|\s+on\s+)Proposed Fraud[ -]+(?:Exceeding|Over|Greater[ -]+Than)[ -]*(${amount})(?: Count)?(?:(?: Against |\s*[-—:]\s*)[\p{L}][\p{L} ’'-]{0,80})?[.!?]?$`, 'iu')
   const proposedBurden = new RegExp(String.raw`(?:^|(?<=[;.!?])\s+)(?:Members of (?:the )?Jury(?: Panel)?,\s+)?(?:(?:the )?(?:Crown|Defence) submits that )?(?:the )?Crown must (?:prove|establish) (?:beyond a reasonable doubt )?(?:every|each) element of (?:the )?proposed fraud[ -]+(?:exceeding|over|greater[ -]+than)[ -]*(${amount})\s+count(?: beyond a reasonable doubt)?(?=$|[;.!?:,])`, 'gi')
@@ -229,6 +230,15 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
       }
       return updated
     }
+    const removeConditionalFigureThreshold = (statement: string, claimed: string, offset: number, input: string) => {
+      const clause = input.slice(offset).split(/;|(?<=[.!?])\s+/)[0]
+      if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(clause)) return statement
+      if (removeProposedThreshold(statement, claimed, offset, input) === statement) return statement
+      // The antecedent can contain the same amount. Exempt only the captured
+      // final benchmark; every amount in the factual premise remains checked.
+      const benchmark = statement.lastIndexOf(claimed)
+      return statement.slice(0, benchmark) + statement.slice(benchmark + claimed.length)
+    }
     // A quoted exercise element is setup, even when followed by source-based
     // argument. Match the entire current label and exempt only its threshold;
     // a neighboring transaction of the same amount still needs source support.
@@ -241,7 +251,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
       used.push(matching[0])
       return statement.replace(quotation, quotation.replace(claimed, ''))
     })
-    let factualText = quotedElementText.replace(listThreshold, removeListedThreshold).replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(unresolvedElements, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(conditionalValueElement, removeThreshold).replace(requirement, removeRequirementThreshold).replace(proposedQuestion, removeProposedThreshold).replace(proposedBurden, removeProposedThreshold).replace(countCaption, removeProposedThreshold)
+    let factualText = quotedElementText.replace(listThreshold, removeListedThreshold).replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(unresolvedElements, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(conditionalValueElement, removeThreshold).replace(conditionalFigureElement, removeConditionalFigureThreshold).replace(requirement, removeRequirementThreshold).replace(proposedQuestion, removeProposedThreshold).replace(proposedBurden, removeProposedThreshold).replace(countCaption, removeProposedThreshold)
   if (title) factualText = factualText.replace(caption, removeProposedThreshold)
     return { factualText, errors: [...comparison.errors, ...proposedErrors], labels: [...new Set(used)], event: used.length ? event : undefined }
 }
