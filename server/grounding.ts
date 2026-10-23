@@ -178,7 +178,22 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
   const listThreshold = new RegExp(String.raw`\b(?:the\s+|a\s+)?(?:value|subject matter)(?:\s+of\s+[^$;.!?]{1,90}?)?\s+(?:exceeds|exceeded|exceeding|over|greater than)\s*(${amount})`, 'gi')
   const approvedBurdenDirective = /\b(?:(?:current )?(?:approved|supplied)(?: exercise)?|current exercise) (?:issue|(?:value )?element) requires? (?:the )?Crown to (?:prove|establish)\b/i
   const proofDirective = (value: string) => /\bCrown\b[^;.!?]{0,80}\bmust\s+(?:(?:still|also)\s+)?(?:prove|establish)\b/i.test(value) || approvedBurdenDirective.test(value)
+  const passiveCountThreshold = new RegExp(String.raw`\bproposed fraud[ -]+(?:exceeding|over|greater[ -]+than)[ -]*(${amount})\s+count\b`, 'gi')
+  const removePassiveThreshold = (statement: string, claimed: string, offset: number, input: string) => {
+    const prefix = input.slice(0, offset).split(/;|(?<=[.!?])\s+/).at(-1) ?? ''
+    const suffix = input.slice(offset + statement.length).split(/;|(?<=[.!?])\s+/)[0]
+    const count = /\bproposed fraud[ -]/i.test(statement)
+    const predicate = String.raw`must\s+(?:(?:each|all)\s+)?be\s+(?:proved|proven|established)\s+beyond a reasonable doubt\b`
+    if (count ? !/^\s*(?:each|every|all) (?:approved )?elements? of (?:the )?$/i.test(prefix) || !new RegExp(String.raw`^\s*(?:[-—:]\s*[^;.!?]{0,650})?${predicate}`, 'i').test(suffix)
+      : !new RegExp(String.raw`^\s*[,—-]?\s*${predicate}`, 'i').test(suffix)) return undefined
+    const clause = prefix + statement + suffix
+    if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(clause) ||
+        /\b(?:records?|reports?|states?|says?|received|transferred|paid|deposited|withdrew)\b|\b(?:was|were) made\b/i.test(clause) || /\b(?:not|never|without)\b/i.test(prefix)) return statement
+    return removeProposedThreshold(statement, claimed, offset, input)
+  }
   const removeListedThreshold = (statement: string, claimed: string, offset: number, input: string) => {
+    const passive = removePassiveThreshold(statement, claimed, offset, input)
+    if (passive !== undefined) return passive
     const prefix = input.slice(0, offset).split(/(?<=[.!?])\s+/).at(-1) ?? ''
     // Ignore quoted requirements and source reports when locating the actual
     // author's directive. Every source/payment amount keeps its own support.
@@ -251,7 +266,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
       used.push(matching[0])
       return statement.replace(quotation, quotation.replace(claimed, ''))
     })
-    let factualText = quotedElementText.replace(listThreshold, removeListedThreshold).replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(unresolvedElements, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(conditionalValueElement, removeThreshold).replace(conditionalFigureElement, removeConditionalFigureThreshold).replace(requirement, removeRequirementThreshold).replace(proposedQuestion, removeProposedThreshold).replace(proposedBurden, removeProposedThreshold).replace(countCaption, removeProposedThreshold)
+    let factualText = quotedElementText.replace(listThreshold, removeListedThreshold).replace(passiveCountThreshold, (statement: string, claimed: string, offset: number, input: string) => removePassiveThreshold(statement, claimed, offset, input) ?? statement).replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(unresolvedElements, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(conditionalValueElement, removeThreshold).replace(conditionalFigureElement, removeConditionalFigureThreshold).replace(requirement, removeRequirementThreshold).replace(proposedQuestion, removeProposedThreshold).replace(proposedBurden, removeProposedThreshold).replace(countCaption, removeProposedThreshold)
   if (title) factualText = factualText.replace(caption, removeProposedThreshold)
     return { factualText, errors: [...comparison.errors, ...proposedErrors], labels: [...new Set(used)], event: used.length ? event : undefined }
 }
