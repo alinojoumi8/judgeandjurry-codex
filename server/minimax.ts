@@ -575,7 +575,7 @@ export class MiniMaxClient implements ModelClient {
       try {
         content = groundingToolContent(message, request.verificationUnits ? groundingToolName : groundingRepairToolName) ?? content
         if (arrayVerification && content) {
-          content = groundingSerializedContent(content)
+          content = groundingSerializedContent(cleanModelJsonText(content))
           // Historical text-array responses retain their existing parser contract.
           // Tool arguments still require every explicit ID and finding field.
           const legacyArray = message.tool_calls === undefined && Array.isArray(JSON.parse(cleanModelJsonText(content))?.findings)

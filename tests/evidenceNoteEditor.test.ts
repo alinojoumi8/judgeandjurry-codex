@@ -44,3 +44,19 @@ it('ignores a late load from a previously selected exhibit', async () => {
   await act(async () => resolveOld('Stale old note'))
   expect(container.querySelector('textarea')!.value).toBe('Other exhibit note')
 })
+it('retries a failed load while keeping its error visible until success', async () => {
+  let resolveRetry!: (note: string) => void
+  vi.mocked(loadEvidenceNote).mockRejectedValueOnce(new Error('Temporary load failure'))
+    .mockImplementationOnce(() => new Promise(resolve => { resolveRetry = resolve }))
+  await render()
+  const retry = [...container.querySelectorAll('button')].find(button => button.textContent === 'Retry loading note')!
+  await act(async () => retry.click())
+  expect(loadEvidenceNote).toHaveBeenCalledTimes(2)
+  expect(container.querySelector('[role="alert"]')!.textContent).toBe('Temporary load failure')
+  expect(container.querySelector('textarea')!.disabled).toBe(true)
+  expect(container.querySelector('[role="status"]')!.textContent).toBe('Loading note…')
+  await act(async () => resolveRetry('Previously saved note'))
+  expect(container.querySelector('[role="alert"]')).toBeNull()
+  expect(container.querySelector('textarea')!.value).toBe('Previously saved note')
+  expect(container.querySelector('textarea')!.disabled).toBe(false)
+})

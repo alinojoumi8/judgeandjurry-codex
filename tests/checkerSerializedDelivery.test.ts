@@ -5,6 +5,19 @@ import { MiniMaxClient } from '../server/minimax'
 const units = [{ id: 'content:1', text: 'I retain doubt.' }]
 const row = { unitId: 'content:1', status: 'analysis', supportTypes: ['own_assessment'], explanation: 'A present assessment.', citations: [], recordCitations: [] }
 describe('serialized checker correction boundary', () => {
+  it.each(['complete', 'missing-field', 'unsupported'])('checks fenced legacy corrections without bypassing validation: %s', async mode => {
+    let calls = 0
+    const finding: any = structuredClone(row)
+    if (mode === 'missing-field') delete finding.recordCitations
+    if (mode === 'unsupported') finding.status = 'unsupported'
+    const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fixture', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 1000, maxRetries: 1 }, undefined, async () => {
+      calls++
+      return Response.json({ choices: [{ message: { content: calls === 1 ? '{}' : '```json\n' + JSON.stringify({ findings: [finding] }) + '\n```' } }] })
+    })
+    const review = await client.reviewGrounding({ stage: 'crown_opening', packet: '', previousTurns: '', evidence: [] }, { title: '', content: units[0].text, citations: [], jurors: [] })
+    expect(calls).toBe(2)
+    expect(review.status).toBe(mode === 'complete' ? 'passed' : 'failed')
+  })
   it('exposes only a scalar tool field, preserving the explicit inner review without reconstruction', () => {
     const schema = groundingSerializedTool(units).function.parameters
     expect(schema.required).toEqual(['reviewJson'])
