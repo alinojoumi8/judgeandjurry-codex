@@ -215,7 +215,19 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
       }
       return updated
     }
-    let factualText = comparison.factualText.replace(listThreshold, removeListedThreshold).replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(unresolvedElements, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(requirement, removeThreshold).replace(proposedQuestion, removeProposedThreshold).replace(proposedBurden, removeProposedThreshold).replace(countCaption, removeProposedThreshold)
+    // A quoted exercise element is setup, even when followed by source-based
+    // argument. Match the entire current label and exempt only its threshold;
+    // a neighboring transaction of the same amount still needs source support.
+    const quotedElement = /(?:^|(?<=[.!?;])\s+)(?:Finally,\s+)?for\s+(?:(?:the\s+)?(?:approved|supplied|exercise)\s+element\s+)?[“"]([^“”"]+)[”"]/gi
+    const elementWords = (value: string) => normalize(value).replace(/[,.]+$/, '').toLowerCase()
+    const quotedElementText = comparison.factualText.replace(quotedElement, (statement: string, quotation: string) => {
+      const matching = labels.filter(label => elementWords(label) === elementWords(quotation))
+      const claimed = matching.length === 1 ? matching[0].match(threshold)?.[1] : undefined
+      if (!claimed) return statement
+      used.push(matching[0])
+      return statement.replace(quotation, quotation.replace(claimed, ''))
+    })
+    let factualText = quotedElementText.replace(listThreshold, removeListedThreshold).replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(unresolvedElements, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(requirement, removeThreshold).replace(proposedQuestion, removeProposedThreshold).replace(proposedBurden, removeProposedThreshold).replace(countCaption, removeProposedThreshold)
   if (title) factualText = factualText.replace(caption, removeProposedThreshold)
     return { factualText, errors: [...comparison.errors, ...proposedErrors], labels: [...new Set(used)], event: used.length ? event : undefined }
 }
