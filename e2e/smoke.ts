@@ -6,8 +6,10 @@ import { mkdirSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { chromium, type Page } from 'playwright'
 
-const apiUrl = 'http://127.0.0.1:4174'
-const clientUrl = 'http://127.0.0.1:4173'
+const apiPort = process.env.E2E_SMOKE_API_PORT || '4174'
+const clientPort = process.env.E2E_SMOKE_CLIENT_PORT || '4173'
+const apiUrl = `http://127.0.0.1:${apiPort}`
+const clientUrl = `http://127.0.0.1:${clientPort}`
 const dbPath = resolve('data/e2e-smoke.sqlite')
 const screenshotPath = resolve('tmp/qa/smoke-screenshot.png')
 
@@ -18,7 +20,9 @@ async function main(): Promise<void> {
   // Direct Node children can be stopped using their owned process handles.
   // npm/cmd wrapper trees previously survived Windows sandbox cleanup.
   const api = spawnProcess(['--import', 'tsx', 'server/index.ts'], {
-    PORT: '4174',
+    PORT: apiPort,
+    HOST: '127.0.0.1',
+    ALLOWED_ORIGINS: clientUrl,
     JUDGE_JURY_DB_PATH: dbPath,
     MODEL_PROVIDER: 'openai-compatible',
     OPENAI_COMPATIBLE_BASE_URL: 'http://127.0.0.1:11434/v1',
@@ -26,7 +30,7 @@ async function main(): Promise<void> {
     OPENAI_COMPATIBLE_MODEL: 'qwen2.5:14b',
   })
   const client = spawnProcess(
-      ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '4173', '--strictPort'],
+      ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', clientPort, '--strictPort'],
     {
       VITE_API_TARGET: apiUrl,
     },

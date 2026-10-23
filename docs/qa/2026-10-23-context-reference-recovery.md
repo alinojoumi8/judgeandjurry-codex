@@ -30,3 +30,5 @@ New regressions cover duplicate source representations and full history, project
 ## Validation
 
 The complete project checks and a fresh bounded visible-browser exercise are recorded separately in the private run report. Deterministic checks do not establish the quality of a live synthetic decision, legal readiness or predictive accuracy. Historical outputs and failed-run records are preserved.
+
+The isolated smoke fixture accepts `E2E_SMOKE_API_PORT` and `E2E_SMOKE_CLIENT_PORT` when another project occupies its usual 4174/4173 ports. Defaults and assertions are unchanged. Set both variables in the check process environment so aggregate coverage and the standalone UI journey use the same isolated ports.
