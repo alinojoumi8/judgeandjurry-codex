@@ -53,13 +53,13 @@ export const admissionInputSchema = z.object({
   parentVersionId: z.string().optional(), reason: text,
   evidenceUses: z.array(z.object({
     evidenceId: text, status: z.enum(['admitted', 'excluded', 'limited', 'redacted', 'reserved']),
-    purposes: z.array(z.string().max(20_000)), redactions: z.array(z.string().min(1).max(20_000)),
+    purposes: z.array(z.string().trim().max(20_000)), redactions: z.array(z.string().min(1).max(20_000)),
     hiddenFrom: z.array(z.enum(['system', 'judge', 'adjudicator', 'crown', 'staff', 'plaintiff', 'defence', 'respondent', 'witness', 'juror', 'foreperson', 'user'])),
     note: z.string().max(20_000),
     scope: z.object({
       paragraphs: z.array(z.number().int().positive()).min(1).max(20_000).optional(),
       issueIds: z.array(text).min(1).max(200).optional(), partyIds: z.array(text).min(1).max(100).optional(),
-      prohibitedPurposes: z.array(text).max(100).optional(),
+      prohibitedPurposes: z.array(text).max(100).optional(), purpose: text.optional(),
     }).optional(),
   })).max(20_000),
 })

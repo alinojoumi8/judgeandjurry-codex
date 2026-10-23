@@ -4,6 +4,8 @@ import { deliberationHistoryScopeFailure } from './deliberationHistoryScope'
 import { incompleteCoordinatedOnlySummary, missingClassificationStatement, resolvedCurrentCrownProof, sourceMetadataProvided, unresolvedCrownProofDoubt } from './checkerCalibrationScope'
 import { deniedPriorAssessment, peerAssessmentAttribution, peerAssessmentClaim, resolveRecordReference, usablePeerContribution } from './groundingRecords'
 import { transcriptQuotationText } from './transcriptQuotation'
+import { sourcePageReferenceErrors } from './sourcePageReferences'
+import { instructionElementDriftError } from './instructionElementDrift'
 import { factualPremiseError } from './factualPremise'
 import { groundingSupportTypes, groundingSupportTypesContract } from './groundingFormat'
 import { checkerParagraphReferenceErrors } from './checkerParagraphReferences'
@@ -139,13 +141,14 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
   const currency = (value: string) => /^(?:USD|US\$)/i.test(value) ? 'USD' : /^(?:CAD|CDN|CA\$|Cdn\$)/i.test(value) ? 'CAD' : '$'
   const threshold = new RegExp(String.raw`\bvalue\b[^.!?]{0,90}\b(?:exceeds|over|greater than)\s*(${amount})`, 'i')
     const assessment = new RegExp(String.raw`\b(?:does not|do not|cannot|doesn't|can't)\s+(?:(?:independently|itself|alone)\s+)?(?:prove|establish|resolve|connect|identify)\b[^$;.!?]{0,180}\b(?:value|(?:matched )?(?:principal )?(?:loss|deprivation))\s+(?:exceeding|over|greater than)\s*(${amount})`, 'gi')
+  const unresolvedElements = new RegExp(String.raw`\b(?:knowledge|deprivation|loss|value)(?: and (?:knowledge|deprivation|loss|value))?\s+(?:over|exceeding|greater than)\s*(${amount})\s+(?:remain(?:s)?|is|are)\s+(?:unresolved|unproved|unproven)\b`, 'gi')
   const unresolved = new RegExp(String.raw`\bthe\s+(${amount})\s+value\s+(?:remains?\s+)?unresolved\b`, 'gi')
     const openQuestion = new RegExp(String.raw`\bwhether (?:any )?element amount (?:above|over|exceeding|greater than)\s*(${amount}) is tied to [\w ’'-]+ on this record is a question I (?:still )?cannot answer\b`, 'gi')
   const doubt = new RegExp(String.raw`\bI (?:still )?doubt (?:whether )?[^$;.!?]{0,180}\bvalue\s+(?:exceeding|over|greater than)\s*(${amount})`, 'gi')
   const burdenAssessment = new RegExp(String.raw`\bI (?:find|conclude) (?:that )?the Crown has not (?:proved|proven|established) (?:beyond a reasonable doubt )?(?:that )?[^$;.!?:]{0,180}\b(?:value|(?:matched )?(?:loss|deprivation))\s+(?:exceeding|over|greater than)\s*(${amount})`, 'gi')
   const unprovedValue = new RegExp(String.raw`\bvalue\s+(?:exceeding|over|greater than)\s*(${amount})\s+(?:is|are) not (?:proved|proven|established) beyond a reasonable doubt\b`, 'gi')
   const proposedValue = new RegExp(String.raw`\bThe proposed value element of (?:more than|over|greater than)\s*(${amount}) is therefore a Crown question the recorded figure could support, but the Crown must prove it beyond a reasonable doubt\b`, 'gi')
-  const requirement = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+(?:[([]E-\d+(?:\s*[,;]\s*E-\d+)*[)\]]\s*)*)The Crown must (?:(?:still|also) )?(?:prove|establish|tie)\b[^$;.!?"“”]{0,180}\b(?:value|amount|loss|deprivation)\s+(?:exceeding|over|greater than)\s*(${amount})`, 'gi')
+  const requirement = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+(?:[([]E-\d+(?:\s*[,;]\s*E-\d+)*[)\]]\s*)*)(?:For (?:this|the) (?:proposed|supplied|fictional|exercise) count,?\s+)?The Crown must (?:(?:still|also) )?(?:prove|establish|tie)\b[^$;.!?"“”]{0,350}\b(?:value|amount|loss|deprivation)\s+(?:exceeding|over|greater than)\s*(${amount})`, 'gi')
   const caption = new RegExp(String.raw`^(?:Crown|Defence) (?:Opening|Closing|Rebuttal)\s*[-—:]\s*Proposed Fraud (?:Exceeding|Over|Greater Than)\s*(${amount})(?: Count)?(?:(?: Against |\s*[-—:]\s*)[\p{L}][\p{L} ’'-]{0,80})?[.!?]?$`, 'iu')
   const proposedBurden = new RegExp(String.raw`(?:^|(?<=[;.!?])\s+)(?:Members of (?:the )?Jury(?: Panel)?,\s+)?the Crown must (?:prove|establish) (?:every|each) element of (?:the )?proposed fraud (?:exceeding|over|greater than)\s*(${amount})\s+count beyond a reasonable doubt(?=$|[;.!?])`, 'gi')
     const proposedQuestion = new RegExp(String.raw`(?:^|(?<=[;.!?])\s+)(?:whether|what)\b[^$;.!?]{0,300}\bon (?:the )?proposed fraud (?:exceeding|over|greater than)\s*(${amount})\s+count,?\s+(?:remains?|is)\s+(?:an?\s+)?unresolved (?:question|issue) (?:on|within) (?:this|the supplied) record\b`, 'gi')
@@ -162,7 +165,49 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
   }
   const comparison = sourceThresholdComparisons(text, citations, labels, dollarAmounts)
   used.push(...comparison.labels)
+  // Classify each threshold occurrence by its local proof-list scope. The
+  // approved number never exempts a neighboring payment of the same amount.
+  const listThreshold = new RegExp(String.raw`\b(?:the\s+|a\s+)?(?:value|subject matter)(?:\s+of\s+[^$;.!?]{1,90}?)?\s+(?:exceeds|exceeded|exceeding|over|greater than)\s*(${amount})`, 'gi')
+  const proofDirective = /\bCrown\b[^;.!?]{0,80}\bmust\s+(?:(?:still|also)\s+)?(?:prove|establish)\b/i
+  const removeListedThreshold = (statement: string, claimed: string, offset: number, input: string) => {
+    const prefix = input.slice(0, offset).split(/(?<=[.!?])\s+/).at(-1) ?? ''
+    // Ignore quoted requirements and source reports when locating the actual
+    // author's directive. Every source/payment amount keeps its own support.
+    const instructionPrefix = prefix.replace(/["“][^"”]*["”]/g, ' ')
+    if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(instructionPrefix)) return statement
+    if (!proofDirective.test(instructionPrefix)) return statement
+    const localPrefix = instructionPrefix.split(';').at(-1) ?? ''
+    if (/\bE-\d+\b|\b(?:records?|reports?|states?|says?|received|transferred|paid|deposited|withdrew)\b/i.test(localPrefix)) return statement
+    if (!proofDirective.test(localPrefix) && !/^\s*(?:(?:and|or|that|together with|including|with)\s+)*$/i.test(localPrefix)) return statement
+    return removeThreshold(statement, claimed, offset, input)
+  }
+  const countCaption = new RegExp(String.raw`\bFor (?:this|the) proposed [\p{L} ’'-]{2,80} (?:exceeding|over|greater than)\s*(${amount})\s+count(?=\s*,)`, 'giu')
     const proposedErrors: string[] = []
+    const allegationValue = new RegExp(String.raw`^\s*The value allegation (?:exceeds|is over|is greater than)\s*(${amount})\s*[:;]`, 'i')
+    const valueClaim = text.match(allegationValue)
+    if (valueClaim) {
+      // A faithful allegation about quantified fraud is different from an
+      // unrelated balance or stock payment. Its quoted subject and currency
+      // must themselves support this comparison; no occurrence truth follows.
+      const attributed = /\b(?:report|document|source|complaint|affidavit|interview)\b[^;.!?]{0,160}\b(?:quotes?|attributes?|alleges?|records?|states?)\b/i.test(text)
+      const attributedAllegedValue = attributed && citations.some(citation => {
+        const quantifiedAllegation = new RegExp(String.raw`(?:\bdefrauded\b[^;.!?]{0,100}\bof\s+(${amount})|\b(?:alleged|alleges|allegation|claim(?:ed)?)\b[^;.!?]{0,50}\b(?:fraud|loss)\b(?:\s+(?:of|value|amount|total|was|is|at|valued|in)){0,5}\s*(${amount}))`, 'gi')
+        const allegations = [...citation.quote.matchAll(quantifiedAllegation)]
+        const attributedAmounts = allegations.filter(match => {
+          // Preserve the named source subject even in an unquoted paraphrase.
+          // Semantic fidelity is still independently assessed by the checker.
+          const actor = /defrauded/i.test(match[0]) ? citation.quote.slice(0, match.index).match(/([\p{L}][\p{L}’'-]*)\s*$/u)?.[1] : undefined
+          return !actor || new RegExp(`\\b${actor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)
+        }).map(match => match[1] ?? match[2])
+        return attributedAmounts.length > 0 &&
+          !sourceThresholdComparisons(`The quoted amount exceeds ${valueClaim[1]}.`, [{ ...citation, quote: attributedAmounts.join('; ') }], [], dollarAmounts).errors.length
+      })
+      if (!attributedAllegedValue) proposedErrors.push('A positive allegation-value conclusion needs a quantified allegation about that subject matter, accurately attributed and compared in matching currency. An unrelated account balance or separate stock payment does not supply that allegation value. State the actual source amounts and a qualified issue argument; an allegation is not established fraud or guilt.')
+      // Validate only this approved benchmark as an instruction amount. Every
+      // adjacent actual payment retains its own source-support check.
+      comparison.factualText = comparison.factualText.replace(allegationValue, removeThreshold)
+    }
+
     const removeProposedThreshold = (statement: string, claimed: string, offset: number, input: string) => {
       const updated = removeThreshold(statement, claimed, offset, input)
       if (updated === statement && ![...input.matchAll(/["“]([^"”]+)["”]/g)].some(match => offset >= match.index && offset < match.index + match[0].length)) {
@@ -170,7 +215,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
       }
       return updated
     }
-    let factualText = comparison.factualText.replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(requirement, removeThreshold).replace(proposedQuestion, removeProposedThreshold).replace(proposedBurden, removeProposedThreshold)
+    let factualText = comparison.factualText.replace(listThreshold, removeListedThreshold).replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(unresolvedElements, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(requirement, removeThreshold).replace(proposedQuestion, removeProposedThreshold).replace(proposedBurden, removeProposedThreshold).replace(countCaption, removeProposedThreshold)
   if (title) factualText = factualText.replace(caption, removeProposedThreshold)
     return { factualText, errors: [...comparison.errors, ...proposedErrors], labels: [...new Set(used)], event: used.length ? event : undefined }
 }
@@ -245,8 +290,9 @@ function sourceQuotations(text: string) {
       const documentSpeaker = [...prefix.matchAll(/\b(?:interview|report|account|document|transcript|email|letter|E-\d+)\b/gi)]
           .filter(candidate => candidate[0].toLowerCase() !== 'report' || introduction.test(prefix.slice(candidate.index + candidate[0].length)))
         .filter(candidate => introduction.test(prefix.slice(candidate.index))).at(-1)?.index ?? -1
-    const quotationIntro = introduction.test(prefix)
-    const documentAttributed = documentSpeaker > peerSpeaker && introduction.test(prefix.slice(documentSpeaker)) ||
+    const recordedStatement = peerSpeaker < 0 && /\brecorded statement that\s*$/i.test(prefix)
+    const quotationIntro = introduction.test(prefix) || recordedStatement
+    const documentAttributed = recordedStatement || documentSpeaker > peerSpeaker && introduction.test(prefix.slice(documentSpeaker)) ||
         /\b(?:the )?recorded\s*$/i.test(prefix) && /^\s+(?:statement|words|answer)\b/i.test(suffix) ||
       /\brecorded statement,?\s*$/i.test(prefix) && /^,?\s+in\b[^.!?;]{0,90}\b(?:interview|report|account|document|transcript)\b/i.test(suffix)
     if (!quotationIntro && !documentAttributed) return []
@@ -2008,7 +2054,9 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         const quotedAmounts = (recordAttribution ? recordCitations : citations).flatMap((citation) => dollarAmounts(citation.quote))
       if (amounts.some((amount) => !quotedAmounts.includes(amount))) invalid(`${unit.id}: a stated dollar amount is not present in its supporting quotations; verify the amount and quote its source or mark the claim unsupported.`)
     }
-      if (status === 'analysis' && !recordAttribution && /\$[\d,]+/.test(unit.text) && /\b(received|transferred|accepted|paid|deposited|withdrew)\b/i.test(unit.text)) errors.push(`${unit.id}: a payment assertion requires factual source support, not an analysis label.`)
+      // Mixed evaluation can retain its analysis label only when the checker
+      // also selected factual source support and actual verified passages.
+      if (status === 'analysis' && !recordAttribution && (!row?.supportTypes?.includes('source') || !citations.length) && /\$[\d,]+/.test(unit.text) && /\b(received|transferred|accepted|paid|deposited|withdrew)\b/i.test(unit.text)) errors.push(`${unit.id}: a payment assertion requires factual source support, not an analysis label.`)
       const passages = recordAttribution && !sourceClauses.length ? recordCitations.map(c => c.quote) : citations.length ? citations.map(c => c.quote) : evidence.flatMap(item => sourceParagraphs(item).map(p => p.text))
       const loadedQuestion = /^(?:Is|Are|Does|Did|Was|Were)\b/i.test(unit.text.trim()) && unit.text.trim().match(/\bbecause\s+((?:Fictional )?[\w-]+ (?:destroyed|hid|forged|altered|removed|stole|returned|re-entered|arrived|came back)\b[^?]*)\?$/i)
       if (['supported','analysis'].includes(status) && !recordAttribution && loadedQuestion &&
@@ -2894,6 +2942,15 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
       if (premiseError) { status = 'unsupported'; explanation = premiseError }
       const absenceError = ['analysis', 'supported'].includes(status) ? sourceAbsenceScopeError(sourceClauses.join('; '), citations, evidence, approvedContext) : undefined
       if (absenceError) { status = 'unsupported'; explanation = absenceError }
+      if (['analysis', 'supported'].includes(status)) {
+        const referenceClaims = recordAttribution ? sourceClauses.join('; ') : unit.text
+        const pageErrors = sourcePageReferenceErrors(referenceClaims, evidence)
+        const instructionError = instructionElementDriftError(referenceClaims, proceduralSetup?.approvedIssueInstructions, proceduralSetup?.events ?? [])
+        if (pageErrors.length || instructionError) {
+          status = 'unsupported'
+          explanation = [...pageErrors, ...(instructionError ? [instructionError] : [])].join(' ')
+        }
+      }
       const explanationReferences = checkerParagraphReferenceErrors(explanation, citations)
       if (explanationReferences.length) invalid(`${unit.id}: checker explanation paragraph reference is not a selected, verified locator: ${explanationReferences.join(', ')}. Select the actual supporting paragraph or omit the unchecked prose pointer; preserve the factual judgment and disputed speaker attribution.`)
       if (status === 'unsupported' || status === 'contradicted') errors.push(`${unit.id}: ${status} — ${explanation || 'No valid source review was supplied.'}`)
@@ -2921,6 +2978,7 @@ export function groundingRepairInstructions(review: GroundingReview): string {
   return [
     'The independent source check rejected the previous draft. Repair only rejected text with accurate, qualified claims, preserving accepted text verbatim and following the repair output contract. Do not repeat the rejected statement. Do not alter the evidence or choose a verdict to satisfy the checker.',
     'Repair each rejected clause against its own named source. Shared topic, account label or a nearby citation cannot transfer a proposition between documents. If no permitted passage supports it, remove that clause or state the specific unresolved question without presupposing proof, admission or absence. For a quotation error, copy a contiguous passage, mark every omission with an ellipsis, or use an explicitly unquoted faithful paraphrase. Do not silently delete fillers or bridge another speaker. Preserve the actual source speaker and use only supplied names or pronouns.',
+    'Page locators refer only to the supplied PDF file. Printed folios and original-report page numbers are not supplied-file page numbers. If a page locator fails, use the actual supplied paragraph locator supporting that clause; never invent a mapping or borrow a different page. A valid page bound alone does not establish support.',
     'Put the exact source citation immediately after each quoted clause. For a quotation source mismatch, correct its attribution against the actual selected passage; do not rewrite faithful source words merely because a shared trailing reference list selected the wrong document.',
     'Do not insert a slash to represent a transcript line break. Remove printed line labels only as layout, preserve spoken words and punctuation, and never join across a question or speaker change without an explicit ellipsis. Do not introduce a new quotation merely to repair an unrelated amount or attribution; correct the rejected premise with the smallest supported edit, or use an explicitly unquoted faithful paraphrase.',
     'For a correspondence attribution mismatch, distinguish the report author’s summary from actual reproduced correspondence. Attribute a report summary to the report, preserving the actual quote and its limits; do not claim the correspondent wrote those words unless an explicitly attributed quotation or reproduced body supports it.',

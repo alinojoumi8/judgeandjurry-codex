@@ -27,6 +27,8 @@ Matter archives are portable recovery units for individual matters. Version 2 em
 
 ## Restore
 
+Execution ending does not establish a complete jury decision. The workspace labels saved incomplete decisions separately, and reports explicit budget exhaustion when retained model audits record it. Budget-unavailable slots are distinguished from checked rejections and other unchecked outputs; unavailable ballots do not count as votes. This presentation is derived from the preserved record and does not rewrite earlier execution statuses, decisions or source checks. Call/time estimates exclude additional repairs and provider retries.
+
 1. Stop the application.
 2. Preserve the current `data/` directory as a rollback copy.
 3. Restore the SQLite backup and the matching evidence/blob directories.

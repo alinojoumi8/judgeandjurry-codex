@@ -1,6 +1,7 @@
 import express, { type NextFunction, type Request, type Response } from 'express'
 import { resolve } from 'node:path'
 
+import { renderPreservedPdfPage } from '../pdfPreview'
 import type { CaseStore } from '../db'
 import type { AppLogger } from '../logger'
 import {
@@ -49,6 +50,21 @@ export function createHardeningRouter(
       response.status(201).json({ path, pages })
     }),
   )
+
+  router.get('/evidence/:evidenceId/pages/:page', asyncRoute(async (request, response) => {
+    const source = store.getEvidenceSource(parameter(request, 'evidenceId'))
+    const page = Number(parameter(request, 'page'))
+    if (!Number.isSafeInteger(page) || page < 1 || source.mimeType !== 'application/pdf') {
+      response.status(400).json({ error: 'Select a positive whole page number from a preserved PDF.' })
+      return
+    }
+    response.setHeader('Cache-Control', 'no-store')
+    try {
+      response.json(await renderPreservedPdfPage(source, page))
+    } catch (error) {
+      response.status(422).json({ error: error instanceof Error ? error.message : 'Unable to render preserved PDF. Download the original for review.' })
+    }
+  }))
 
   router.get('/evidence/:evidenceId/file', (request, response, next) => {
     try {

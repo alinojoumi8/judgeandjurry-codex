@@ -7,6 +7,8 @@ import { ParticipantMemoryPanel } from './ParticipantMemoryPanel'
 import { LegalReadinessPanel } from './LegalReadinessPanel'
 import { CourtroomPanel } from './CourtroomPanel'
 import { DecisionTracePanel, ScenarioComparisonPanel } from './EvidenceDecisionWorkspace'
+import { PartialTrialResults } from './PartialTrialResults'
+import { canResumeTrial, trialRunStatus } from '../trialRunStatus'
 
 import {
   analyzeDisclosure,
@@ -251,7 +253,7 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
     <>
       <section className={`provider-banner provider-banner--${displayedProvider?.mode ?? 'local'}`} aria-label="Provider and privacy status">
         <div className="provider-banner__status"><Scale size={18} /><div><strong>{displayedProvider?.mode === 'external' ? 'External provider mode' : 'Local provider mode'}</strong><span>{displayedProvider ? `${displayedProvider.model} via ${displayedProvider.name}` : 'Loading provider details'}</span></div></div>
-        <div className="provider-banner__meta"><span>{panel}</span><span>Full proceeding</span><span>{trial?.run.status ?? 'Setup'}</span>{displayedProvider?.mode === 'external' && <span className={consent ? 'safe' : 'risk'}>{consent ? 'Disclosure confirmed' : 'Needs confirmation'}</span>}</div>
+        <div className="provider-banner__meta"><span>{panel}</span><span>Full proceeding</span><span>{trial ? trialRunStatus(trial).label : 'Setup'}</span>{displayedProvider?.mode === 'external' && <span className={consent ? 'safe' : 'risk'}>{consent ? 'Disclosure confirmed' : 'Needs confirmation'}</span>}</div>
         <button type="button" onClick={() => setStep(7)}>Run settings</button>
       </section>
     <section className="full-workflow">
@@ -273,7 +275,7 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
           {busy && <Loader2 className="spin" size={20} />}
         </header>
         {error && <div className="error-banner">{error}</div>}
-          {runs.length > 0 && <label className="saved-proceeding">Saved proceeding<select aria-label="Saved proceeding" value={trial?.run.id ?? ''} disabled={busy} onChange={(event) => void run(() => openSavedRun(event.target.value))}><option value="" disabled>Select a proceeding</option>{runs.map((item) => <option key={item.id} value={item.id}>{new Date(item.createdAt).toLocaleString()} · {item.status} · {item.id.slice(0, 8)}</option>)}</select></label>}
+          {runs.length > 0 && <label className="saved-proceeding">Saved proceeding<select aria-label="Saved proceeding" value={trial?.run.id ?? ''} disabled={busy} onChange={(event) => void run(() => openSavedRun(event.target.value))}><option value="" disabled>Select a proceeding</option>{runs.map((item) => <option key={item.id} value={item.id}>{new Date(item.createdAt).toLocaleString()} · {trial?.run.id === item.id ? trialRunStatus(trial).label : item.status} · {item.id.slice(0, 8)}</option>)}</select></label>}
 
         {step === 0 && (
           <div className="workflow-stack">
@@ -378,7 +380,8 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
         {step === 7 && (
           <div className="workflow-stack">
             {caseModel && adapter === 'ontario_criminal_jury_v1' && <><LegalReadinessPanel model={caseModel} onSaved={setCaseModel} /><label className="workflow-check"><input type="checkbox" checked={courtroomProtocol} onChange={e => setCourtroomProtocol(e.target.checked)} /> Use the reviewed courtroom protocol (requires packet readiness; review remains pending).</label></>}
-            <SummaryGrid items={[["Files", String(estimate.files)], ["Expected model calls", String(estimate.calls)], ["Expected runtime", `${estimate.minutes} minutes`], ["External disclosure", externalConfirmed ? 'Confirmed' : 'Not confirmed']]} />
+            <SummaryGrid items={[["Files", String(estimate.files)], ["Estimated calls before retries", String(estimate.calls)], ["Estimated runtime", `${estimate.minutes} minutes`], ["External disclosure", externalConfirmed ? 'Confirmed' : 'Not confirmed']]} />
+            <small>Repairs and provider retries add calls and time. A declared run limit can stop the proceeding before a complete decision.</small>
               <label className="workflow-check"><input type="checkbox" checked={externalConfirmed} onChange={(event) => setExternalConfirmed(event.target.checked)} /> I confirm the permitted sources may be disclosed to the configured external model for a new run.</label>
               <label className="workflow-check"><input type="checkbox" checked={useWitnesses} onChange={(event) => setUseWitnesses(event.target.checked)} /> Include source-bound witness examinations from the approved model.</label>
               <RecordCoverage scope={caseModel?.recordScope} sources={sources} ledger={settingsLedger} />
@@ -387,11 +390,11 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
             {adapter !== 'ontario_capital_markets_v1' && <label className="workflow-check"><input type="checkbox" checked={reviewInstructions} onChange={(event) => setReviewInstructions(event.target.checked)} /> Pause for review after judicial instructions.</label>}
             <p className="disclaimer">Synthetic panels are not statistically representative and do not predict real verdicts. This workflow is for preparation and stress testing.</p>
             <button type="button" disabled={busy || !caseModel || !settingsLedger} onClick={() => void run(async () => { await checkSourceSize() })}>Check source size</button>
-            {sourceSize && <div className="notice-card" role="status"><strong>Selected source context: {sourceSize.characters.toLocaleString()} / {sourceSize.characterBudget.toLocaleString()} characters</strong><p>{sourceSize.message}</p><small>Largest source contributions: {sourceSize.sources.slice(0, 5).map(source => `${source.exhibitId}: ${source.characters.toLocaleString()}`).join(' · ')}</small>{!sourceSize.fits && <button type="button" onClick={() => setStep(6)}>Choose documents and paragraphs</button>}</div>}
+            {sourceSize && <div className="notice-card" role="status"><strong>{sourceSize.historyReserveCharacters === undefined ? 'Selected source context' : 'Projected context'}: {sourceSize.characters.toLocaleString()} / {sourceSize.characterBudget.toLocaleString()} characters</strong><p>{sourceSize.message}</p>{sourceSize.sourceCharacters !== undefined && sourceSize.historyReserveCharacters !== undefined && sourceSize.headroomCharacters !== undefined ? <small>Sources: {sourceSize.sourceCharacters.toLocaleString()} · planned history reserve: {sourceSize.historyReserveCharacters.toLocaleString()} · estimated headroom: {sourceSize.headroomCharacters.toLocaleString()} characters. Actual actor context is checked before each request.</small> : <small>History projection is unavailable from this server response. Actual actor context is checked before each request.</small>}<small>Largest source contributions: {sourceSize.sources.slice(0, 5).map(source => `${source.exhibitId}: ${source.characters.toLocaleString()}`).join(' · ')}</small>{!sourceSize.fits && <button type="button" onClick={() => setStep(6)}>Choose documents and paragraphs</button>}</div>}
               <button className="primary-action" type="button" disabled={busy || !caseModel || caseModel.status !== 'approved' || !settingsLedger || trial?.run.status === 'running'} onClick={() => void run(createAndStartTrial)}><Play size={16} /> Create and run full proceeding</button>
             {trial && <RunStatus trial={trial} />}
             {trial?.run.config.courtroomProtocol && caseModel && <CourtroomPanel trial={trial} model={caseModel} sources={sources} motions={motions} onChanged={setTrial} />}
-            {trial && ['failed', 'ready'].includes(trial.run.status) && <button type="button" disabled={busy} onClick={() => void run(async () => setTrial(await startAutonomousTrial(trial.run.id)))}><Play size={16} /> Resume saved proceeding</button>}
+            {trial && canResumeTrial(trial) && <button type="button" disabled={busy} onClick={() => void run(async () => setTrial(await startAutonomousTrial(trial.run.id)))}><Play size={16} /> Resume saved proceeding</button>}
             {trial?.run.status === 'checkpoint' && <button type="button" onClick={() => void run(async () => {
               await approveTrialCheckpoint(trial.run.id, 'Approved in guided workspace.')
               setTrial(await startAutonomousTrial(trial.run.id))
@@ -399,8 +402,11 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
           </div>
         )}
 
+        {trial && [8, 9].includes(step) && <RunStatus trial={trial} />}
+        {trial && [7, 8, 9].includes(step) && !['ready', 'running', 'checkpoint'].includes(trial.run.status) && <PartialTrialResults trial={trial} issueLabels={Object.fromEntries(caseModel?.decisionIssues.map(issue => [issue.id, issue.label]) ?? [])} />}
+
         {step === 8 && (
-              <div className="workflow-stack">{trial?.decisionSheet ? <>{trial.decisionSheet.decisions.map((decision) => <article className="decision-card" key={decision.issueId}><span>{caseModel?.decisionIssues.find((issue) => issue.id === decision.issueId)?.label ?? decision.issueId}</span><strong>{decision.outcome.replaceAll('_', ' ')}</strong><p>{decision.rule}{decision.voteCounts ? ` · ${Object.entries(decision.voteCounts).map(([choice, count]) => `${choice}: ${count}`).join(', ')}` : ''}</p>{decision.warnings.map((warning) => <small key={warning}>{warning}</small>)}<DecisionTracePanel matterId={matterId} trace={decision.trace} /></article>)}<RecordCoverage scope={trial?.recordCoverage?.scope ?? caseModel?.recordScope} sources={trial?.recordCoverage?.sources ?? sources} ledger={activeLedger} warnings={trial?.recordCoverage?.warnings} /></> : <p>No decision sheet yet.</p>}</div>
+              <div className="workflow-stack">{trial && trialRunStatus(trial).message && <p role="status">{trialRunStatus(trial).message}</p>}{trial?.decisionSheet ? <>{trial.decisionSheet.decisions.map((decision) => <article className="decision-card" key={decision.issueId}><span>{caseModel?.decisionIssues.find((issue) => issue.id === decision.issueId)?.label ?? decision.issueId}</span><strong>{decision.outcome.replaceAll('_', ' ')}</strong><p>Required decision rule: {decision.rule}{decision.voteCounts ? ` · ${Object.entries(decision.voteCounts).map(([choice, count]) => `${choice}: ${count}`).join(', ')}` : ''}</p><p>Valid final ballots: {trial.ballots.filter(ballot => ballot.round === 'final' && ballot.valid && ballot.issueId === decision.issueId).length}</p>{decision.warnings.map((warning) => <small key={warning}>{warning}</small>)}<DecisionTracePanel matterId={matterId} trace={decision.trace} /></article>)}<RecordCoverage scope={trial?.recordCoverage?.scope ?? caseModel?.recordScope} sources={trial?.recordCoverage?.sources ?? sources} ledger={activeLedger} warnings={trial?.recordCoverage?.warnings} /></> : <p>No decision sheet yet.</p>}</div>
         )}
 
             {(step === 8 || step === 9) && <GroundingAudit trial={trial} matterId={matterId} />}
@@ -440,7 +446,8 @@ function CaseModelCard({ model }: { model: CaseModel }) {
 }
 
 function RunStatus({ trial }: { trial: TrialRunView }) {
-  return <article className="run-status"><div><strong>{trial.run.phase.replaceAll('_', ' ')}</strong><span className="status-pill">{trial.run.status}</span></div><progress max={12} value={Math.min(12, new Set(trial.events.map((event) => event.phase)).size)} /><small>{trial.events.length} ordered events recorded</small></article>
+  const status = trialRunStatus(trial)
+  return <article className="run-status"><div><strong>{trial.run.phase.replaceAll('_', ' ')}</strong><span className="status-pill">{status.label}</span></div>{status.message && <p role="status">{status.message}</p>}<progress aria-label="Recorded proceeding phases" max={12} value={Math.min(12, new Set(trial.events.map((event) => event.phase)).size)} /><small>{trial.events.length} ordered events recorded</small></article>
 }
 
 function SummaryGrid({ items }: { items: Array<[string, string]> }) {

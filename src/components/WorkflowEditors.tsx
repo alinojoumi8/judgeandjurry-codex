@@ -129,6 +129,8 @@ export function AdmissionEditor({ sources, ledger, busy, onSave }: { sources: Wo
         }} /></label>{idErrors[key] && <p role="alert" id={errorId}>{idErrors[key]}</p>}</div>
       })}
       <label>Prohibited purposes (one per line)<textarea value={use.scope?.prohibitedPurposes?.join('\n') ?? ''} onChange={event => update(index, { scope: { ...use.scope, prohibitedPurposes: event.target.value.split('\n').filter(Boolean) } })} /></label>
+      {(use.purposes.length > 0 || Boolean(use.scope?.prohibitedPurposes?.length)) && <label>Purpose for this proceeding<select value={use.scope?.purpose ?? ''} onChange={event => update(index, { scope: { ...use.scope, purpose: event.target.value || undefined } })}><option value="">Select a permitted purpose</option>{use.purposes.map(purpose => <option key={purpose} value={purpose}>{purpose}</option>)}</select></label>}
+      {Boolean(use.scope?.prohibitedPurposes?.length) && !use.scope?.purpose && <p role="alert">Select the permitted purpose for this proceeding. The source remains unavailable until its purpose is explicit.</p>}
       <label>Use note<textarea value={use.note} onChange={(event) => update(index, { note: event.target.value })} /></label>
       <div>Hide source from{['juror', 'foreperson', 'crown', 'defence', 'witness', 'judge', 'adjudicator', 'staff', 'respondent', 'plaintiff'].map((role) => <label key={role} className="workflow-check"><input type="checkbox" checked={use.hiddenFrom.includes(role)} onChange={(event) => update(index, { hiddenFrom: event.target.checked ? [...use.hiddenFrom, role] : use.hiddenFrom.filter((item) => item !== role) })} />{role}</label>)}</div>
     </fieldset>)}
