@@ -14,6 +14,8 @@ This change addresses seven findings from a private browser exercise. No case do
 
 Mixed source-backed payment analysis requires an explicit source support domain and verified citations; a blanket analysis label cannot bypass amount or semantic checks. Author and checker prompts separate attributed source figures from conditional value arguments, keep unknown currency visible, and retain the approved closed element list through repairs.
 
+Editing permitted or prohibited purposes clears an active purpose that is no longer selectable. Other source restrictions are preserved, and conflicting permitted/prohibited lists still require correction before the source can be used.
+
 ## Regression and replay coverage
 
 New regressions cover duplicate source representations and full history, projected headroom and runtime overflow, explicit allowed/denied source purposes, terminal audit access, initial-versus-final counts, legacy preflight responses, real two-page PDF rasterization and hash/boundary failures, invalid supplied-page references, added elements and mixed threshold amounts. Captured failures are replayed privately, with fictional controls committed as regression source. A rejected contradictory ballot remains rejected even after correcting a separate false diagnostic.
