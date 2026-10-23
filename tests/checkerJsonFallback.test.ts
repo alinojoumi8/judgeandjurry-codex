@@ -40,8 +40,8 @@ describe('bounded checker JSON channel correction', () => {
     return client.reviewGrounding(request, draft).then(review => {
       expect(bodies).toHaveLength(2)
       expect(bodies[0].tools).toHaveLength(1)
-      expect(bodies[1].tools[0].function.parameters.properties.unitId.enum).toEqual(['content:1'])
-      expect(bodies[1].tools[0].function.parameters.required).toEqual(['unitId', 'recordCitations', 'citations', 'supportTypes', 'status', 'explanation'])
+      expect(bodies[1].tools[0].function.parameters.properties.reviewJson.type).toBe('string')
+      expect(bodies[1].tools[0].function.parameters.required).toEqual(['reviewJson'])
       expect(bodies[1].tool_choice).toBe('required')
       expect(bodies[1].response_format).toBeUndefined()
       expect(bodies[1].messages[1].content).toContain('one complete finding object')

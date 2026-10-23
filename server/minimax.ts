@@ -1,6 +1,6 @@
 import { validateJuryBallotContract } from './juryBallotContract'
 import { applyGroundingPatch, groundingPatchInstructions, groundingPatchTargets, groundingRepairDrift } from './groundingRepair'
-import { checkerCorrectionFeedback, checkerSchemaFailure, groundingCorrectionContent, groundingCorrectionTool, groundingRepairTool, groundingRepairToolName, groundingSingleContent, groundingSingleTool, groundingTool, groundingToolContent, groundingToolName } from './groundingFormat'
+import { checkerCorrectionFeedback, checkerSchemaFailure, groundingCorrectionContent, groundingSerializedTool, groundingSerializedContent, groundingRepairTool, groundingRepairToolName, groundingSingleContent, groundingTool, groundingToolContent, groundingToolName } from './groundingFormat'
 import { negativeComparisonPolarityErrors } from './checkerPolarity'
 import { profileBandValidationUnits } from './checkerProfileConsistency'
 import { unsupportedCorrectionPremiseUnits } from './checkerSourcePremises'
@@ -316,15 +316,16 @@ export class MiniMaxClient implements ModelClient {
       if (strictCorrection) content = groundingCorrectionContent(cleanModelJsonText(content))
       review = parseGroundingReview(cleanModelJsonText(content), units, request.evidence, request.groundingContext ?? '', request.courtroomActor && request.courtroomAssessments ? { actorId: request.courtroomActor.id, assessments: request.courtroomAssessments, profile: request.jurorProfiles?.find(p => p.juror === request.courtroomActor?.id) } : undefined, request.courtroomEvents || request.approvedIssueInstructions?.length ? { packet: request.courtroomProtocol ? request.packet : '', events: request.courtroomEvents ?? [], actorRoles: request.courtroomActor?.roles ?? [], partyRoles: request.approvedPartyRoles ?? [], actor: request.courtroomActor, stage: request.stage, ballotRound: request.ballotRound, currentJuror: currentDraft, approvedIssueInstructions: request.approvedIssueInstructions, courtroomState: request.courtroomState } : undefined)
       } catch (error) {
-        const formatFailure = error instanceof ModelProviderError && /^Model output (?:was not valid JSON|did not contain a JSON object)/.test(error.message)
+        const formatFailure = error instanceof ModelProviderError && /^Model output (?:was not valid JSON|violated checker schema|did not contain a JSON object)/.test(error.message)
           if (!receivedResponse && !formatFailure) {
             const failure = normalizeProviderError(error) as ModelProviderError
             failure.grounding = { ...(lastReview ?? { method: 'source-quotes-and-model-review', findings: [], errors: [], repairs: 0 }), status: 'failed',
               verificationRetries: attempt, verificationFailures: [...verificationFailures], errors: [...(lastReview?.errors ?? []), failure.message] }
             throw failure
           }
-        const detail = error instanceof ModelProviderError ? ` ${error.message}` : ''
-          review = { status: 'failed', method: 'source-quotes-and-model-review', findings: [], errors: [`The checker returned invalid JSON.${detail} Return one concise, complete object with a finding for every exact supplied unit ID. Copy exact field names and references; do not repeat identifiers.`], validationErrors: ['Invalid JSON'], repairs: 0 }
+        const detail = error instanceof Error ? ` ${error.message}` : ''
+        const schemaFailure = error instanceof ModelProviderError && error.message.startsWith('Model output violated checker schema') || receivedResponse && !(error instanceof SyntaxError)
+          review = { status: 'failed', method: 'source-quotes-and-model-review', findings: [], errors: [`The checker returned ${schemaFailure ? 'an invalid findings schema' : 'invalid JSON'}.${detail} Return one concise, complete object with a finding for every exact supplied unit ID. Copy exact field names and references; do not repeat identifiers.`], validationErrors: [schemaFailure ? 'Invalid findings schema' : 'Invalid JSON'], repairs: 0 }
       }
       review.verificationRetries = attempt
       review.verificationFailures = verificationFailures
@@ -574,13 +575,14 @@ export class MiniMaxClient implements ModelClient {
       try {
         content = groundingToolContent(message, request.verificationUnits ? groundingToolName : groundingRepairToolName) ?? content
         if (arrayVerification && content) {
+          content = groundingSerializedContent(cleanModelJsonText(content))
           // Historical text-array responses retain their existing parser contract.
           // Tool arguments still require every explicit ID and finding field.
           const legacyArray = message.tool_calls === undefined && Array.isArray(JSON.parse(cleanModelJsonText(content))?.findings)
           if (!legacyArray) content = request.verificationUnits?.length === 1 ? groundingSingleContent(content) : groundingCorrectionContent(content)
         }
       }
-        catch (error) { throw new ModelProviderError(`Model output was not valid JSON for ${request.verificationUnits ? 'source verification' : 'source repair'}: ${(error as Error).message}`, { retryable: true }) }
+        catch (error) { throw new ModelProviderError(`Model output ${request.verificationUnits && !(error instanceof SyntaxError) ? 'violated checker schema' : 'was not valid JSON'} for ${request.verificationUnits ? 'source verification' : 'source repair'}: ${(error as Error).message}`, { retryable: true }) }
       }
 
       if (!content) {
@@ -855,10 +857,10 @@ export class MiniMaxClient implements ModelClient {
       const packet = peers.length ? `${request.packet}\nNamed-peer reference candidates by unit (locators only, not support judgments): ${JSON.stringify(peers)}. Match each claim to the actual visible contribution before selecting a record. These candidates establish no source fact and do not excuse an unsupported peer premise. A missing named peer has no substitute; other jurors cannot supply that attribution.` : request.packet
       const messages = groundingMessages(request.verificationUnits, request.evidence, packet, request.verificationFeedback, request.verificationOpening, request.courtroomProtocol ? request.courtroomActor : undefined, request.verificationAuthenticationKnowledge, arrayVerification, singleFinding)
       body.messages = messages
+      if (arrayVerification && this.config.provider === 'minimax') messages[0].content += '\nTransport contract: return only tool arguments {"reviewJson":"<JSON-encoded complete review>"}. The response contracts above describe the JSON INSIDE this string. Do not put findings or row fields directly in tool arguments. Encode the entire independently assessed review, preserving every exact ID and every required field.'
       body.temperature = 0
       if (this.config.provider === 'minimax') {
-        const tool = singleFinding ? groundingSingleTool : arrayVerification ? groundingCorrectionTool : groundingTool
-        body.tools = [tool(request.verificationUnits, { records: records.map(record => record.reference), exhibits: request.evidence.map(item => item.exhibitId), peerRecords })]
+        body.tools = [arrayVerification ? groundingSerializedTool(request.verificationUnits) : groundingTool(request.verificationUnits, { records: records.map(record => record.reference), exhibits: request.evidence.map(item => item.exhibitId), peerRecords })]
         body.tool_choice = 'required'
       }
     }

@@ -468,6 +468,20 @@ export class CaseStore {
     return this.getEvidenceById(evidenceId)
   }
 
+  getEvidenceNote(matterId: string, evidenceId: string): string {
+    const row = this.db.prepare('SELECT private_note FROM evidence WHERE id = ? AND matter_id = ?')
+      .get(evidenceId, matterId) as { private_note: string } | undefined
+    if (!row) throw new Error(`Evidence not found: ${evidenceId}`)
+    return row.private_note
+  }
+
+  saveEvidenceNote(matterId: string, evidenceId: string, note: string): void {
+    this.getEvidenceNote(matterId, evidenceId)
+    if (typeof note !== 'string' || note.length > 20_000) throw new Error('Evidence note must be text of at most 20000 characters.')
+    this.db.prepare('UPDATE evidence SET private_note = ? WHERE id = ? AND matter_id = ?').run(note, evidenceId, matterId)
+    this.touchMatter(matterId)
+  }
+
   createSession(matterId: string, runConfigInput?: Partial<RunConfig>): SimulationSession {
     const id = randomUUID()
     const createdAt = nowIso()

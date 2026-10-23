@@ -4,7 +4,7 @@ Judge & Jury stores operational state in SQLite and original corpus bytes in imm
 
 ## Supported formats
 
-- Database schema `PRAGMA user_version = 8` is current. Migration 6 adds courtroom state, command receipts, immutable actor inputs and ballot instruction references; migration 7 persists evidence scopes; migration 8 persists preview hashes independently of preserved source-blob hashes.
+- Database schema `PRAGMA user_version = 9` is current. Migration 6 adds courtroom state, command receipts, immutable actor inputs and ballot instruction references; migration 7 persists evidence scopes; migration 8 persists preview hashes independently of preserved source-blob hashes; migration 9 adds a private evidence note column. Notes remain outside evidence/model projections and are preserved in matter archives; older archives default to an empty note.
 - Matter archive format version 3 is used for `courtroom_v1` runs; legacy-only matters continue exporting version 2.
 - Archive version 1 remains importable. Its legacy matter, evidence, simulation, juror, and TrialForge records are preserved; new v2 workflow collections start empty.
 - Future database or archive versions fail closed rather than being partially interpreted.

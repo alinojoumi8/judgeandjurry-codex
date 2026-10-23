@@ -169,6 +169,18 @@ export async function archiveEvidence(evidenceId: string): Promise<WorkspaceStat
   return payload.state
 }
 
+export async function loadEvidenceNote(matterId: string, evidenceId: string): Promise<string> {
+  const response = await apiFetch(`/api/matters/${matterId}/evidence/${evidenceId}/note`, {}, 'client.api.load_evidence_note', { evidenceId })
+  return (await parseResponse<{ note: string }>(response)).note
+}
+
+export async function saveEvidenceNote(matterId: string, evidenceId: string, note: string): Promise<void> {
+  const response = await apiFetch(`/api/matters/${matterId}/evidence/${evidenceId}/note`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ note }),
+  }, 'client.api.save_evidence_note', { evidenceId })
+  await parseResponse<{ note: string }>(response)
+}
+
 export async function downloadEvidenceSource(evidenceId: string, name: string): Promise<void> {
   const response = await apiFetch(
     `/api/evidence/${evidenceId}/file`,

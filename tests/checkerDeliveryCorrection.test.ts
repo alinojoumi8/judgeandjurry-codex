@@ -11,7 +11,7 @@ describe('complete checker delivery on the bounded correction', () => {
     const bodies: any[] = []
     const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fixture', baseUrl: 'https://example.invalid/v1', model: 'fixture', timeoutMs: 1000, maxRetries: 1 }, undefined, async (_url, init) => {
       const body = JSON.parse(String(init?.body)); bodies.push(body)
-      const raw = bodies.length > 1 ? JSON.stringify(valid()) : failure === 'escaped'
+      const raw = bodies.length > 1 ? JSON.stringify({ reviewJson: JSON.stringify(valid()) }) : failure === 'escaped'
         ? JSON.stringify({ findings: { 'title:1': {} }, ...row, 'content:1': '' })
         : '{"findings":{"title:1":{"status":"analysis"}'
       return Response.json({ choices: [{ finish_reason: bodies.length === 1 ? 'stop' : 'tool_calls', message: { content: null, tool_calls: [{ type: 'function', function: { name: 'record_grounding_review', arguments: raw } }] } }] })
@@ -19,11 +19,11 @@ describe('complete checker delivery on the bounded correction', () => {
     const result = await client.reviewGrounding(request, draft)
     expect(result.status).toBe('passed')
     expect(bodies).toHaveLength(2)
-    const schema = bodies[1].tools[0].function.parameters.properties.findings
-    expect(schema.type).toBe('array')
-    expect(schema.minItems).toBe(2); expect(schema.maxItems).toBe(2)
-    expect(schema.items.properties.unitId.enum).toEqual(['title:1', 'content:1'])
-    expect(schema.items.required).toEqual(expect.arrayContaining(['unitId', ...Object.keys(row)]))
+    const schema = bodies[1].tools[0].function.parameters
+    expect(schema.required).toEqual(['reviewJson'])
+    expect(schema.properties.reviewJson.type).toBe('string')
+    expect(schema.properties.reviewJson.description).toContain('title:1')
+    expect(schema.properties.reviewJson.description).toContain('content:1')
     expect(bodies[1].tool_choice).toBe('required')
     expect(bodies[1].response_format).toBeUndefined()
     expect(bodies[1].messages[1].content).toContain('findings is a flat array')

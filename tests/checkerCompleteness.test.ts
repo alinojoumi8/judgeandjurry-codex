@@ -52,9 +52,9 @@ describe('bounded flat single-finding correction', () => {
       expect(review.status).toBe(outcome === 'complete' ? 'passed' : 'failed')
       expect(bodies).toHaveLength(2)
       const schema = bodies[1].tools[0].function.parameters
-      expect(schema.required).toEqual(['unitId', 'recordCitations', 'citations', 'supportTypes', 'status', 'explanation'])
+      expect(schema.required).toEqual(['reviewJson'])
       expect(schema.properties).not.toHaveProperty('findings')
-      expect(schema.properties.unitId.enum).toEqual(['content:1'])
+      expect(schema.properties.reviewJson.description).toContain('content:1')
       expect(schema.additionalProperties).toBe(false)
       expect(bodies[1].messages[0].content).toContain('one complete finding object')
       expect(bodies[1].messages[0].content).not.toContain('do not add an inner unitId')

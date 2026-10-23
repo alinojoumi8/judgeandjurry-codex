@@ -90,6 +90,31 @@ export function groundingCorrectionContent(content: string): string {
   return JSON.stringify({ ...data, findings: Object.fromEntries(rows) })
 }
 
+// A scalar transport avoids provider XML-to-tool conversion splitting nested
+// arrays/objects into $text/item fragments. Decode only explicit model output;
+// do not rebuild fragmented rows, infer IDs, or fill absent selections.
+export function groundingSerializedTool(units: GroundingUnit[]) {
+  return { type: 'function', function: {
+    name: groundingToolName,
+    description: 'Deliver the complete independent review as a JSON-encoded string in reviewJson. Do not expose nested finding objects as tool parameters.',
+    parameters: { type: 'object', additionalProperties: false, required: ['reviewJson'], properties: {
+      reviewJson: { type: 'string', description: `A complete JSON object obeying the inner response contract for these exact IDs: ${JSON.stringify(units.map(unit => unit.id))}. Include every field and locator object explicitly. Encode the whole object as a string; no prose or fragments.` },
+    } },
+  } }
+}
+
+export function groundingSerializedContent(content: string): string {
+  const data = JSON.parse(content)
+  if (data && typeof data === 'object' && Object.hasOwn(data, 'reviewJson')) {
+    if (Object.keys(data).length !== 1 || typeof data.reviewJson !== 'string') throw new Error('reviewJson must be the only tool field and contain the complete review as a JSON string.')
+    // Validate syntax here; all inventory, field, selector and semantic checks
+    // still run on the decoded content through the existing review parser.
+    JSON.parse(data.reviewJson)
+    return data.reviewJson
+  }
+  return content // Preserved older tool representations still face strict checks.
+}
+
 // One-unit corrections need no array or dynamic-key nesting in tool arguments.
 // Preserve the explicit identity and every returned value, including omissions.
 export function groundingSingleTool(units: GroundingUnit[], references: { records: string[]; exhibits: string[]; peerRecords?: Record<string, string[]> }) {

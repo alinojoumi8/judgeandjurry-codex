@@ -27,6 +27,8 @@ describe('approved exercise threshold scope within source statements', () => {
   })
   it.each([
     mixed,
+    'The supplied report records deposits of $8,000 (E-001), so knowledge, causal deprivation, and value over $5,000 are not proved beyond a reasonable doubt.',
+    'The proposed value element of more than $5,000 is therefore a Crown question the recorded figure could support, but the Crown must prove it beyond a reasonable doubt (E-001).',
     mixed.replace('(E-001).', '. [E-001]'),
     mixed.replace('must still tie any proven deception to', 'must establish'),
     mixed.replace('must still tie any proven deception to', 'must prove'),
@@ -41,6 +43,14 @@ describe('approved exercise threshold scope within source statements', () => {
     expect(check(mixed.replace('$8,000', '$9,000')).status).toBe('failed')
     expect(check(`${mixed} Arin received $5,000 (E-001).`).status).toBe('failed')
     expect(check(`${mixed} The loss exceeds $5,000 (E-001).`).status).toBe('failed')
+  })
+  it('matches OCR decimal spacing without changing the preserved source text', () => {
+    const source = [{ ...evidence[0], text: 'On 17-Jun-22 Arin was paid $6,517 .50.' }]
+    const run = (amount: string) => parseGroundingReview(JSON.stringify({ findings: [{ unitId: 'content:1', status: 'supported', supportTypes: ['source'], explanation: 'The payment is recorded.', citations: [{ exhibitId: 'E-001', paragraph: 1 }], recordCitations: [] }] }), [{ id: 'content:1', text: `On 17-Jun-22 Arin was paid ${amount} (E-001).` }], source)
+    expect(run('$6,517.50').errors).toEqual([])
+    expect(run('$6,517.50').findings[0].citations[0].quote).toContain('$6,517 .50')
+    expect(run('$6,517.00').status).toBe('failed')
+    expect(run('$6,517').status).toBe('failed')
   })
   it.each([
     'The Crown has proved a value exceeding $5,000 (E-001).',
@@ -59,6 +69,8 @@ describe('approved exercise threshold scope within source statements', () => {
     { labels: [{ issueId: 'exercise', elements: [{ label: 'The value exceeds $10,000' }] }] },
   ])('requires a unique matching approved value threshold: %j', options => {
     expect(check(mixed, options).status).toBe('failed')
+    expect(check('Value over $5,000 is not proved beyond a reasonable doubt (E-001).', options).status).toBe('failed')
+    expect(check('The proposed value element of more than $5,000 is therefore a Crown question the recorded figure could support, but the Crown must prove it beyond a reasonable doubt (E-001).', options).status).toBe('failed')
   })
   it('does not treat a different currency as the approved threshold', () => {
     expect(check(mixed.replace('exceeding $5,000', 'exceeding USD $5,000')).status).toBe('failed')
