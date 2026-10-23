@@ -2056,7 +2056,7 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
     }
       // Mixed evaluation can retain its analysis label only when the checker
       // also selected factual source support and actual verified passages.
-      if (status === 'analysis' && !recordAttribution && (!row?.supportTypes?.includes('source') || !citations.length) && /\$[\d,]+/.test(unit.text) && /\b(received|transferred|accepted|paid|deposited|withdrew)\b/i.test(unit.text)) errors.push(`${unit.id}: a payment assertion requires factual source support, not an analysis label.`)
+      if (status === 'analysis' && !recordAttribution && (!Array.isArray(row?.supportTypes) || !row.supportTypes.includes('source') || !citations.length) && /\$[\d,]+/.test(unit.text) && /\b(received|transferred|accepted|paid|deposited|withdrew)\b/i.test(unit.text)) errors.push(`${unit.id}: a payment assertion requires factual source support, not an analysis label.`)
       const passages = recordAttribution && !sourceClauses.length ? recordCitations.map(c => c.quote) : citations.length ? citations.map(c => c.quote) : evidence.flatMap(item => sourceParagraphs(item).map(p => p.text))
       const loadedQuestion = /^(?:Is|Are|Does|Did|Was|Were)\b/i.test(unit.text.trim()) && unit.text.trim().match(/\bbecause\s+((?:Fictional )?[\w-]+ (?:destroyed|hid|forged|altered|removed|stole|returned|re-entered|arrived|came back)\b[^?]*)\?$/i)
       if (['supported','analysis'].includes(status) && !recordAttribution && loadedQuestion &&

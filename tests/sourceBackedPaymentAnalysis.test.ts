@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseGroundingReview } from '../server/grounding'
+import { checkerSchemaFailure } from '../server/groundingFormat'
 import { supportedOpeningSource } from '../samples/courtroom-realism/supported-opening'
 
 const evidence = [
@@ -28,6 +29,16 @@ describe('source-backed payment analysis', () => {
     { supportTypes: ['analysis'], citations: [] },
   ])('requires both explicit source classification and verified locators: %j', overrides => {
     expect(check(overrides).errors).toContain('content:1: a payment assertion requires factual source support, not an analysis label.')
+  })
+
+  it.each([{ source: '', analysis: '' }, 'source', null])('rejects malformed support types without throwing or converting them: %j', supportTypes => {
+    const raw = JSON.stringify({ findings: [{ ...finding, supportTypes }] })
+    const review = parseGroundingReview(raw, [{ id: 'content:1', text }], evidence)
+    expect(review.status).toBe('failed')
+    expect(review.validationErrors).toEqual(['content:1: invalid support types for this finding.'])
+    expect(checkerSchemaFailure(review)).toBe(true)
+    expect(review.findings[0].supportTypes).toBeUndefined()
+    expect(review.errors).toContain('content:1: a payment assertion requires factual source support, not an analysis label.')
   })
 
   it.each([
