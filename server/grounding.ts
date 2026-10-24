@@ -35,6 +35,7 @@ export interface GroundingFinding {
   citations: GroundingCitation[]
   recordCitations?: Array<{ eventId: string; actorId?: string; quote: string }>
 }
+export interface GroundingRejection { unitId: string; text: string; status: 'unsupported' | 'contradicted'; explanation: string }
 export interface GroundingReview {
   status: 'passed' | 'failed'
   method: 'source-quotes-and-model-review'
@@ -45,8 +46,10 @@ export interface GroundingReview {
   peerReferenceValidationUnitIds?: string[]
   sourceLocatorValidationUnitIds?: string[]
   scopeValidationUnitIds?: string[]
+  incompleteFindings?: Array<{ unitId: string; status: 'unsupported' | 'contradicted'; missingFields: Array<'supportTypes' | 'recordCitations'> }>
+  explicitRejections?: GroundingRejection[]
   verificationRetries?: number
-  verificationFailures?: Array<{ attempt: number; errors: string[]; findings?: GroundingFinding[] }>
+  verificationFailures?: Array<{ attempt: number; errors: string[]; findings?: GroundingFinding[]; explicitRejections?: GroundingRejection[] }>
   citationCorrections?: Array<{ unitId: string; exhibitId: string; fromParagraph?: number; toParagraph: number }>
   jurorCitationCorrections?: Array<{ jurorIndex: number; exhibitId: string; unitIds: string[] }>
   repairs: number
@@ -74,16 +77,25 @@ function priorPartyClaims(text: string, actorRoles: string[] = []) {
   // concession still needs its own visible submission; past acknowledgements
   // remain historical claims and cannot be supplied by that opponent's record.
   let claims = text
+  const ownRole = actorRoles.includes('crown') ? 'crown' : actorRoles.some(role => ['defence', 'defendant', 'accused'].includes(role)) ? 'defence' : undefined
+  // A current advocate can perform its own present argument. Its separate
+  // factual premises and any report of the other party remain reviewable.
+  if (ownRole) claims = claims.replace(new RegExp(`^(?:The )?${ownRole === 'crown' ? 'Crown' : 'Defen[cs]e'}\\s+(?:(?:expressly|explicitly)\\s+)?(?:concedes|acknowledges|states|says|argues|rejects|supplies|points to|relies on)\\b`, 'i'), '')
   if (actorRoles.some(role => ['defence', 'defendant', 'accused'].includes(role))) claims = claims.replace(/\b(?:The )?Defen[cs]e\s+(?:accepts|acknowledges|notes)\s+the\s+(?=Crown(?:'s|’s)\s+(?:concession|submission|position|acknowledg(?:e)?ment)\b)/gi, '')
   if (actorRoles.includes('crown')) claims = claims.replace(/\b(?:The )?Crown\s+(?:accepts|acknowledges|notes)\s+the\s+(?=Defen[cs]e(?:'s|’s)\s+(?:concession|submission|position|acknowledg(?:e)?ment)\b)/gi, '')
-  const verbs = [...claims.matchAll(/\b(Crown|Defence|Defense)(?:'s|’s)?\s+(?:own\s+)?(?:(?:closing|submission|opening|rebuttal|reply)\s+)?(?:(?:expressly|explicitly|correctly)\s+)?(?:concedes?|conceded|acknowledges?|acknowledged|states?|stated|says?|said|argues?|argued|rejects?|rejected|agreed|supplies|supplied)\b/gi)]
+  const verbs = [...claims.matchAll(/\b(Crown|Defence|Defense)(?:'s|’s)?\s+(?:own\s+)?(?:(?:closing|submission|opening|rebuttal|reply)\s+)?(?:(?:expressly|explicitly|correctly)\s+)?(?:concedes?|conceded|acknowledges?|acknowledged|states?|stated|says?|said|argues?|argued|rejects?|rejected|agreed|supplies|supplied|points? to|pointed to|relies on|relied on)\b/gi)]
   const nouns = [...claims.matchAll(/\b(Crown|Defence|Defense)(?:'s|’s)\s+(?:own\s+)?(?:concession|submission|position|acknowledg(?:e)?ment)\b/gi)]
   const shared = [...claims.matchAll(/\b(Crown|Defence|Defense)\s+and\s+(?:(?:the|fictional)\s+){0,2}(Crown|Defence|Defense)\s+(agree|agreed)\b/gi)]
-  const ownRole = actorRoles.includes('crown') ? 'crown' : actorRoles.some(role => ['defence', 'defendant', 'accused'].includes(role)) ? 'defence' : undefined
   const sharedRoles = shared.flatMap(match => [match[1], match[2]].map(party => party.toLowerCase() === 'crown' ? 'crown' : 'defence').filter(role => match[3].toLowerCase() === 'agreed' || role !== ownRole))
   const agreement = [...claims.matchAll(/\b(Crown|Defence|Defense)\s+(agrees|agreed)\s+with\s+(?:the\s+)?(Crown|Defence|Defense)\b/gi)]
   const agreementRoles = agreement.flatMap(match => [match[1], match[3]].map(party => party.toLowerCase() === 'crown' ? 'crown' : 'defence').filter(role => match[2].toLowerCase() === 'agreed' || role !== ownRole))
   return [...new Set([...verbs, ...nouns].map(match => match[1].toLowerCase() === 'crown' ? 'crown' : 'defence').concat(sharedRoles, agreementRoles))]
+}
+
+function usablePublicSubmission(event: { eventId?: string; actorId?: string; type: string; payload: Record<string, unknown> }) {
+  return event.type === 'public_submission' && Boolean(event.eventId && event.actorId) && !event.payload.withheld &&
+    typeof event.payload.text === 'string' && Boolean(event.payload.text.trim()) &&
+    !/^No valid model (?:contribution|submission|response) was available(?: for this turn)?\.?$/i.test(event.payload.text.trim())
 }
 
 function positiveProofClaim(text: string, burdenOnly = false) {
@@ -618,9 +630,11 @@ export function groundingMessages(units: GroundingUnit[], evidence: EvidenceItem
       'Do not copy or paraphrase source quotations into JSON. The server resolves each selected paragraph to its exact preserved source text for the audit. Citations are flat objects containing only exhibitId and paragraph, never nested citations or explanations.',
       'For contradicted units cite the contradicting passage where available. Keep explanations brief and suitable for a source-check audit.',
       'Visible public_submission events may support accurate attribution of a Crown or Defence statement or concession. Select that public eventId in recordCitations; match its actual party role and words. These statements establish what the party said, never evidence truth. Private submissions and other jurors\' ballots remain unavailable. Do not reject a supported public concession solely because it is not an exhibit.',
+      'Keep document authors, embedded speakers and proceeding advocates distinct. An affidavit quoting a witness supplies that witness\'s attributed words, not the deponent\'s admission or a Defence submission. A document\'s contract, financing or signature discussion cannot establish that the Defence made those assertions in this proceeding. An attribution that the Defence points to, argues or explains a proposition requires an actual matching visible public submission or an expressly supplied approved party position. A private party theory, a source citation or shared subject matter does not supply that attribution. A faithfully attributed source account remains reviewable as source contents without a matching party submission; its factual truth remains disputed.',
       'For public-position attribution, approved roles defence, defendant and accused identify the Defence side. A visible public_submission from any such approved actor can establish that side position; it need not come from a separately appointed advocate. Present Crown concurrence may adopt that actual public position now. Return the actual eventId; this does not supply earlier mutual agreement or establish source truth.',
       'Support domains: include supportTypes for every finding. Use source for claims about exhibit contents, record for an attributed visible contribution, own_assessment for the current author and supplied own history, instruction for the actual exercise rule, source_use for supplied application restrictions, analysis for a heading or premise-free evaluation, and coherence ONLY for ballot_consistency. Include all domains for mixed claims and check every clause separately. Pure non-source statements use analysis, never supported. A source_use note is not a quotation from the document; an instruction is not an operative charge. Peer references cannot prove source facts. A current doubt or conditional change is an assessment; any added factual premise still needs its own source locator. Generic titles such as Juror response are analysis. For coherence use analysis only when the content, rationale and structured choice agree, otherwise contradicted or unsupported, with EMPTY citations and recordCitations. Never copy source locators onto coherence.',
       groundingSupportTypesContract,
+      'Every finding, including unsupported and contradicted findings, must explicitly include supportTypes and recordCitations. Select support domains independently even when rejecting a claim; use an explicit [] for no selected record references. Omission does not mean an empty array. A correction of missing fields must retain a substantive rejection; a changed judgment requires an independent explanation grounded in the actual supplied source or visible record. Completing JSON alone supplies no new support.',
       (singleFinding
         ? 'Return one complete finding object as tool arguments in this order: unitId copied from the supplied inventory, recordCitations, citations, supportTypes, status and explanation. Independently select supporting visible record references first; explicitly return [] when none apply. An omitted recordCitations field is not an empty selection. Do not wrap it in findings or an array. Return every required field; never return an empty object.'
         : arrayFindings
@@ -760,6 +774,20 @@ function nonContradictionProofShortcut(text: string, evidence: EvidenceItem[], c
 
 export function parseGroundingReview(raw: string, units: GroundingUnit[], evidence: EvidenceItem[], approvedContext = '', ownHistory?: { actorId: string; assessments: Array<{ round: string; usable: boolean; choice?: string }>; profile?: { skepticismLevel: number; burdenSensitivity: number } }, proceduralSetup?: { packet: string; events: Array<{ eventId?: string; type: string; actorId?: string; payload: Record<string, unknown> }>; actorRoles: string[]; partyRoles: Array<{ id: string; role: string }>; actor?: { id: string; name?: string }; stage?: string; ballotRound?: string; currentJuror?: ReturnType<typeof currentJurorDraft>; approvedIssueInstructions?: Array<{ issueId: string; elements: Array<{ label: string }> }>; courtroomState?: { juryPresent: boolean; examination: string; pendingInstruction?: string } }): GroundingReview {
   const data = JSON.parse(raw) as { findings?: Array<{ unitId?: string; status?: string; supportTypes?: GroundingFinding['supportTypes']; explanation?: string; citations?: Array<{ exhibitId?: string; quote?: string; paragraph?: number }>; recordCitations?: Array<string | { eventId?: string } | null> }> }
+  // Raw negative judgments survive malformed siblings and missing fields, but
+  // are not validated findings and supply no inferred domains or selectors.
+  const rawRows: Array<[unknown, unknown]> = Array.isArray(data?.findings)
+    ? data.findings.map(row => [row?.unitId, row])
+    : data?.findings && typeof data.findings === 'object' ? Object.entries(data.findings) : []
+  const explicitRejections = rawRows.flatMap(([unitId, value]): GroundingRejection[] => {
+    if (typeof unitId !== 'string' || rawRows.filter(([id]) => id === unitId).length !== 1 ||
+        units.filter(unit => unit.id === unitId).length !== 1 || !value || typeof value !== 'object' || Array.isArray(value)) return []
+    const row = value as Record<string, unknown>
+    if (row.status !== 'unsupported' && row.status !== 'contradicted' || typeof row.explanation !== 'string' || !row.explanation.trim() ||
+        !Array.isArray(data?.findings) && Object.hasOwn(row, 'unitId')) return []
+    return [{ unitId, text: units.find(unit => unit.id === unitId)!.text, status: row.status, explanation: row.explanation }]
+  })
+  const rejectionMetadata = explicitRejections.length ? { explicitRejections } : {}
   if (data && typeof data === 'object' && !Array.isArray(data) && !Object.keys(data).length) {
     return { status: 'failed', method: 'source-quotes-and-model-review', findings: [], errors: [`The checker returned an empty review. Supply a complete finding for each required unit ID: ${JSON.stringify(units.map(unit => unit.id))}. Do not return {} or invent missing values.`], validationErrors: ['Invalid findings schema'], repairs: 0 }
   }
@@ -809,14 +837,14 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         ...(malformed.length ? [`Malformed finding rows: ${JSON.stringify(malformed)}. Include exactly status, supportTypes, explanation, citations and recordCitations, with nonempty explanation and valid selectors.`] : []),
         ...fieldErrors,
         ...selectorErrors,
-      ], validationErrors: ['Invalid findings schema'], repairs: 0 }
+      ], validationErrors: ['Invalid findings schema'], repairs: 0, ...rejectionMetadata }
     }
     data.findings = values.map(([unitId, row]) => ({ ...row, unitId }))
   }
   if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data.findings) || data.findings.some(row => !row || typeof row !== 'object' || Array.isArray(row) ||
     row.citations !== undefined && (!Array.isArray(row.citations) || row.citations.some(citation => !citation || typeof citation !== 'object' || Array.isArray(citation))) ||
     row.recordCitations !== undefined && !Array.isArray(row.recordCitations))) {
-    return { status: 'failed', method: 'source-quotes-and-model-review', findings: [], errors: ['The checker returned an invalid findings schema. Return one object with a flat array of complete finding objects.'], validationErrors: ['Invalid findings schema'], repairs: 0 }
+    return { status: 'failed', method: 'source-quotes-and-model-review', findings: [], errors: ['The checker returned an invalid findings schema. Return one object with a flat array of complete finding objects.'], validationErrors: ['Invalid findings schema'], repairs: 0, ...rejectionMetadata }
   }
   const errors: string[] = [...incompleteRejections].map(([id, omission]) => `${id}: rejected finding omitted ${omission.fields.join(', ')}; preserve the explicit ${omission.status} judgment and its missing metadata in the audit. No support domain or record reference was inferred. Acceptance requires a new complete review after any bounded author repair.`)
   const validationErrors: string[] = []
@@ -1639,7 +1667,7 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         const eventId = typeof citation === 'string' ? citation : citation?.eventId
         const resolved = typeof eventId === 'string' && eventId ? resolveRecordReference(proceduralSetup?.events ?? [], eventId) : undefined
         const instruction = resolved && ['judicial_instruction', 'limiting_instruction'].includes(resolved.type)
-        const event = resolved && (!priorJuryClaim(unit.text) || usablePeerContribution(resolved)) &&
+        const event = resolved && (resolved.type !== 'public_submission' || usablePublicSubmission(resolved)) && (!priorJuryClaim(unit.text) || usablePeerContribution(resolved)) &&
             (!instruction || (status === 'analysis' || status === 'supported' && (instructionRequirement || instructionStateBound || conditionalOwnState || Boolean(row?.citations?.length))) && !priorPartyClaims(unit.text, proceduralSetup?.actorRoles).length) ? resolved : undefined
         // A mixed unit may cite a procedural instruction and source passages.
         // Instructions never count toward the factual-source requirement below.
@@ -1849,6 +1877,16 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
           explanation = 'The actual Defence actor expresses its own present agreement with the visible Crown burden-and-disputed-accounts submission. This reports no earlier Defence position and adds no source fact.'
         }
       }
+    if (/^Did the Defen[cs]e accept the Crown['’]s (?:acknowledgement|concession) on this record\?$/i.test(unit.text.trim())) {
+      const acknowledgement = proceduralSetup?.events.find(event => usablePublicSubmission(event) && resolveRecordReference(proceduralSetup.events, event.eventId!) === event &&
+        proceduralSetup.partyRoles.some(party => party.id === event.actorId && party.role === 'crown') &&
+        /^(?:On the supplied record,\s*)?(?:the )?Crown burden is not met(?:[;.]|$)/i.test(normalize(String(event.payload.text ?? ''))))
+      status = acknowledgement?.eventId ? 'analysis' : 'unsupported'
+      explanation = acknowledgement?.eventId
+        ? 'The actual visible Crown submission acknowledges its burden is unmet. This complete yes/no inquiry asks whether the Defence accepted that position; it asserts no historical Defence adoption and may be answered no. Concession and acknowledgement describe the same supplied position here.'
+        : 'The neutral adoption question still requires its actual visible Crown acknowledgement. A missing, private, unrelated or differently authored submission cannot supply that referent.'
+      if (acknowledgement?.eventId && !recordCitations.some(citation => citation.eventId === acknowledgement.eventId)) recordCitations.push({ eventId: acknowledgement.eventId, actorId: acknowledgement.actorId, quote: String(acknowledgement.payload.text) })
+    }
       const partyClaims = priorPartyClaims(unit.text, proceduralSetup?.actorRoles)
         const defenceConcurrenceForm = /^(?:The Defence (?:accepts|acknowledges) the Crown['’]s (?:concession|acknowledgement) on this record|The Defence agrees with the Crown that the burden is not met on this record|The Crown and Defence agree that the burden is not met on this record)\.$/i.test(unit.text.trim())
         if (defenceConcurrenceForm && proceduralSetup?.actorRoles.includes('defence') && proceduralSetup.stage && proceduralSetup.stage !== 'defence_rebuttal') {
@@ -1871,14 +1909,14 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         invalid(`${unit.id}: an approved accused or defendant public-submission actor represents the Defence side. Re-check the SAME draft with the actual role mapping and return a matching eventId if its words support this claim; otherwise keep it unsupported. Do not infer a locator or agreement.`)
         roleValidationUnitIds.push(unit.id)
       }
-      const partyAttribution = partyClaims.length > 0 && partyClaims.every(role => recordCitations.some(c => proceduralSetup?.events.some(e => e.eventId === c.eventId && e.type === 'public_submission') && proceduralSetup?.partyRoles.some(p => p.id === c.actorId && (role === 'crown' ? p.role === 'crown' : ['defence', 'defendant', 'accused'].includes(p.role)))))
-      if ((status === 'analysis' || status === 'supported') && partyClaims.length && (recordCitations.length || /\b(?:Crown|Defen[cs]e)\s+(?:agrees?|agreed)\s+with\b|\b(?:Crown|Defen[cs]e)\s+and\s+(?:the\s+)?(?:Crown|Defen[cs]e)\s+agree(?:d)?\b/i.test(unit.text)) && !partyAttribution) {
-        if (!recordCitations.length && partyClaims.every(role => proceduralSetup?.events.some(event => event.type === 'public_submission' &&
+      const partyAttribution = partyClaims.length > 0 && partyClaims.every(role => recordCitations.some(c => proceduralSetup?.events.some(e => e.eventId === c.eventId && usablePublicSubmission(e)) && proceduralSetup?.partyRoles.some(p => p.id === c.actorId && (role === 'crown' ? p.role === 'crown' : ['defence', 'defendant', 'accused'].includes(p.role)))))
+      if ((status === 'analysis' || status === 'supported') && partyClaims.length && !partyAttribution) {
+        if (!recordCitations.length && partyClaims.every(role => proceduralSetup?.events.some(event => usablePublicSubmission(event) && resolveRecordReference(proceduralSetup.events, event.eventId!) === event &&
           proceduralSetup.partyRoles.some(party => party.id === event.actorId && (role === 'crown' ? party.role === 'crown' : ['defence', 'defendant', 'accused'].includes(party.role)))))) {
           invalid(`${unit.id}: a record citation is required for this party attribution. Select a matching visible public submission eventId, or mark the unit unsupported if none supports it.`)
         } else {
           status = 'unsupported'
-          explanation = 'The cited public submission is not from the attributed party. Preserve the actual Crown or Defence role; another actor cannot support this claimed concession.'
+          explanation = 'No selected usable public submission supports attribution to the named party. Preserve the actual Crown or Defence role and select its visible record reference; an exhibit, withheld turn, empty placeholder or another actor cannot establish that party statement.'
         }
       }
       const unquotedUnit = unit.text.replace(/["“][^"”]*["”]|(?<!\w)'[^']*'(?!\w)/g, '')
@@ -2733,16 +2771,6 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         ? 'The current tasked juror expresses the effect of this actual assessment-permitted account on their own doubt. This entire unit neither says the source proves receipt nor imposes a disproof burden on the Defence. Other ballot fields and decision coherence require their own reviews.'
         : 'A current personal source-weight assessment requires the actual referenced source, its express assessment permission and a current juror task. Missing or exclusively attributed sources and other actor tasks cannot supply it.'
     }
-    if (/^Did the Defen[cs]e accept the Crown['’]s (?:acknowledgement|concession) on this record\?$/i.test(unit.text.trim())) {
-      const acknowledgement = proceduralSetup?.events.find(event => event.type === 'public_submission' &&
-        proceduralSetup.partyRoles.some(party => party.id === event.actorId && party.role === 'crown') &&
-        /^(?:On the supplied record,\s*)?(?:the )?Crown burden is not met(?:[;.]|$)/i.test(normalize(String(event.payload.text ?? ''))))
-      status = acknowledgement?.eventId ? 'analysis' : 'unsupported'
-      explanation = acknowledgement?.eventId
-        ? 'The actual visible Crown submission acknowledges its burden is unmet. This complete yes/no inquiry asks whether the Defence accepted that position; it asserts no historical Defence adoption and may be answered no. Concession and acknowledgement describe the same supplied position here.'
-        : 'The neutral adoption question still requires its actual visible Crown acknowledgement. A missing, private, unrelated or differently authored submission cannot supply that referent.'
-      if (acknowledgement?.eventId && !recordCitations.some(citation => citation.eventId === acknowledgement.eventId)) recordCitations.push({ eventId: acknowledgement.eventId, actorId: acknowledgement.actorId, quote: String(acknowledgement.payload.text) })
-    }
     if (/^(?:Primary verification status is not supplied|No(?: independent)? verification status is supplied|No verification information is supplied|Given the lack of supplied verification information, I retain doubt)\.$/i.test(unit.text.trim())) {
       const statusInformation = actualInformation
         .some(text => [...text.matchAll(/(?:^|[.!?;\n])\s*(?:[\w -]+ states:\s*)?(?:(?:primary|independent)\s+)?verification (?:status|information)\s*(?::|is)\s*([^.!?;\n]+)(?=([.!?;\n]|$))/gi)]
@@ -3022,7 +3050,7 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
     const omission = incompleteRejections.get(finding.unitId)
     if (omission) finding.status = omission.status
   }
-  return { status: errors.length ? 'failed' : 'passed', method: 'source-quotes-and-model-review', findings, errors: [...new Set(errors)], validationErrors: [...new Set(validationErrors)], ...(roleValidationUnitIds.length ? { roleValidationUnitIds } : {}), ...(peerReferenceValidationUnitIds.length ? { peerReferenceValidationUnitIds } : {}), ...(sourceLocatorValidationUnitIds.length ? { sourceLocatorValidationUnitIds } : {}), ...(scopeValidationUnitIds.length ? { scopeValidationUnitIds } : {}), citationCorrections, repairs: 0 }
+  return { status: errors.length ? 'failed' : 'passed', method: 'source-quotes-and-model-review', findings, errors: [...new Set(errors)], validationErrors: [...new Set(validationErrors)], ...(roleValidationUnitIds.length ? { roleValidationUnitIds } : {}), ...(peerReferenceValidationUnitIds.length ? { peerReferenceValidationUnitIds } : {}), ...(sourceLocatorValidationUnitIds.length ? { sourceLocatorValidationUnitIds } : {}), ...(scopeValidationUnitIds.length ? { scopeValidationUnitIds } : {}), ...(incompleteRejections.size ? { incompleteFindings: [...incompleteRejections].map(([unitId, row]) => ({ unitId, status: row.status, missingFields: row.fields as Array<'supportTypes' | 'recordCitations'> })) } : {}), ...rejectionMetadata, citationCorrections, repairs: 0 }
 }
 
 export function groundingRepairInstructions(review: GroundingReview): string {

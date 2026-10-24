@@ -30,7 +30,7 @@ describe('present acceptance of a visible opposing-party concession', () => {
 describe('nominal acknowledgment and current concurrence', () => {
   it('recognizes a qualified actual opponent acknowledgment', () => expect(check('The Defence notes the Crown correctly acknowledges that the burden rests with the Crown.').status).toBe('passed'))
   it('preserves the present act of addressing the visible submission', () => {
-    const review = parseGroundingReview(JSON.stringify({ findings: [{ unitId: 'content:1', status: 'analysis', citations: [] }] }), [{ id: 'content:1', text: "The Defence addresses the Crown's submission directly." }], [], '', undefined, { packet: '', actorRoles: ['defence'], partyRoles: [], events: [{ eventId: 'closing', type: 'public_submission', actorId: 'crown', payload: { text: 'The supplied accounts remain disputed.' } }] })
+    const review = parseGroundingReview(JSON.stringify({ findings: [{ unitId: 'content:1', status: 'analysis', citations: [], recordCitations: [{ eventId: 'closing' }] }] }), [{ id: 'content:1', text: "The Defence addresses the Crown's submission directly." }], [], '', undefined, { packet: '', actorRoles: ['defence'], partyRoles: [{ id: 'crown', role: 'crown' }], events: [{ eventId: 'closing', type: 'public_submission', actorId: 'crown', payload: { text: 'The supplied accounts remain disputed.' } }] })
     expect(review.status).toBe('passed')
   })
   it('accepts own present agreement with the actual opposing statement', () => expect(check('The Defence agrees with the Crown that the burden rests with the Crown.').status).toBe('passed'))

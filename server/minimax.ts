@@ -295,7 +295,7 @@ export class MiniMaxClient implements ModelClient {
       let lastReview: GroundingReview | undefined
       let arrayVerification = false
       let strictCorrection = false
-      let comparison = priorReview
+      let comparison: Array<Pick<GroundingReview['findings'][number], 'unitId' | 'text' | 'status'>> | undefined = priorReview?.findings
     for (let attempt = 0; ; attempt++) {
       let content = ''
       let receivedResponse = false
@@ -451,22 +451,32 @@ export class MiniMaxClient implements ModelClient {
       // repair its schema on the same draft before deciding its merits.
       // A schema-only metadata correction cannot promote a substantive negative
       // finding on unchanged author text. Preserve it as the comparison anchor.
-      const incompleteRejectedMetadata = review.findings.some(finding => review.errors.some(error => error.startsWith(`${finding.unitId}: rejected finding omitted `)))
-      if (!comparison && incompleteRejectedMetadata && substantiveFindings.length) comparison = { ...review, findings: substantiveFindings }
+      const incompleteRejectedMetadata = Boolean(review.incompleteFindings?.length)
+      const schemaFailure = checkerSchemaFailure(review)
+      const completionRejections = schemaFailure && !review.findings.length ? review.explicitRejections ?? [] : incompleteRejectedMetadata ? substantiveFindings : []
+      if (completionRejections.length) {
+        // A partial negative is not a complete merit review. Retain its actual
+        // judgment while completing this same draft, including when a malformed
+        // sibling row prevents the parser from producing any complete findings.
+        // This also permits correction of an earlier false acceptance: a newly
+        // reported source failure must not be lost while its metadata is fixed.
+        comparison = [...(comparison ?? []).filter(old => !completionRejections.some(current => current.unitId === old.unitId && current.text === old.text)), ...completionRejections]
+        if (!review.findings.length) review.errors.push(...completionRejections.map(finding => `${finding.unitId}: explicit ${finding.status} judgment retained during schema completion: ${finding.explanation}`))
+      }
       const priorComparison = comparison
-      const validComparison = !review.validationErrors?.length
+      const validComparison = !review.validationErrors?.length && !incompleteRejectedMetadata
       const changedJudgments = validComparison ? review.findings.filter(finding => {
-        const prior = priorComparison?.findings.find(old => old.unitId === finding.unitId && old.text === finding.text)
+        const prior = priorComparison?.find(old => old.unitId === finding.unitId && old.text === finding.text)
         return prior && ['supported', 'analysis'].includes(prior.status) !== ['supported', 'analysis'].includes(finding.status)
       }) : []
-      if (comparison && validComparison) comparison = review
+      if (comparison && validComparison) comparison = review.findings
       if (changedJudgments.length) {
         review.status = 'failed'
-        const errors = changedJudgments.map(finding => `${finding.unitId}: checker changed judgment on unchanged text. Earlier review: ${priorComparison?.findings.find(old => old.unitId === finding.unitId)?.status}; current review: ${finding.status}. Neither review is source evidence. Recheck the SAME current draft against its actual source, speaker, purpose and paragraph selectors; independently resolve the disagreement without preserving an earlier false acceptance or reversing a valid rejection to pass.`)
+        const errors = changedJudgments.map(finding => `${finding.unitId}: checker changed judgment on unchanged text. Earlier review: ${priorComparison?.find(old => old.unitId === finding.unitId && old.text === finding.text)?.status}; current review: ${finding.status}. Neither review is source evidence. Recheck the SAME current draft against its actual source, speaker, purpose and paragraph selectors; independently resolve the disagreement without preserving an earlier false acceptance or reversing a valid rejection to pass.`)
         review.errors.push(...errors)
         review.validationErrors = [...(review.validationErrors ?? []), ...errors]
       }
-      if (review.status !== 'passed') verificationFailures.push({ attempt: attempt + 1, errors: [...review.errors], findings: review.findings })
+      if (review.status !== 'passed') verificationFailures.push({ attempt: attempt + 1, errors: [...review.errors], findings: review.findings, ...(review.explicitRejections?.length ? { explicitRejections: review.explicitRejections } : {}) })
         lastReview = review
       const checkerCorrectionNeeded = checkerSchemaFailure(review) || incompleteRejectedMetadata
       if (review.status === 'passed' || substantiveFailure && !checkerCorrectionNeeded && !changedJudgments.length || attempt >= Math.min(2, this.config.maxRetries)) return review

@@ -1272,7 +1272,15 @@ export class TrialEngineService {
       const use = uses.find((candidate) => candidate.evidenceId === item.id)
       return `${item.exhibitId}: ${use?.status ?? 'admitted'}; permitted purposes: ${use?.purposes.join('; ') || 'general use'}${use?.scope?.purpose ? `; selected purpose: ${use.scope.purpose}` : ''}${use?.scope?.prohibitedPurposes?.length ? `; prohibited purposes: ${use.scope.prohibitedPurposes.join('; ')}` : ''}${use?.note ? `; ${use.note}` : ''}`
     }).join('\n')
-    const prompt = `${packet}\nActor: ${actorId}\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\n${restrictions}\n${recordScopePrompt(model, evidence)}`
+    const visibleEvents = courtroomAuditEvents(context.events)
+    const advocateStage = ['crown_opening', 'defence_opening', 'crown_rebuttal', 'defence_rebuttal'].includes(stage)
+    const attributionContract = advocateStage ? [
+      'Public-submission attribution contract (also applies to every repair): Keep the document author, any quoted speaker, and the party making a public submission separate. An affidavit quoting or disputing another person does not make that account the deponent’s admission, that person’s own document, or the Defence’s argument.',
+      'Before saying a party points to, argues, concedes or explains something, match the complete claim to that party’s actual visible public submission and approved actor identity. An exhibit, a private theory, a shared topic or a source-use permission cannot establish what another party submitted. Preserve the actual source speaker, quotation and disputed status in a separate source-attributed sentence.',
+      'When the relevant submission or speaker attribution is unavailable in this actor projection, omit the attribution or frame the inference as your own assessment or an explicitly hypothetical challenge. Do not invent an opponent position, a business-failure account, an admission or a public-submission reference. Absence from this projection establishes no global absence.',
+      `Actor-visible other-party submission references (positions, not evidence truth): ${JSON.stringify(visibleEvents.filter(event => event.type === 'public_submission' && event.actorId !== actorId && model.parties.some(party => party.id === event.actorId) && !event.payload.withheld && typeof event.payload.text === 'string' && event.payload.text.trim()).map(event => ({ eventId: event.eventId, actorId: event.actorId })))}`,
+    ].join('\n') : ''
+    const prompt = `${packet}\nActor: ${actorId}\nDo not reveal private strategy or chain-of-thought.\n${attributionContract}\nSource-use restrictions (apply to the visible source record):\n${restrictions}\n${recordScopePrompt(model, evidence)}`
       const controllingPacket = run.config.courtroomProtocol ? `\nPinned legal packet ${model.legalPacket!.contentHash}: ${JSON.stringify({ issues: model.legalPacket!.issues, instructions: model.legalPacket!.instructions })}\nApproved evidence plan: ${JSON.stringify(run.config.witnessPlan.map(p => ({ witnessId: p.witnessId, name: model.witnesses.find(w => w.id === p.witnessId)?.name, calledByPartyId: p.calledByPartyId, scope: 'Own approved passages only; no promise of facts outside that account.' })))}` : ''
     const request: StageRequest = {
       courtroomProtocol: Boolean(run.config.courtroomProtocol),
@@ -1280,7 +1288,7 @@ export class TrialEngineService {
         approvedPartyRoles: model.parties.map(({ id, name, role }) => ({ id, name, role })),
         // The checker needs the same authorized public record as the author,
         // including in full proceedings without the reviewed courtroom protocol.
-        courtroomEvents: courtroomAuditEvents(context.events),
+        courtroomEvents: visibleEvents,
         courtroomActor: { id: actorId, name: model.witnesses.find(w => w.id === actorId)?.name ?? model.parties.find(p => p.id === actorId)?.name ?? actorId, roles: context.memory.roles },
           courtroomState: run.config.courtroomProtocol ? { juryPresent: this.courtroom(run.id).juryPresent, examination: this.courtroom(run.id).examination, pendingInstruction: this.courtroom(run.id).pendingInstruction } : undefined,
           courtroomAssessments: context.memory.issueAssessments.map(({ issueId, round, choice, confidence, rationale, usable }) => ({ issueId, round, choice, confidence, rationale, usable })),
