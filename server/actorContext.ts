@@ -1,9 +1,13 @@
 import { authorisedRecord, contextHash, projectParticipantMemory, type MemoryInput } from './actorMemory'
 import type { ActorContextManifest } from './courtroomTypes'
 import type { EvidenceItem } from './types'
+import { formatSourceRecord } from './grounding'
 
 export const actorContextCharacterBudget = 240_000
-export const actorContextCharacters = (evidence: EvidenceItem[], previousTurns = '') => previousTurns.length + JSON.stringify(evidence).length
+// Count the same canonical source rendering used by both author and checker.
+// EvidenceItem.text and authorizedPassages contain the same selected words;
+// counting their JSON twice can reject a record that the model receives once.
+export const actorContextCharacters = (evidence: EvidenceItem[], previousTurns = '') => previousTurns.length + formatSourceRecord(evidence).length
 
 // Filter before serialisation. Rebuild from the pinned record; cached summaries
 // are never an authority for access or for the current permitted use of evidence.

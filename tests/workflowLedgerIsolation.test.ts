@@ -48,12 +48,25 @@ async function workspace(step = 7, ledgers = [ruling, settings], restore = false
 
 describe('new-run admission-ledger isolation', () => {
   it('preflights and creates a new run from user settings despite a newer simulated ruling', async () => {
-    const { button } = await workspace()
+    const { button, element } = await workspace()
     await act(async () => button('Check source size').click())
+    expect(element.textContent).toContain('Selected source context: 20 / 1,000 characters')
+    expect(element.textContent).toContain('History projection is unavailable from this server response')
+    expect(element.textContent).not.toContain('planned history reserve: 0')
     expect(api.preflightTrialRun.mock.calls[0][3]).toBe(settings.id)
     await act(async () => button('Create and run full proceeding').click())
     expect(api.createTrialRun.mock.calls[0][3]).toBe(settings.id)
     expect(api.preflightTrialRun.mock.calls.every(call => call[3] === settings.id)).toBe(true)
+  })
+  it('renders the additive capacity projection when the server supplies it', async () => {
+    const { element, button } = await workspace()
+    api.preflightTrialRun.mockResolvedValue({ fits: true, message: 'Projected context fits.', characters: 320, characterBudget: 1000, sourceCharacters: 20, historyReserveCharacters: 300, headroomCharacters: 680, sources: [] })
+    await act(async () => button('Check source size').click())
+    expect(element.textContent).toContain('Projected context: 320 / 1,000 characters')
+    expect(element.textContent).toContain('Sources: 20')
+    expect(element.textContent).toContain('planned history reserve: 300')
+    expect(element.textContent).toContain('estimated headroom: 680')
+    expect(element.textContent).not.toContain('History projection is unavailable')
   })
   it('edits and parents new user settings from the matter ledger, not the run ledger', async () => {
     const { element, button } = await workspace(6)

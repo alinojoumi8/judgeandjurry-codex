@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CaseModel, RobustnessReport, WorkflowSource } from '../trialEngineTypes'
 import type { DecisionTrace, ElementEvidenceRow, SourceDocument, TraceReference } from '../../server/trialEngineTypes'
-import { downloadEvidenceSource, fetchOriginalSource, fetchSourcePassages } from '../api'
+import { downloadEvidenceSource, fetchSourcePassages } from '../api'
+
+import { PreservedPdfPreview } from './PreservedPdfPreview'
 
 const labels = { supporting: 'Supporting', contrary: 'Contrary', disputed: 'Disputed' }
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'Unable to load source.'
@@ -22,15 +24,13 @@ function SourcePassageViewer({ matterId, source, onClose }: { matterId: string; 
   const target = useRef<HTMLElement>(null)
   const [document, setDocument] = useState<SourceDocument | null>(null)
   const [error, setError] = useState('')
-  const [originalUrl, setOriginalUrl] = useState('')
-  const [loadingOriginal, setLoadingOriginal] = useState(false)
-  const original = useRef('')
+  const [showOriginal, setShowOriginal] = useState(false)
   const selectedParagraph = Number(source.locator?.paragraph)
   useEffect(() => {
     dialog.current?.showModal()
     let cancelled = false
     void fetchSourcePassages(matterId, source.evidenceId!).then((value) => { if (!cancelled) setDocument(value) }).catch((caught) => { if (!cancelled) setError(errorMessage(caught)) })
-    return () => { cancelled = true; if (original.current) URL.revokeObjectURL(original.current) }
+    return () => { cancelled = true }
   }, [matterId, source.evidenceId])
   useEffect(() => { target.current?.scrollIntoView({ block: 'center' }) }, [document])
   const targetPage = document?.passages.find((part) => part.paragraph === selectedParagraph)?.page
@@ -45,17 +45,9 @@ function SourcePassageViewer({ matterId, source, onClose }: { matterId: string; 
       {source.quote && <div><h4>Passage saved with this reference</h4><blockquote>{source.quote}</blockquote></div>}
       <div className="workflow-row">
         <button type="button" disabled={!document.sourceAvailable} onClick={() => void downloadEvidenceSource(document.evidenceId, document.name).catch((caught) => setError(errorMessage(caught)))}>Download preserved original</button>
-        {document.mimeType === 'application/pdf' && <button type="button" disabled={!document.sourceAvailable || loadingOriginal} onClick={() => {
-          setLoadingOriginal(true)
-          void fetchOriginalSource(document.evidenceId).then((blob) => {
-            if (!dialog.current?.isConnected) return
-            if (original.current) URL.revokeObjectURL(original.current)
-            original.current = URL.createObjectURL(blob)
-            setOriginalUrl(original.current)
-          }).catch((caught) => setError(errorMessage(caught))).finally(() => setLoadingOriginal(false))
-        }}>{loadingOriginal ? 'Loading original…' : 'View original PDF'}</button>}
+        {document.mimeType === 'application/pdf' && <button type="button" disabled={!document.sourceAvailable} onClick={() => setShowOriginal(value => !value)}>{showOriginal ? 'Hide original PDF' : 'View original PDF'}</button>}
       </div>
-      {originalUrl && <iframe title="Preserved original PDF" src={`${originalUrl}${targetPage ? `#page=${targetPage}` : ''}`} />}
+      {showOriginal && <PreservedPdfPreview key={document.evidenceId} evidenceId={document.evidenceId} initialPage={targetPage ?? 1} />}
       <h4>Extracted source with surrounding passages</h4>
       <div className="source-passages">{document.passages.map((part) => <article key={part.paragraph} ref={part.paragraph === selectedParagraph ? target : undefined} className={part.paragraph === selectedParagraph ? 'selected-passage' : ''}>
         <strong>Paragraph {part.paragraph}{part.page ? ` · PDF page ${part.page}` : ''}</strong><p>{part.text}</p>

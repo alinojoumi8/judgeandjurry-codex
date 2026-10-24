@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { currentJurorDraft } from '../server/checkerJurorState'
+import { currentJurorDraft, jurorInfluenceValidationUnits } from '../server/checkerJurorState'
 import { parseGroundingReview, type GroundingUnit } from '../server/grounding'
 import { MiniMaxClient, normalizeStageResult, type StageRequest } from '../server/minimax'
 import type { GroundingRecordEvent } from '../server/groundingRecords'
@@ -25,6 +25,27 @@ function check(text: string, options: { status?: string; records?: string[]; his
 }
 
 describe('current self-explanation with actual record and history', () => {
+  const shift = 'Reviewing juror-12’s exhibit-level analysis moved my initial undecided assessment to a defence-leaning position.'
+  it('checks the actual initial and current choices without demanding an earlier record of current influence', () => {
+    expect(check(shift, { history: [{ ...initial, choice: 'undecided' }] }).errors).toEqual([])
+    for (const history of [[], [initial], [{ ...initial, choice: 'undecided', usable: false }], [{ ...initial, choice: 'undecided' }, { ...initial, choice: 'undecided' }]]) {
+      expect(check(shift, { history }).status).toBe('failed')
+    }
+    expect(check(shift.replace('defence-leaning', 'crown-leaning'), { history: [{ ...initial, choice: 'undecided' }] }).status).toBe('failed')
+    expect(check(shift, { history: [{ ...initial, choice: 'undecided' }], events: [] }).status).toBe('failed')
+    expect(check(shift + ' Arin received cash.', { history: [{ ...initial, choice: 'undecided' }] }).status).toBe('failed')
+  })
+  it('routes only a verified current influence/history mismatch to re-review, preserving negative judgments', () => {
+    const shifted = { ...request, courtroomAssessments: [{ ...initial, choice: 'undecided' }] }
+    const result = draft(shift)
+    const units = [{ id: 'content:1', text: shift }]
+    const rejected = check(shift, { status: 'unsupported', history: shifted.courtroomAssessments })
+    rejected.findings[0].explanation = 'No supplied history records the peer analysis as the cause of the shift.'
+    expect(jurorInfluenceValidationUnits(shifted, result, units, rejected)).toEqual(['content:1'])
+    expect(rejected.status).toBe('failed')
+    expect(jurorInfluenceValidationUnits({ ...shifted, courtroomAssessments: [initial] }, result, units, rejected)).toEqual([])
+    expect(jurorInfluenceValidationUnits({ ...shifted, courtroomEvents: [] }, result, units, rejected)).toEqual([])
+  })
   it.each([influence, influence.replace('but supplied no evidence changing my assessment of', 'without adding evidence resolving')])('permits the checked present influence: %s', text => {
     expect(check(text).errors).toEqual([])
     expect(check(text, { history: [] }).status).toBe('passed')
@@ -73,6 +94,25 @@ describe('current self-explanation with actual record and history', () => {
 })
 
 describe('bounded re-review of present influence', () => {
+  it.each([false, true])('independently rechecks a current shift without erasing a repeated rejection=%s', async repeat => {
+    const text = 'Reviewing juror-12’s exhibit-level analysis moved my initial undecided assessment to a defence-leaning position.'
+    const prompts: string[] = []
+    const shifted = { ...request, courtroomAssessments: [{ ...initial, choice: 'undecided' }] }
+    const client = new MiniMaxClient({ provider: 'openai-compatible', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 1000, maxRetries: 1 }, undefined, async (_url, init) => {
+      const prompt = JSON.parse(String(init?.body)).messages[1].content; prompts.push(prompt)
+      const units = JSON.parse(prompt.split('Draft units to check:\n')[1]) as GroundingUnit[]
+      return Response.json({ choices: [{ message: { content: JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id,
+        status: unit.id === 'content:1' && (prompts.length === 1 || repeat) ? 'unsupported' : 'analysis',
+        explanation: unit.id === 'content:1' ? 'No supplied history records the peer analysis as the cause of the shift.' : 'Current assessment.',
+        supportTypes: unit.id === 'content:1' ? ['record', 'own_assessment'] : ['own_assessment'], citations: [], recordCitations: unit.id === 'content:1' ? ['peer-12'] : [],
+      })) }) } }] })
+    })
+    const review = await client.reviewGrounding(shifted, draft(text))
+    expect(prompts).toHaveLength(2)
+    expect(prompts[1]).toContain('checker current-influence scope mismatch')
+    expect(review.status).toBe(repeat ? 'failed' : 'passed')
+    expect(review.findings.find(finding => finding.unitId === 'content:1')!.text).toBe(text)
+  })
   it.each([false, true])('requests a new judgment and preserves a repeated rejection=%s', async repeat => {
     const sent: string[] = []
     const client = new MiniMaxClient({ provider: 'openai-compatible', baseUrl: 'http://127.0.0.1:11434/v1', model: 'fixture', timeoutMs: 1000, maxRetries: 1 }, undefined, async (_url, init) => {

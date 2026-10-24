@@ -11,6 +11,10 @@ const hash = (text: string) => createHash('sha256').update(text).digest('hex')
 const author = { id: 'juror-01', name: 'juror-01', roles: ['juror'] }
 const unit = { id: 'content:1', text: 'I assess the supplied record.' }
 const marker = 'Approved draft author metadata:'
+const newRules = [
+  'Keep document authors, embedded speakers and proceeding advocates distinct. An affidavit quoting a witness supplies that witness\'s attributed words, not the deponent\'s admission or a Defence submission. A document\'s contract, financing or signature discussion cannot establish that the Defence made those assertions in this proceeding. An attribution that the Defence points to, argues or explains a proposition requires an actual matching visible public submission or an expressly supplied approved party position. A private party theory, a source citation or shared subject matter does not supply that attribution. A faithfully attributed source account remains reviewable as source contents without a matching party submission; its factual truth remains disputed.',
+  'Every finding, including unsupported and contradicted findings, must explicitly include supportTypes and recordCitations. Select support domains independently even when rejecting a claim; use an explicit [] for no selected record references. Omission does not mean an empty array. A correction of missing fields must retain a substantive rejection; a changed judgment requires an independent explanation grounded in the actual supplied source or visible record. Completing JSON alone supplies no new support.',
+]
 
 async function checkerContext(request = capture.request) {
   let context = ''
@@ -31,14 +35,16 @@ describe('checker reusable prefix preserves every existing instruction', () => {
     const before = baseline.modes.find((row: { opening: boolean }) => row.opening === opening)
     const staticRules = text.slice(0, offset).trimEnd()
     expect(staticRules.split(groundingSupportTypesContract)).toHaveLength(2)
-    expect(hash(staticRules.replace(groundingSupportTypesContract + ' ', ''))).toBe(before.staticRulesSha256)
+    for (const rule of newRules) expect(staticRules.split(rule)).toHaveLength(2)
+    const originalRules = newRules.reduce((rules, addition) => rules.replace(addition + ' ', ''), staticRules.replace(groundingSupportTypesContract + ' ', ''))
+    expect(hash(originalRules)).toBe(before.staticRulesSha256)
     expect(hash(text.slice(offset))).toBe(before.variableAuthoritySha256)
   })
   it.each([false, true])('shares the same static prefix across different authors and unit inventories (opening=%s)', opening => {
     const first = groundingMessages([unit], [], '', undefined, opening, author)[0].content
     const second = groundingMessages([{ id: 'content:99', text: 'A different draft.' }], [], '', undefined, opening,
       { id: 'juror-02', name: 'Other juror', roles: ['foreperson'] })[0].content
-    expect(first.slice(0, first.indexOf(marker))).toHaveLength(baseline.modes.find((row: { opening: boolean }) => row.opening === opening).staticCharacters + groundingSupportTypesContract.length + 2)
+    expect(first.slice(0, first.indexOf(marker))).toHaveLength(baseline.modes.find((row: { opening: boolean }) => row.opening === opening).staticCharacters + groundingSupportTypesContract.length + 2 + newRules.reduce((length, rule) => length + rule.length + 1, 0))
     expect(first.slice(0, first.indexOf(marker))).toBe(second.slice(0, second.indexOf(marker)))
     expect(second).toContain('"content:99"')
     expect(second).toContain('"juror-02"')

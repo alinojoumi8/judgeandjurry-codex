@@ -4,6 +4,8 @@ import { deliberationHistoryScopeFailure } from './deliberationHistoryScope'
 import { incompleteCoordinatedOnlySummary, missingClassificationStatement, resolvedCurrentCrownProof, sourceMetadataProvided, unresolvedCrownProofDoubt } from './checkerCalibrationScope'
 import { deniedPriorAssessment, peerAssessmentAttribution, peerAssessmentClaim, resolveRecordReference, usablePeerContribution } from './groundingRecords'
 import { transcriptQuotationText } from './transcriptQuotation'
+import { sourcePageReferenceErrors } from './sourcePageReferences'
+import { instructionElementDriftError } from './instructionElementDrift'
 import { factualPremiseError } from './factualPremise'
 import { groundingSupportTypes, groundingSupportTypesContract } from './groundingFormat'
 import { checkerParagraphReferenceErrors } from './checkerParagraphReferences'
@@ -33,7 +35,9 @@ export interface GroundingFinding {
   citations: GroundingCitation[]
   recordCitations?: Array<{ eventId: string; actorId?: string; quote: string }>
 }
+export interface GroundingRejection { unitId: string; text: string; status: 'unsupported' | 'contradicted'; explanation: string }
 export interface GroundingReview {
+  sourceCoverageAnchors?: Array<{ unitId: string; text: string; selectors: Array<{ evidenceId: string; exhibitId: string; paragraph: number }>; sources: Array<[string, string]> }>
   status: 'passed' | 'failed'
   method: 'source-quotes-and-model-review'
   findings: GroundingFinding[]
@@ -43,8 +47,10 @@ export interface GroundingReview {
   peerReferenceValidationUnitIds?: string[]
   sourceLocatorValidationUnitIds?: string[]
   scopeValidationUnitIds?: string[]
+  incompleteFindings?: Array<{ unitId: string; status: 'unsupported' | 'contradicted'; missingFields: Array<'supportTypes' | 'recordCitations'> }>
+  explicitRejections?: GroundingRejection[]
   verificationRetries?: number
-  verificationFailures?: Array<{ attempt: number; errors: string[]; findings?: GroundingFinding[] }>
+  verificationFailures?: Array<{ attempt: number; errors: string[]; findings?: GroundingFinding[]; explicitRejections?: GroundingRejection[] }>
   citationCorrections?: Array<{ unitId: string; exhibitId: string; fromParagraph?: number; toParagraph: number }>
   jurorCitationCorrections?: Array<{ jurorIndex: number; exhibitId: string; unitIds: string[] }>
   repairs: number
@@ -72,16 +78,29 @@ function priorPartyClaims(text: string, actorRoles: string[] = []) {
   // concession still needs its own visible submission; past acknowledgements
   // remain historical claims and cannot be supplied by that opponent's record.
   let claims = text
+  const ownRole = actorRoles.includes('crown') ? 'crown' : actorRoles.some(role => ['defence', 'defendant', 'accused'].includes(role)) ? 'defence' : undefined
+  // A current advocate can perform its own present argument. Its separate
+  // factual premises and any report of the other party remain reviewable.
+  if (ownRole) {
+    const quotations = [...claims.matchAll(/[“"][^“”"]*[”"]|‘(?:[^’]|(?<=\w)’(?=\w))*’|(?<!\w)'[^']*'(?!\w)/g)].map(match => [match.index, match.index + match[0].length])
+    const presentClause = new RegExp(`(^|;\\s*|[.!?]\\s+)(?:(?:Here|Finally|In reply|Accordingly|Therefore|On this record|For these reasons|In closing),\\s*)?(?:The )?${ownRole === 'crown' ? 'Crown' : 'Defen[cs]e'}\\s+(?:(?:expressly|explicitly)\\s+)?(?:concedes|acknowledges|states|says|argues|rejects|supplies|points to|relies on)\\b`, 'gi')
+    claims = claims.replace(presentClause, (statement, boundary: string, offset: number) => quotations.some(([start, end]) => offset + boundary.length >= start && offset + boundary.length < end) ? statement : boundary)
+  }
   if (actorRoles.some(role => ['defence', 'defendant', 'accused'].includes(role))) claims = claims.replace(/\b(?:The )?Defen[cs]e\s+(?:accepts|acknowledges|notes)\s+the\s+(?=Crown(?:'s|’s)\s+(?:concession|submission|position|acknowledg(?:e)?ment)\b)/gi, '')
   if (actorRoles.includes('crown')) claims = claims.replace(/\b(?:The )?Crown\s+(?:accepts|acknowledges|notes)\s+the\s+(?=Defen[cs]e(?:'s|’s)\s+(?:concession|submission|position|acknowledg(?:e)?ment)\b)/gi, '')
-  const verbs = [...claims.matchAll(/\b(Crown|Defence|Defense)(?:'s|’s)?\s+(?:own\s+)?(?:(?:closing|submission|opening|rebuttal|reply)\s+)?(?:(?:expressly|explicitly|correctly)\s+)?(?:concedes?|conceded|acknowledges?|acknowledged|states?|stated|says?|said|argues?|argued|rejects?|rejected|agreed|supplies|supplied)\b/gi)]
+  const verbs = [...claims.matchAll(/\b(Crown|Defence|Defense)(?:'s|’s)?\s+(?:own\s+)?(?:(?:closing|submission|opening|rebuttal|reply)\s+)?(?:(?:expressly|explicitly|correctly)\s+)?(?:concedes?|conceded|acknowledges?|acknowledged|states?|stated|says?|said|argues?|argued|rejects?|rejected|agreed|supplies|supplied|points? to|pointed to|relies on|relied on)\b/gi)]
   const nouns = [...claims.matchAll(/\b(Crown|Defence|Defense)(?:'s|’s)\s+(?:own\s+)?(?:concession|submission|position|acknowledg(?:e)?ment)\b/gi)]
   const shared = [...claims.matchAll(/\b(Crown|Defence|Defense)\s+and\s+(?:(?:the|fictional)\s+){0,2}(Crown|Defence|Defense)\s+(agree|agreed)\b/gi)]
-  const ownRole = actorRoles.includes('crown') ? 'crown' : actorRoles.some(role => ['defence', 'defendant', 'accused'].includes(role)) ? 'defence' : undefined
   const sharedRoles = shared.flatMap(match => [match[1], match[2]].map(party => party.toLowerCase() === 'crown' ? 'crown' : 'defence').filter(role => match[3].toLowerCase() === 'agreed' || role !== ownRole))
   const agreement = [...claims.matchAll(/\b(Crown|Defence|Defense)\s+(agrees|agreed)\s+with\s+(?:the\s+)?(Crown|Defence|Defense)\b/gi)]
   const agreementRoles = agreement.flatMap(match => [match[1], match[3]].map(party => party.toLowerCase() === 'crown' ? 'crown' : 'defence').filter(role => match[2].toLowerCase() === 'agreed' || role !== ownRole))
   return [...new Set([...verbs, ...nouns].map(match => match[1].toLowerCase() === 'crown' ? 'crown' : 'defence').concat(sharedRoles, agreementRoles))]
+}
+
+function usablePublicSubmission(event: { eventId?: string; actorId?: string; type: string; payload: Record<string, unknown> }) {
+  return event.type === 'public_submission' && Boolean(event.eventId && event.actorId) && !event.payload.withheld &&
+    typeof event.payload.text === 'string' && Boolean(event.payload.text.trim()) &&
+    !/^No valid model (?:contribution|submission|response) was available(?: for this turn)?\.?$/i.test(event.payload.text.trim())
 }
 
 function positiveProofClaim(text: string, burdenOnly = false) {
@@ -139,15 +158,19 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
   const currency = (value: string) => /^(?:USD|US\$)/i.test(value) ? 'USD' : /^(?:CAD|CDN|CA\$|Cdn\$)/i.test(value) ? 'CAD' : '$'
   const threshold = new RegExp(String.raw`\bvalue\b[^.!?]{0,90}\b(?:exceeds|over|greater than)\s*(${amount})`, 'i')
     const assessment = new RegExp(String.raw`\b(?:does not|do not|cannot|doesn't|can't)\s+(?:(?:independently|itself|alone)\s+)?(?:prove|establish|resolve|connect|identify)\b[^$;.!?]{0,180}\b(?:value|(?:matched )?(?:principal )?(?:loss|deprivation))\s+(?:exceeding|over|greater than)\s*(${amount})`, 'gi')
+  const unresolvedElements = new RegExp(String.raw`\b(?:knowledge|deprivation|loss|value)(?: and (?:knowledge|deprivation|loss|value))?\s+(?:over|exceeding|greater than)\s*(${amount})\s+(?:remain(?:s)?|is|are)\s+(?:unresolved|unproved|unproven)\b`, 'gi')
   const unresolved = new RegExp(String.raw`\bthe\s+(${amount})\s+value\s+(?:remains?\s+)?unresolved\b`, 'gi')
     const openQuestion = new RegExp(String.raw`\bwhether (?:any )?element amount (?:above|over|exceeding|greater than)\s*(${amount}) is tied to [\w ’'-]+ on this record is a question I (?:still )?cannot answer\b`, 'gi')
   const doubt = new RegExp(String.raw`\bI (?:still )?doubt (?:whether )?[^$;.!?]{0,180}\bvalue\s+(?:exceeding|over|greater than)\s*(${amount})`, 'gi')
   const burdenAssessment = new RegExp(String.raw`\bI (?:find|conclude) (?:that )?the Crown has not (?:proved|proven|established) (?:beyond a reasonable doubt )?(?:that )?[^$;.!?:]{0,180}\b(?:value|(?:matched )?(?:loss|deprivation))\s+(?:exceeding|over|greater than)\s*(${amount})`, 'gi')
   const unprovedValue = new RegExp(String.raw`\bvalue\s+(?:exceeding|over|greater than)\s*(${amount})\s+(?:is|are) not (?:proved|proven|established) beyond a reasonable doubt\b`, 'gi')
   const proposedValue = new RegExp(String.raw`\bThe proposed value element of (?:more than|over|greater than)\s*(${amount}) is therefore a Crown question the recorded figure could support, but the Crown must prove it beyond a reasonable doubt\b`, 'gi')
-  const requirement = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+(?:[([]E-\d+(?:\s*[,;]\s*E-\d+)*[)\]]\s*)*)The Crown must (?:(?:still|also) )?(?:prove|establish|tie)\b[^$;.!?"“”]{0,180}\b(?:value|amount|loss|deprivation)\s+(?:exceeding|over|greater than)\s*(${amount})`, 'gi')
-  const caption = new RegExp(String.raw`^(?:Crown|Defence) (?:Opening|Closing|Rebuttal)\s*[-—:]\s*Proposed Fraud (?:Exceeding|Over|Greater Than)\s*(${amount})(?: Count)?(?:(?: Against |\s*[-—:]\s*)[\p{L}][\p{L} ’'-]{0,80})?[.!?]?$`, 'iu')
-  const proposedBurden = new RegExp(String.raw`(?:^|(?<=[;.!?])\s+)(?:Members of (?:the )?Jury(?: Panel)?,\s+)?the Crown must (?:prove|establish) (?:every|each) element of (?:the )?proposed fraud (?:exceeding|over|greater than)\s*(${amount})\s+count beyond a reasonable doubt(?=$|[;.!?])`, 'gi')
+  const conditionalValueElement = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)If (?:a|the) (?:recorded|supplied) figure\b[^$;.!?]{0,250},\s+(?:it|that figure) (?:could|would|may|might) support (?:the )?(?:approved )?(?:value )?element that (?:the )?value(?: of the subject matter of the alleged fraud)?\s+(?:exceeds|exceeding|over|greater than)\s*(${amount})`, 'gi')
+  const conditionalFigureElement = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)If\b(?:[^;.!?]|\.(?=\d)){0,400}\bis established as (?:the )?value of (?:the )?(?:alleged )?subject matter,\s+(?:it|(?:that|the) (?:figure|amount|total)) (?:could|would|may|might) support (?:the )?(?:approved )?(?:value )?element (?:exceeding|over|greater than)\s*(${amount})`, 'gi')
+  const requirement = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+(?:[([]E-\d+(?:\s*[,;]\s*E-\d+)*[)\]]\s*)*)(?:For (?:this|the) (?:proposed|supplied|fictional|exercise) count,?\s+)?The (?:Crown|evidence) must (?:(?:still|also) )?(?:prove|establish|tie)\b[^$;.!?"“”]{0,350}\b(?:value|amount|loss|deprivation)\s+(?:exceeding|over|greater than)\s*(${amount})`, 'gi')
+  const caption = new RegExp(String.raw`^(?:Crown|Defence) (?:Opening|Closing|Rebuttal)(?:\s*[-—:]\s*|\s+on\s+)Proposed Fraud[ -]+(?:Exceeding|Over|Greater[ -]+Than)[ -]*(${amount})(?: Count)?(?:(?: Against |\s*[-—:]\s*)[\p{L}][\p{L} ’'-]{0,80})?[.!?]?$`, 'iu')
+  const crownBurden = String.raw`Crown bears the burden of (?:proving|establishing)`
+  const proposedBurden = new RegExp(String.raw`(?:^|(?<=[;.!?])\s+)(?:Members of (?:the )?Jury(?: Panel)?,\s+)?(?:(?:the )?(?:Crown|Defence) submits that )?(?:the )?(?:Crown must (?:prove|establish)|${crownBurden}) (?:beyond a reasonable doubt )?(?:every|each) element of (?:the )?proposed fraud[ -]+(?:exceeding|over|greater[ -]+than)[ -]*(${amount})\s+count(?: beyond a reasonable doubt)?(?=$|[;.!?:,])`, 'gi')
     const proposedQuestion = new RegExp(String.raw`(?:^|(?<=[;.!?])\s+)(?:whether|what)\b[^$;.!?]{0,300}\bon (?:the )?proposed fraud (?:exceeding|over|greater than)\s*(${amount})\s+count,?\s+(?:remains?|is)\s+(?:an?\s+)?unresolved (?:question|issue) (?:on|within) (?:this|the supplied) record\b`, 'gi')
   const removeThreshold = (statement: string, claimed: string, offset: number, input: string) => {
     if ([...input.matchAll(/["“]([^"”]+)["”]/g)].some(match => offset >= match.index && offset < match.index + match[0].length)) return statement
@@ -160,9 +183,86 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
     used.push(matches[0])
     return statement.replace(claimed, '')
   }
+  const removeRequirementThreshold = (statement: string, claimed: string, offset: number, input: string) => {
+    // Scenario elements do not supply an operative charge's factual amount.
+    const clause = input.slice(offset).split(/;|(?<=[.!?])\s+/)[0]
+    if (/\bThe evidence must\b/i.test(statement) && /\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(clause)) return statement
+    return removeThreshold(statement, claimed, offset, input)
+  }
   const comparison = sourceThresholdComparisons(text, citations, labels, dollarAmounts)
   used.push(...comparison.labels)
+  // Classify each threshold occurrence by its local proof-list scope. The
+  // approved number never exempts a neighboring payment of the same amount.
+  const listThreshold = new RegExp(String.raw`\b(?:the\s+|a\s+)?(?:value|subject matter)(?:\s+of\s+[^$;.!?]{1,90}?)?\s+(?:exceeds|exceeded|exceeding|over|greater than)\s*(${amount})`, 'gi')
+  const approvedBurdenDirective = /\b(?:(?:current )?(?:approved|supplied)(?: exercise)?|current exercise) (?:issue|(?:value )?element) requires? (?:the )?Crown to (?:prove|establish)\b/i
+  const crownBurdenDirective = new RegExp(String.raw`\b${crownBurden}\b`, 'i')
+  const proofDirective = (value: string) => /\bCrown\b[^;.!?]{0,80}\bmust\s+(?:(?:still|also)\s+)?(?:prove|establish)\b/i.test(value) || approvedBurdenDirective.test(value) || crownBurdenDirective.test(value)
+  const passiveCountThreshold = new RegExp(String.raw`\bproposed fraud[ -]+(?:exceeding|over|greater[ -]+than)[ -]*(${amount})\s+count\b`, 'gi')
+  const removePassiveThreshold = (statement: string, claimed: string, offset: number, input: string) => {
+    const prefix = input.slice(0, offset).split(/;|(?<=[.!?])\s+/).at(-1) ?? ''
+    const suffix = input.slice(offset + statement.length).split(/;|(?<=[.!?])\s+/)[0]
+    const count = /\bproposed fraud[ -]/i.test(statement)
+    const predicate = String.raw`must\s+(?:(?:each|all)\s+)?be\s+(?:proved|proven|established)\s+beyond a reasonable doubt\b`
+    if (count ? !/^\s*(?:each|every|all) (?:approved )?elements? of (?:the )?$/i.test(prefix) || !new RegExp(String.raw`^\s*(?:[-—:]\s*[^;.!?]{0,650})?${predicate}`, 'i').test(suffix)
+      : !new RegExp(String.raw`^\s*[,—-]?\s*${predicate}`, 'i').test(suffix)) return undefined
+    const clause = prefix + statement + suffix
+    if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(clause) ||
+        /\b(?:records?|reports?|states?|says?|received|transferred|paid|deposited|withdrew)\b|\b(?:was|were) made\b/i.test(clause) || /\b(?:not|never|without)\b/i.test(prefix)) return statement
+    return removeProposedThreshold(statement, claimed, offset, input)
+  }
+  const removeListedThreshold = (statement: string, claimed: string, offset: number, input: string) => {
+    const passive = removePassiveThreshold(statement, claimed, offset, input)
+    if (passive !== undefined) return passive
+    const prefix = input.slice(0, offset).split(/(?<=[.!?])\s+/).at(-1) ?? ''
+    // Ignore quoted requirements and source reports when locating the actual
+    // author's directive. Every source/payment amount keeps its own support.
+    const instructionPrefix = prefix.replace(/["“][^"”]*["”]/g, ' ')
+    if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(instructionPrefix)) return statement
+    if (!proofDirective(instructionPrefix)) return statement
+    const localPrefix = instructionPrefix.split(';').at(-1) ?? ''
+    if (/\bE-\d+\b|\b(?:records?|reports?|states?|says?|received|transferred|paid|deposited|withdrew)\b/i.test(localPrefix)) return statement
+    if (!proofDirective(localPrefix) && !/^\s*(?:(?:and|or|that|together with|including|with)\s+)*$/i.test(localPrefix)) return statement
+    if (approvedBurdenDirective.test(localPrefix) || crownBurdenDirective.test(instructionPrefix)) {
+      // A report's directive remains reported source content across its list.
+      // A later independent Crown directive starts its own semicolon clause.
+      const burdenDirective = [...instructionPrefix.matchAll(new RegExp(crownBurdenDirective.source, 'gi'))].at(-1)
+      const burdenStart = burdenDirective ? instructionPrefix.lastIndexOf(';', burdenDirective.index) + 1 : 0
+      const burdenPrefix = burdenDirective ? instructionPrefix.slice(burdenStart, burdenDirective.index) : ''
+      if (/\bE-\d+\b|\b(?:records?|reports?|states?|says?)\b/i.test(burdenPrefix)) return statement
+      if (/\b(?:not|never|without)\b/i.test(burdenDirective ? instructionPrefix.slice(burdenStart) : localPrefix)) return statement
+      const clause = localPrefix + input.slice(offset).split(/;|(?<=[.!?])\s+/)[0]
+      if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(clause)) return statement
+      return removeProposedThreshold(statement, claimed, offset, input)
+    }
+    return removeThreshold(statement, claimed, offset, input)
+  }
+  const countCaption = new RegExp(String.raw`\bFor (?:this|the) proposed [\p{L} ’'-]{2,80} (?:exceeding|over|greater than)\s*(${amount})\s+count(?=\s*,)`, 'giu')
     const proposedErrors: string[] = []
+    const allegationValue = new RegExp(String.raw`^\s*The value allegation (?:exceeds|is over|is greater than)\s*(${amount})\s*[:;]`, 'i')
+    const valueClaim = text.match(allegationValue)
+    if (valueClaim) {
+      // A faithful allegation about quantified fraud is different from an
+      // unrelated balance or stock payment. Its quoted subject and currency
+      // must themselves support this comparison; no occurrence truth follows.
+      const attributed = /\b(?:report|document|source|complaint|affidavit|interview)\b[^;.!?]{0,160}\b(?:quotes?|attributes?|alleges?|records?|states?)\b/i.test(text)
+      const attributedAllegedValue = attributed && citations.some(citation => {
+        const quantifiedAllegation = new RegExp(String.raw`(?:\bdefrauded\b[^;.!?]{0,100}\bof\s+(${amount})|\b(?:alleged|alleges|allegation|claim(?:ed)?)\b[^;.!?]{0,50}\b(?:fraud|loss)\b(?:\s+(?:of|value|amount|total|was|is|at|valued|in)){0,5}\s*(${amount}))`, 'gi')
+        const allegations = [...citation.quote.matchAll(quantifiedAllegation)]
+        const attributedAmounts = allegations.filter(match => {
+          // Preserve the named source subject even in an unquoted paraphrase.
+          // Semantic fidelity is still independently assessed by the checker.
+          const actor = /defrauded/i.test(match[0]) ? citation.quote.slice(0, match.index).match(/([\p{L}][\p{L}’'-]*)\s*$/u)?.[1] : undefined
+          return !actor || new RegExp(`\\b${actor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)
+        }).map(match => match[1] ?? match[2])
+        return attributedAmounts.length > 0 &&
+          !sourceThresholdComparisons(`The quoted amount exceeds ${valueClaim[1]}.`, [{ ...citation, quote: attributedAmounts.join('; ') }], [], dollarAmounts).errors.length
+      })
+      if (!attributedAllegedValue) proposedErrors.push('A positive allegation-value conclusion needs a quantified allegation about that subject matter, accurately attributed and compared in matching currency. An unrelated account balance or separate stock payment does not supply that allegation value. State the actual source amounts and a qualified issue argument; an allegation is not established fraud or guilt.')
+      // Validate only this approved benchmark as an instruction amount. Every
+      // adjacent actual payment retains its own source-support check.
+      comparison.factualText = comparison.factualText.replace(allegationValue, removeThreshold)
+    }
+
     const removeProposedThreshold = (statement: string, claimed: string, offset: number, input: string) => {
       const updated = removeThreshold(statement, claimed, offset, input)
       if (updated === statement && ![...input.matchAll(/["“]([^"”]+)["”]/g)].some(match => offset >= match.index && offset < match.index + match[0].length)) {
@@ -170,7 +270,28 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
       }
       return updated
     }
-    let factualText = comparison.factualText.replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(requirement, removeThreshold).replace(proposedQuestion, removeProposedThreshold).replace(proposedBurden, removeProposedThreshold)
+    const removeConditionalFigureThreshold = (statement: string, claimed: string, offset: number, input: string) => {
+      const clause = input.slice(offset).split(/;|(?<=[.!?])\s+/)[0]
+      if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(clause)) return statement
+      if (removeProposedThreshold(statement, claimed, offset, input) === statement) return statement
+      // The antecedent can contain the same amount. Exempt only the captured
+      // final benchmark; every amount in the factual premise remains checked.
+      const benchmark = statement.lastIndexOf(claimed)
+      return statement.slice(0, benchmark) + statement.slice(benchmark + claimed.length)
+    }
+    // A quoted exercise element is setup, even when followed by source-based
+    // argument. Match the entire current label and exempt only its threshold;
+    // a neighboring transaction of the same amount still needs source support.
+    const quotedElement = /(?:^|(?<=[.!?;])\s+)(?:Finally,\s+)?for\s+(?:(?:the\s+)?(?:approved|supplied|exercise)\s+element\s+)?[“"]([^“”"]+)[”"]/gi
+    const elementWords = (value: string) => normalize(value).replace(/[,.]+$/, '').toLowerCase()
+    const quotedElementText = comparison.factualText.replace(quotedElement, (statement: string, quotation: string) => {
+      const matching = labels.filter(label => elementWords(label) === elementWords(quotation))
+      const claimed = matching.length === 1 ? matching[0].match(threshold)?.[1] : undefined
+      if (!claimed) return statement
+      used.push(matching[0])
+      return statement.replace(quotation, quotation.replace(claimed, ''))
+    })
+    let factualText = quotedElementText.replace(listThreshold, removeListedThreshold).replace(passiveCountThreshold, (statement: string, claimed: string, offset: number, input: string) => removePassiveThreshold(statement, claimed, offset, input) ?? statement).replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(unresolvedElements, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(conditionalValueElement, removeThreshold).replace(conditionalFigureElement, removeConditionalFigureThreshold).replace(requirement, removeRequirementThreshold).replace(proposedQuestion, removeProposedThreshold).replace(proposedBurden, removeProposedThreshold).replace(countCaption, removeProposedThreshold)
   if (title) factualText = factualText.replace(caption, removeProposedThreshold)
     return { factualText, errors: [...comparison.errors, ...proposedErrors], labels: [...new Set(used)], event: used.length ? event : undefined }
 }
@@ -245,8 +366,9 @@ function sourceQuotations(text: string) {
       const documentSpeaker = [...prefix.matchAll(/\b(?:interview|report|account|document|transcript|email|letter|E-\d+)\b/gi)]
           .filter(candidate => candidate[0].toLowerCase() !== 'report' || introduction.test(prefix.slice(candidate.index + candidate[0].length)))
         .filter(candidate => introduction.test(prefix.slice(candidate.index))).at(-1)?.index ?? -1
-    const quotationIntro = introduction.test(prefix)
-    const documentAttributed = documentSpeaker > peerSpeaker && introduction.test(prefix.slice(documentSpeaker)) ||
+    const recordedStatement = peerSpeaker < 0 && /\brecorded statement that\s*$/i.test(prefix)
+    const quotationIntro = introduction.test(prefix) || recordedStatement
+    const documentAttributed = recordedStatement || documentSpeaker > peerSpeaker && introduction.test(prefix.slice(documentSpeaker)) ||
         /\b(?:the )?recorded\s*$/i.test(prefix) && /^\s+(?:statement|words|answer)\b/i.test(suffix) ||
       /\brecorded statement,?\s*$/i.test(prefix) && /^,?\s+in\b[^.!?;]{0,90}\b(?:interview|report|account|document|transcript)\b/i.test(suffix)
     if (!quotationIntro && !documentAttributed) return []
@@ -521,9 +643,11 @@ export function groundingMessages(units: GroundingUnit[], evidence: EvidenceItem
       'Do not copy or paraphrase source quotations into JSON. The server resolves each selected paragraph to its exact preserved source text for the audit. Citations are flat objects containing only exhibitId and paragraph, never nested citations or explanations.',
       'For contradicted units cite the contradicting passage where available. Keep explanations brief and suitable for a source-check audit.',
       'Visible public_submission events may support accurate attribution of a Crown or Defence statement or concession. Select that public eventId in recordCitations; match its actual party role and words. These statements establish what the party said, never evidence truth. Private submissions and other jurors\' ballots remain unavailable. Do not reject a supported public concession solely because it is not an exhibit.',
+      'Keep document authors, embedded speakers and proceeding advocates distinct. An affidavit quoting a witness supplies that witness\'s attributed words, not the deponent\'s admission or a Defence submission. A document\'s contract, financing or signature discussion cannot establish that the Defence made those assertions in this proceeding. An attribution that the Defence points to, argues or explains a proposition requires an actual matching visible public submission or an expressly supplied approved party position. A private party theory, a source citation or shared subject matter does not supply that attribution. A faithfully attributed source account remains reviewable as source contents without a matching party submission; its factual truth remains disputed.',
       'For public-position attribution, approved roles defence, defendant and accused identify the Defence side. A visible public_submission from any such approved actor can establish that side position; it need not come from a separately appointed advocate. Present Crown concurrence may adopt that actual public position now. Return the actual eventId; this does not supply earlier mutual agreement or establish source truth.',
       'Support domains: include supportTypes for every finding. Use source for claims about exhibit contents, record for an attributed visible contribution, own_assessment for the current author and supplied own history, instruction for the actual exercise rule, source_use for supplied application restrictions, analysis for a heading or premise-free evaluation, and coherence ONLY for ballot_consistency. Include all domains for mixed claims and check every clause separately. Pure non-source statements use analysis, never supported. A source_use note is not a quotation from the document; an instruction is not an operative charge. Peer references cannot prove source facts. A current doubt or conditional change is an assessment; any added factual premise still needs its own source locator. Generic titles such as Juror response are analysis. For coherence use analysis only when the content, rationale and structured choice agree, otherwise contradicted or unsupported, with EMPTY citations and recordCitations. Never copy source locators onto coherence.',
       groundingSupportTypesContract,
+      'Every finding, including unsupported and contradicted findings, must explicitly include supportTypes and recordCitations. Select support domains independently even when rejecting a claim; use an explicit [] for no selected record references. Omission does not mean an empty array. A correction of missing fields must retain a substantive rejection; a changed judgment requires an independent explanation grounded in the actual supplied source or visible record. Completing JSON alone supplies no new support.',
       (singleFinding
         ? 'Return one complete finding object as tool arguments in this order: unitId copied from the supplied inventory, recordCitations, citations, supportTypes, status and explanation. Independently select supporting visible record references first; explicitly return [] when none apply. An omitted recordCitations field is not an empty selection. Do not wrap it in findings or an array. Return every required field; never return an empty object.'
         : arrayFindings
@@ -663,6 +787,20 @@ function nonContradictionProofShortcut(text: string, evidence: EvidenceItem[], c
 
 export function parseGroundingReview(raw: string, units: GroundingUnit[], evidence: EvidenceItem[], approvedContext = '', ownHistory?: { actorId: string; assessments: Array<{ round: string; usable: boolean; choice?: string }>; profile?: { skepticismLevel: number; burdenSensitivity: number } }, proceduralSetup?: { packet: string; events: Array<{ eventId?: string; type: string; actorId?: string; payload: Record<string, unknown> }>; actorRoles: string[]; partyRoles: Array<{ id: string; role: string }>; actor?: { id: string; name?: string }; stage?: string; ballotRound?: string; currentJuror?: ReturnType<typeof currentJurorDraft>; approvedIssueInstructions?: Array<{ issueId: string; elements: Array<{ label: string }> }>; courtroomState?: { juryPresent: boolean; examination: string; pendingInstruction?: string } }): GroundingReview {
   const data = JSON.parse(raw) as { findings?: Array<{ unitId?: string; status?: string; supportTypes?: GroundingFinding['supportTypes']; explanation?: string; citations?: Array<{ exhibitId?: string; quote?: string; paragraph?: number }>; recordCitations?: Array<string | { eventId?: string } | null> }> }
+  // Raw negative judgments survive malformed siblings and missing fields, but
+  // are not validated findings and supply no inferred domains or selectors.
+  const rawRows: Array<[unknown, unknown]> = Array.isArray(data?.findings)
+    ? data.findings.map(row => [row?.unitId, row])
+    : data?.findings && typeof data.findings === 'object' ? Object.entries(data.findings) : []
+  const explicitRejections = rawRows.flatMap(([unitId, value]): GroundingRejection[] => {
+    if (typeof unitId !== 'string' || rawRows.filter(([id]) => id === unitId).length !== 1 ||
+        units.filter(unit => unit.id === unitId).length !== 1 || !value || typeof value !== 'object' || Array.isArray(value)) return []
+    const row = value as Record<string, unknown>
+    if (row.status !== 'unsupported' && row.status !== 'contradicted' || typeof row.explanation !== 'string' || !row.explanation.trim() ||
+        !Array.isArray(data?.findings) && Object.hasOwn(row, 'unitId')) return []
+    return [{ unitId, text: units.find(unit => unit.id === unitId)!.text, status: row.status, explanation: row.explanation }]
+  })
+  const rejectionMetadata = explicitRejections.length ? { explicitRejections } : {}
   if (data && typeof data === 'object' && !Array.isArray(data) && !Object.keys(data).length) {
     return { status: 'failed', method: 'source-quotes-and-model-review', findings: [], errors: [`The checker returned an empty review. Supply a complete finding for each required unit ID: ${JSON.stringify(units.map(unit => unit.id))}. Do not return {} or invent missing values.`], validationErrors: ['Invalid findings schema'], repairs: 0 }
   }
@@ -712,14 +850,14 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         ...(malformed.length ? [`Malformed finding rows: ${JSON.stringify(malformed)}. Include exactly status, supportTypes, explanation, citations and recordCitations, with nonempty explanation and valid selectors.`] : []),
         ...fieldErrors,
         ...selectorErrors,
-      ], validationErrors: ['Invalid findings schema'], repairs: 0 }
+      ], validationErrors: ['Invalid findings schema'], repairs: 0, ...rejectionMetadata }
     }
     data.findings = values.map(([unitId, row]) => ({ ...row, unitId }))
   }
   if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data.findings) || data.findings.some(row => !row || typeof row !== 'object' || Array.isArray(row) ||
     row.citations !== undefined && (!Array.isArray(row.citations) || row.citations.some(citation => !citation || typeof citation !== 'object' || Array.isArray(citation))) ||
     row.recordCitations !== undefined && !Array.isArray(row.recordCitations))) {
-    return { status: 'failed', method: 'source-quotes-and-model-review', findings: [], errors: ['The checker returned an invalid findings schema. Return one object with a flat array of complete finding objects.'], validationErrors: ['Invalid findings schema'], repairs: 0 }
+    return { status: 'failed', method: 'source-quotes-and-model-review', findings: [], errors: ['The checker returned an invalid findings schema. Return one object with a flat array of complete finding objects.'], validationErrors: ['Invalid findings schema'], repairs: 0, ...rejectionMetadata }
   }
   const errors: string[] = [...incompleteRejections].map(([id, omission]) => `${id}: rejected finding omitted ${omission.fields.join(', ')}; preserve the explicit ${omission.status} judgment and its missing metadata in the audit. No support domain or record reference was inferred. Acceptance requires a new complete review after any bounded author repair.`)
   const validationErrors: string[] = []
@@ -1542,7 +1680,7 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         const eventId = typeof citation === 'string' ? citation : citation?.eventId
         const resolved = typeof eventId === 'string' && eventId ? resolveRecordReference(proceduralSetup?.events ?? [], eventId) : undefined
         const instruction = resolved && ['judicial_instruction', 'limiting_instruction'].includes(resolved.type)
-        const event = resolved && (!priorJuryClaim(unit.text) || usablePeerContribution(resolved)) &&
+        const event = resolved && (resolved.type !== 'public_submission' || usablePublicSubmission(resolved)) && (!priorJuryClaim(unit.text) || usablePeerContribution(resolved)) &&
             (!instruction || (status === 'analysis' || status === 'supported' && (instructionRequirement || instructionStateBound || conditionalOwnState || Boolean(row?.citations?.length))) && !priorPartyClaims(unit.text, proceduralSetup?.actorRoles).length) ? resolved : undefined
         // A mixed unit may cite a procedural instruction and source passages.
         // Instructions never count toward the factual-source requirement below.
@@ -1752,6 +1890,16 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
           explanation = 'The actual Defence actor expresses its own present agreement with the visible Crown burden-and-disputed-accounts submission. This reports no earlier Defence position and adds no source fact.'
         }
       }
+    if (/^Did the Defen[cs]e accept the Crown['’]s (?:acknowledgement|concession) on this record\?$/i.test(unit.text.trim())) {
+      const acknowledgement = proceduralSetup?.events.find(event => usablePublicSubmission(event) && resolveRecordReference(proceduralSetup.events, event.eventId!) === event &&
+        proceduralSetup.partyRoles.some(party => party.id === event.actorId && party.role === 'crown') &&
+        /^(?:On the supplied record,\s*)?(?:the )?Crown burden is not met(?:[;.]|$)/i.test(normalize(String(event.payload.text ?? ''))))
+      status = acknowledgement?.eventId ? 'analysis' : 'unsupported'
+      explanation = acknowledgement?.eventId
+        ? 'The actual visible Crown submission acknowledges its burden is unmet. This complete yes/no inquiry asks whether the Defence accepted that position; it asserts no historical Defence adoption and may be answered no. Concession and acknowledgement describe the same supplied position here.'
+        : 'The neutral adoption question still requires its actual visible Crown acknowledgement. A missing, private, unrelated or differently authored submission cannot supply that referent.'
+      if (acknowledgement?.eventId && !recordCitations.some(citation => citation.eventId === acknowledgement.eventId)) recordCitations.push({ eventId: acknowledgement.eventId, actorId: acknowledgement.actorId, quote: String(acknowledgement.payload.text) })
+    }
       const partyClaims = priorPartyClaims(unit.text, proceduralSetup?.actorRoles)
         const defenceConcurrenceForm = /^(?:The Defence (?:accepts|acknowledges) the Crown['’]s (?:concession|acknowledgement) on this record|The Defence agrees with the Crown that the burden is not met on this record|The Crown and Defence agree that the burden is not met on this record)\.$/i.test(unit.text.trim())
         if (defenceConcurrenceForm && proceduralSetup?.actorRoles.includes('defence') && proceduralSetup.stage && proceduralSetup.stage !== 'defence_rebuttal') {
@@ -1774,14 +1922,14 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         invalid(`${unit.id}: an approved accused or defendant public-submission actor represents the Defence side. Re-check the SAME draft with the actual role mapping and return a matching eventId if its words support this claim; otherwise keep it unsupported. Do not infer a locator or agreement.`)
         roleValidationUnitIds.push(unit.id)
       }
-      const partyAttribution = partyClaims.length > 0 && partyClaims.every(role => recordCitations.some(c => proceduralSetup?.events.some(e => e.eventId === c.eventId && e.type === 'public_submission') && proceduralSetup?.partyRoles.some(p => p.id === c.actorId && (role === 'crown' ? p.role === 'crown' : ['defence', 'defendant', 'accused'].includes(p.role)))))
-      if ((status === 'analysis' || status === 'supported') && partyClaims.length && (recordCitations.length || /\b(?:Crown|Defen[cs]e)\s+(?:agrees?|agreed)\s+with\b|\b(?:Crown|Defen[cs]e)\s+and\s+(?:the\s+)?(?:Crown|Defen[cs]e)\s+agree(?:d)?\b/i.test(unit.text)) && !partyAttribution) {
-        if (!recordCitations.length && partyClaims.every(role => proceduralSetup?.events.some(event => event.type === 'public_submission' &&
+      const partyAttribution = partyClaims.length > 0 && partyClaims.every(role => recordCitations.some(c => proceduralSetup?.events.some(e => e.eventId === c.eventId && usablePublicSubmission(e)) && proceduralSetup?.partyRoles.some(p => p.id === c.actorId && (role === 'crown' ? p.role === 'crown' : ['defence', 'defendant', 'accused'].includes(p.role)))))
+      if ((status === 'analysis' || status === 'supported') && partyClaims.length && !partyAttribution) {
+        if (!recordCitations.length && partyClaims.every(role => proceduralSetup?.events.some(event => usablePublicSubmission(event) && resolveRecordReference(proceduralSetup.events, event.eventId!) === event &&
           proceduralSetup.partyRoles.some(party => party.id === event.actorId && (role === 'crown' ? party.role === 'crown' : ['defence', 'defendant', 'accused'].includes(party.role)))))) {
           invalid(`${unit.id}: a record citation is required for this party attribution. Select a matching visible public submission eventId, or mark the unit unsupported if none supports it.`)
         } else {
           status = 'unsupported'
-          explanation = 'The cited public submission is not from the attributed party. Preserve the actual Crown or Defence role; another actor cannot support this claimed concession.'
+          explanation = 'No selected usable public submission supports attribution to the named party. Preserve the actual Crown or Defence role and select its visible record reference; an exhibit, withheld turn, empty placeholder or another actor cannot establish that party statement.'
         }
       }
       const unquotedUnit = unit.text.replace(/["“][^"”]*["”]|(?<!\w)'[^']*'(?!\w)/g, '')
@@ -2008,7 +2156,9 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         const quotedAmounts = (recordAttribution ? recordCitations : citations).flatMap((citation) => dollarAmounts(citation.quote))
       if (amounts.some((amount) => !quotedAmounts.includes(amount))) invalid(`${unit.id}: a stated dollar amount is not present in its supporting quotations; verify the amount and quote its source or mark the claim unsupported.`)
     }
-      if (status === 'analysis' && !recordAttribution && /\$[\d,]+/.test(unit.text) && /\b(received|transferred|accepted|paid|deposited|withdrew)\b/i.test(unit.text)) errors.push(`${unit.id}: a payment assertion requires factual source support, not an analysis label.`)
+      // Mixed evaluation can retain its analysis label only when the checker
+      // also selected factual source support and actual verified passages.
+      if (status === 'analysis' && !recordAttribution && (!Array.isArray(row?.supportTypes) || !row.supportTypes.includes('source') || !citations.length) && /\$[\d,]+/.test(unit.text) && /\b(received|transferred|accepted|paid|deposited|withdrew)\b/i.test(unit.text)) errors.push(`${unit.id}: a payment assertion requires factual source support, not an analysis label.`)
       const passages = recordAttribution && !sourceClauses.length ? recordCitations.map(c => c.quote) : citations.length ? citations.map(c => c.quote) : evidence.flatMap(item => sourceParagraphs(item).map(p => p.text))
       const loadedQuestion = /^(?:Is|Are|Does|Did|Was|Were)\b/i.test(unit.text.trim()) && unit.text.trim().match(/\bbecause\s+((?:Fictional )?[\w-]+ (?:destroyed|hid|forged|altered|removed|stole|returned|re-entered|arrived|came back)\b[^?]*)\?$/i)
       if (['supported','analysis'].includes(status) && !recordAttribution && loadedQuestion &&
@@ -2634,16 +2784,6 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         ? 'The current tasked juror expresses the effect of this actual assessment-permitted account on their own doubt. This entire unit neither says the source proves receipt nor imposes a disproof burden on the Defence. Other ballot fields and decision coherence require their own reviews.'
         : 'A current personal source-weight assessment requires the actual referenced source, its express assessment permission and a current juror task. Missing or exclusively attributed sources and other actor tasks cannot supply it.'
     }
-    if (/^Did the Defen[cs]e accept the Crown['’]s (?:acknowledgement|concession) on this record\?$/i.test(unit.text.trim())) {
-      const acknowledgement = proceduralSetup?.events.find(event => event.type === 'public_submission' &&
-        proceduralSetup.partyRoles.some(party => party.id === event.actorId && party.role === 'crown') &&
-        /^(?:On the supplied record,\s*)?(?:the )?Crown burden is not met(?:[;.]|$)/i.test(normalize(String(event.payload.text ?? ''))))
-      status = acknowledgement?.eventId ? 'analysis' : 'unsupported'
-      explanation = acknowledgement?.eventId
-        ? 'The actual visible Crown submission acknowledges its burden is unmet. This complete yes/no inquiry asks whether the Defence accepted that position; it asserts no historical Defence adoption and may be answered no. Concession and acknowledgement describe the same supplied position here.'
-        : 'The neutral adoption question still requires its actual visible Crown acknowledgement. A missing, private, unrelated or differently authored submission cannot supply that referent.'
-      if (acknowledgement?.eventId && !recordCitations.some(citation => citation.eventId === acknowledgement.eventId)) recordCitations.push({ eventId: acknowledgement.eventId, actorId: acknowledgement.actorId, quote: String(acknowledgement.payload.text) })
-    }
     if (/^(?:Primary verification status is not supplied|No(?: independent)? verification status is supplied|No verification information is supplied|Given the lack of supplied verification information, I retain doubt)\.$/i.test(unit.text.trim())) {
       const statusInformation = actualInformation
         .some(text => [...text.matchAll(/(?:^|[.!?;\n])\s*(?:[\w -]+ states:\s*)?(?:(?:primary|independent)\s+)?verification (?:status|information)\s*(?::|is)\s*([^.!?;\n]+)(?=([.!?;\n]|$))/gi)]
@@ -2894,6 +3034,15 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
       if (premiseError) { status = 'unsupported'; explanation = premiseError }
       const absenceError = ['analysis', 'supported'].includes(status) ? sourceAbsenceScopeError(sourceClauses.join('; '), citations, evidence, approvedContext) : undefined
       if (absenceError) { status = 'unsupported'; explanation = absenceError }
+      if (['analysis', 'supported'].includes(status)) {
+        const referenceClaims = recordAttribution ? sourceClauses.join('; ') : unit.text
+        const pageErrors = sourcePageReferenceErrors(referenceClaims, evidence)
+        const instructionError = instructionElementDriftError(referenceClaims, proceduralSetup?.approvedIssueInstructions, proceduralSetup?.events ?? [])
+        if (pageErrors.length || instructionError) {
+          status = 'unsupported'
+          explanation = [...pageErrors, ...(instructionError ? [instructionError] : [])].join(' ')
+        }
+      }
       const explanationReferences = checkerParagraphReferenceErrors(explanation, citations)
       if (explanationReferences.length) invalid(`${unit.id}: checker explanation paragraph reference is not a selected, verified locator: ${explanationReferences.join(', ')}. Select the actual supporting paragraph or omit the unchecked prose pointer; preserve the factual judgment and disputed speaker attribution.`)
       if (status === 'unsupported' || status === 'contradicted') errors.push(`${unit.id}: ${status} — ${explanation || 'No valid source review was supplied.'}`)
@@ -2914,13 +3063,14 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
     const omission = incompleteRejections.get(finding.unitId)
     if (omission) finding.status = omission.status
   }
-  return { status: errors.length ? 'failed' : 'passed', method: 'source-quotes-and-model-review', findings, errors: [...new Set(errors)], validationErrors: [...new Set(validationErrors)], ...(roleValidationUnitIds.length ? { roleValidationUnitIds } : {}), ...(peerReferenceValidationUnitIds.length ? { peerReferenceValidationUnitIds } : {}), ...(sourceLocatorValidationUnitIds.length ? { sourceLocatorValidationUnitIds } : {}), ...(scopeValidationUnitIds.length ? { scopeValidationUnitIds } : {}), citationCorrections, repairs: 0 }
+  return { status: errors.length ? 'failed' : 'passed', method: 'source-quotes-and-model-review', findings, errors: [...new Set(errors)], validationErrors: [...new Set(validationErrors)], ...(roleValidationUnitIds.length ? { roleValidationUnitIds } : {}), ...(peerReferenceValidationUnitIds.length ? { peerReferenceValidationUnitIds } : {}), ...(sourceLocatorValidationUnitIds.length ? { sourceLocatorValidationUnitIds } : {}), ...(scopeValidationUnitIds.length ? { scopeValidationUnitIds } : {}), ...(incompleteRejections.size ? { incompleteFindings: [...incompleteRejections].map(([unitId, row]) => ({ unitId, status: row.status, missingFields: row.fields as Array<'supportTypes' | 'recordCitations'> })) } : {}), ...rejectionMetadata, citationCorrections, repairs: 0 }
 }
 
 export function groundingRepairInstructions(review: GroundingReview): string {
   return [
     'The independent source check rejected the previous draft. Repair only rejected text with accurate, qualified claims, preserving accepted text verbatim and following the repair output contract. Do not repeat the rejected statement. Do not alter the evidence or choose a verdict to satisfy the checker.',
     'Repair each rejected clause against its own named source. Shared topic, account label or a nearby citation cannot transfer a proposition between documents. If no permitted passage supports it, remove that clause or state the specific unresolved question without presupposing proof, admission or absence. For a quotation error, copy a contiguous passage, mark every omission with an ellipsis, or use an explicitly unquoted faithful paraphrase. Do not silently delete fillers or bridge another speaker. Preserve the actual source speaker and use only supplied names or pronouns.',
+    'Page locators refer only to the supplied PDF file. Printed folios and original-report page numbers are not supplied-file page numbers. If a page locator fails, use the actual supplied paragraph locator supporting that clause; never invent a mapping or borrow a different page. A valid page bound alone does not establish support.',
     'Put the exact source citation immediately after each quoted clause. For a quotation source mismatch, correct its attribution against the actual selected passage; do not rewrite faithful source words merely because a shared trailing reference list selected the wrong document.',
     'Do not insert a slash to represent a transcript line break. Remove printed line labels only as layout, preserve spoken words and punctuation, and never join across a question or speaker change without an explicit ellipsis. Do not introduce a new quotation merely to repair an unrelated amount or attribution; correct the rejected premise with the smallest supported edit, or use an explicitly unquoted faithful paraphrase.',
     'For a correspondence attribution mismatch, distinguish the report author’s summary from actual reproduced correspondence. Attribute a report summary to the report, preserving the actual quote and its limits; do not claim the correspondent wrote those words unless an explicitly attributed quotation or reproduced body supports it.',
