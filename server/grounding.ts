@@ -37,6 +37,7 @@ export interface GroundingFinding {
 }
 export interface GroundingRejection { unitId: string; text: string; status: 'unsupported' | 'contradicted'; explanation: string }
 export interface GroundingReview {
+  sourceCoverageAnchors?: Array<{ unitId: string; text: string; selectors: Array<{ evidenceId: string; exhibitId: string; paragraph: number }>; sources: Array<[string, string]> }>
   status: 'passed' | 'failed'
   method: 'source-quotes-and-model-review'
   findings: GroundingFinding[]
@@ -164,7 +165,8 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
   const conditionalFigureElement = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)If\b(?:[^;.!?]|\.(?=\d)){0,400}\bis established as (?:the )?value of (?:the )?(?:alleged )?subject matter,\s+(?:it|(?:that|the) (?:figure|amount|total)) (?:could|would|may|might) support (?:the )?(?:approved )?(?:value )?element (?:exceeding|over|greater than)\s*(${amount})`, 'gi')
   const requirement = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+(?:[([]E-\d+(?:\s*[,;]\s*E-\d+)*[)\]]\s*)*)(?:For (?:this|the) (?:proposed|supplied|fictional|exercise) count,?\s+)?The (?:Crown|evidence) must (?:(?:still|also) )?(?:prove|establish|tie)\b[^$;.!?"“”]{0,350}\b(?:value|amount|loss|deprivation)\s+(?:exceeding|over|greater than)\s*(${amount})`, 'gi')
   const caption = new RegExp(String.raw`^(?:Crown|Defence) (?:Opening|Closing|Rebuttal)(?:\s*[-—:]\s*|\s+on\s+)Proposed Fraud[ -]+(?:Exceeding|Over|Greater[ -]+Than)[ -]*(${amount})(?: Count)?(?:(?: Against |\s*[-—:]\s*)[\p{L}][\p{L} ’'-]{0,80})?[.!?]?$`, 'iu')
-  const proposedBurden = new RegExp(String.raw`(?:^|(?<=[;.!?])\s+)(?:Members of (?:the )?Jury(?: Panel)?,\s+)?(?:(?:the )?(?:Crown|Defence) submits that )?(?:the )?Crown must (?:prove|establish) (?:beyond a reasonable doubt )?(?:every|each) element of (?:the )?proposed fraud[ -]+(?:exceeding|over|greater[ -]+than)[ -]*(${amount})\s+count(?: beyond a reasonable doubt)?(?=$|[;.!?:,])`, 'gi')
+  const crownBurden = String.raw`Crown bears the burden of (?:proving|establishing)`
+  const proposedBurden = new RegExp(String.raw`(?:^|(?<=[;.!?])\s+)(?:Members of (?:the )?Jury(?: Panel)?,\s+)?(?:(?:the )?(?:Crown|Defence) submits that )?(?:the )?(?:Crown must (?:prove|establish)|${crownBurden}) (?:beyond a reasonable doubt )?(?:every|each) element of (?:the )?proposed fraud[ -]+(?:exceeding|over|greater[ -]+than)[ -]*(${amount})\s+count(?: beyond a reasonable doubt)?(?=$|[;.!?:,])`, 'gi')
     const proposedQuestion = new RegExp(String.raw`(?:^|(?<=[;.!?])\s+)(?:whether|what)\b[^$;.!?]{0,300}\bon (?:the )?proposed fraud (?:exceeding|over|greater than)\s*(${amount})\s+count,?\s+(?:remains?|is)\s+(?:an?\s+)?unresolved (?:question|issue) (?:on|within) (?:this|the supplied) record\b`, 'gi')
   const removeThreshold = (statement: string, claimed: string, offset: number, input: string) => {
     if ([...input.matchAll(/["“]([^"”]+)["”]/g)].some(match => offset >= match.index && offset < match.index + match[0].length)) return statement
@@ -189,7 +191,8 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
   // approved number never exempts a neighboring payment of the same amount.
   const listThreshold = new RegExp(String.raw`\b(?:the\s+|a\s+)?(?:value|subject matter)(?:\s+of\s+[^$;.!?]{1,90}?)?\s+(?:exceeds|exceeded|exceeding|over|greater than)\s*(${amount})`, 'gi')
   const approvedBurdenDirective = /\b(?:(?:current )?(?:approved|supplied)(?: exercise)?|current exercise) (?:issue|(?:value )?element) requires? (?:the )?Crown to (?:prove|establish)\b/i
-  const proofDirective = (value: string) => /\bCrown\b[^;.!?]{0,80}\bmust\s+(?:(?:still|also)\s+)?(?:prove|establish)\b/i.test(value) || approvedBurdenDirective.test(value)
+  const crownBurdenDirective = new RegExp(String.raw`\b${crownBurden}\b`, 'i')
+  const proofDirective = (value: string) => /\bCrown\b[^;.!?]{0,80}\bmust\s+(?:(?:still|also)\s+)?(?:prove|establish)\b/i.test(value) || approvedBurdenDirective.test(value) || crownBurdenDirective.test(value)
   const passiveCountThreshold = new RegExp(String.raw`\bproposed fraud[ -]+(?:exceeding|over|greater[ -]+than)[ -]*(${amount})\s+count\b`, 'gi')
   const removePassiveThreshold = (statement: string, claimed: string, offset: number, input: string) => {
     const prefix = input.slice(0, offset).split(/;|(?<=[.!?])\s+/).at(-1) ?? ''
@@ -215,8 +218,13 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
     const localPrefix = instructionPrefix.split(';').at(-1) ?? ''
     if (/\bE-\d+\b|\b(?:records?|reports?|states?|says?|received|transferred|paid|deposited|withdrew)\b/i.test(localPrefix)) return statement
     if (!proofDirective(localPrefix) && !/^\s*(?:(?:and|or|that|together with|including|with)\s+)*$/i.test(localPrefix)) return statement
-    if (approvedBurdenDirective.test(localPrefix)) {
-      if (/\b(?:not|never|without)\b/i.test(localPrefix)) return statement
+    if (approvedBurdenDirective.test(localPrefix) || crownBurdenDirective.test(instructionPrefix)) {
+      // A report's directive remains reported source content across its list.
+      // A later independent Crown directive starts its own semicolon clause.
+      const burdenDirective = crownBurdenDirective.exec(instructionPrefix)
+      const burdenPrefix = burdenDirective ? instructionPrefix.slice(0, burdenDirective.index).split(';').at(-1) ?? '' : ''
+      if (/\bE-\d+\b|\b(?:records?|reports?|states?|says?)\b/i.test(burdenPrefix)) return statement
+      if (/\b(?:not|never|without)\b/i.test(crownBurdenDirective.test(instructionPrefix) ? instructionPrefix : localPrefix)) return statement
       const clause = localPrefix + input.slice(offset).split(/;|(?<=[.!?])\s+/)[0]
       if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(clause)) return statement
       return removeProposedThreshold(statement, claimed, offset, input)

@@ -14,6 +14,7 @@ import { verificationScopeValidationUnits } from './checkerVerificationScope'
 import { classificationScopeValidationUnits } from './checkerMetadataScope'
 import { suppliedBurdenScopeValidationUnits } from './checkerSuppliedBurdenScope'
 import { authenticationKnowledgeForAudit } from './checkerAuthenticationKnowledge'
+import { CheckerSourceCoverageTracker, selectedSourceCoverageEvidence } from './checkerSourceCoverage'
 import { excerptScopeValidationUnits } from './sourceAbsenceScope'
 import type { AuthenticationKnowledge } from './checkerAuthenticationKnowledge'
 import {
@@ -296,12 +297,16 @@ export class MiniMaxClient implements ModelClient {
       let arrayVerification = false
       let strictCorrection = false
       let comparison: Array<Pick<GroundingReview['findings'][number], 'unitId' | 'text' | 'status'>> | undefined = priorReview?.findings
+    const sourceCoverage = new CheckerSourceCoverageTracker(priorReview?.sourceCoverageAnchors)
+    if (priorReview && !priorReview.sourceCoverageAnchors) sourceCoverage.record(units, priorReview, request.evidence, request.groundingContext ?? '')
+    let coverageFocus: { unit: GroundingUnit; finding: GroundingReview['findings'][number]; base: GroundingReview } | undefined
     for (let attempt = 0; ; attempt++) {
       let content = ''
       let receivedResponse = false
       let review: GroundingReview
+      let coveredFinding: GroundingReview['findings'][number] | undefined
       try {
-      content = await this.requestStage({
+      const checkerRequest: StageRequest = {
         ...request, stage: 'factual_verification', groundingRequired: false,
         // Private advocacy directions and prior generated assertions are not
         // source evidence for the independent checker.
@@ -309,12 +314,45 @@ export class MiniMaxClient implements ModelClient {
           previousTurns: '', jurorProfiles: undefined, retrievedChunks: undefined, verificationUnits: units, verificationFeedback: feedback,
         verificationOpening: Boolean(request.courtroomProtocol),
         verificationAuthenticationKnowledge: authenticationKnowledgeForAudit(request),
-          }, this.logger.child({ stage: 'factual_verification', provider: this.config.provider, model: this.config.model }), attempt + 1, arrayVerification)
+          }
+      if (coverageFocus) {
+        // The full-record review already passed every other gate. Recheck this
+        // complete unchanged unit without letting omitted source passages leak
+        // back through public submissions, draft rationales or freeform setup.
+        checkerRequest.evidence = selectedSourceCoverageEvidence(request.evidence, coverageFocus.finding)
+        checkerRequest.verificationUnits = [coverageFocus.unit]
+        checkerRequest.packet = `Audit of ${request.stage}. Selected-passage coverage recheck. Independently assess EVERY factual clause of the complete unchanged unit using ONLY these currently selected source passages. Neither earlier findings nor omitted passages establish support. A named document cannot borrow a premise from another document. Attribution establishes what the selected account says, not its truth. If any clause lacks support, return unsupported; do not add selectors or rewrite the unit. Approved exercise elements (instructions only): ${JSON.stringify(request.approvedIssueInstructions ?? [])}.`
+        checkerRequest.verificationFeedback = undefined
+        checkerRequest.verificationAuthenticationKnowledge = undefined
+        checkerRequest.courtroomEvents = []
+        checkerRequest.groundingContext = undefined
+        checkerRequest.groundingRepair = undefined
+        checkerRequest.juryBallots = undefined
+        checkerRequest.courtroomAssessments = undefined
+      }
+      content = await this.requestStage(checkerRequest, this.logger.child({ stage: 'factual_verification', provider: this.config.provider, model: this.config.model }), attempt + 1, arrayVerification)
       receivedResponse = true
       // Preserve strict metadata diagnostics after a schema correction, including
       // historical text responses, without tightening unrelated legacy rechecks.
       if (strictCorrection) content = groundingCorrectionContent(cleanModelJsonText(content))
-      review = parseGroundingReview(cleanModelJsonText(content), units, request.evidence, request.groundingContext ?? '', request.courtroomActor && request.courtroomAssessments ? { actorId: request.courtroomActor.id, assessments: request.courtroomAssessments, profile: request.jurorProfiles?.find(p => p.juror === request.courtroomActor?.id) } : undefined, request.courtroomEvents || request.approvedIssueInstructions?.length ? { packet: request.courtroomProtocol ? request.packet : '', events: request.courtroomEvents ?? [], actorRoles: request.courtroomActor?.roles ?? [], partyRoles: request.approvedPartyRoles ?? [], actor: request.courtroomActor, stage: request.stage, ballotRound: request.ballotRound, currentJuror: currentDraft, approvedIssueInstructions: request.approvedIssueInstructions, courtroomState: request.courtroomState } : undefined)
+      const parseReview = (raw: string, checkedUnits = units, evidence = request.evidence, selectedOnly = false) => parseGroundingReview(raw, checkedUnits, evidence, request.groundingContext ?? '', request.courtroomActor && request.courtroomAssessments ? { actorId: request.courtroomActor.id, assessments: request.courtroomAssessments, profile: request.jurorProfiles?.find(p => p.juror === request.courtroomActor?.id) } : undefined, selectedOnly || request.courtroomEvents || request.approvedIssueInstructions?.length ? { packet: !selectedOnly && request.courtroomProtocol ? request.packet : '', events: selectedOnly ? [] : request.courtroomEvents ?? [], actorRoles: request.courtroomActor?.roles ?? [], partyRoles: request.approvedPartyRoles ?? [], actor: request.courtroomActor, stage: request.stage, ballotRound: request.ballotRound, currentJuror: currentDraft, approvedIssueInstructions: request.approvedIssueInstructions, courtroomState: request.courtroomState } : undefined)
+      if (coverageFocus) {
+        const focused = parseReview(groundingCorrectionContent(cleanModelJsonText(content)), [coverageFocus.unit], checkerRequest.evidence, true)
+        if (focused.status !== 'passed') {
+          review = { ...coverageFocus.base, status: 'failed', findings: coverageFocus.base.findings.map(finding => focused.findings.find(current => current.unitId === finding.unitId) ?? finding), errors: [...coverageFocus.base.errors, ...focused.errors, `${coverageFocus.unit.id}: selected-passage coverage remains unresolved.`], validationErrors: [...(focused.validationErrors ?? [])] }
+        } else {
+          // Reparse the actual complete rows, preserving the original full
+          // request's purpose, history and whole-ballot checks. No selectors or
+          // support domains are inferred or restored from the earlier review.
+          const findings = coverageFocus.base.findings.map(finding => focused.findings.find(current => current.unitId === finding.unitId) ?? finding)
+          review = parseReview(JSON.stringify({ findings: Object.fromEntries(findings.map(finding => [finding.unitId, {
+            status: finding.status, supportTypes: finding.supportTypes, explanation: finding.explanation,
+            citations: finding.citations.map(({ exhibitId, paragraph }) => ({ exhibitId, paragraph })),
+            recordCitations: (finding.recordCitations ?? []).map(({ eventId }) => ({ eventId })),
+          }])) }))
+          if (review.status === 'passed') coveredFinding = focused.findings[0]
+        }
+      } else review = parseReview(cleanModelJsonText(content))
       } catch (error) {
         const formatFailure = error instanceof ModelProviderError && /^Model output (?:was not valid JSON|violated checker schema|did not contain a JSON object)/.test(error.message)
           if (!receivedResponse && !formatFailure) {
@@ -476,10 +514,39 @@ export class MiniMaxClient implements ModelClient {
         review.errors.push(...errors)
         review.validationErrors = [...(review.validationErrors ?? []), ...errors]
       }
+      if (coverageFocus && coveredFinding && review.status === 'passed') sourceCoverage.acceptCovered(coverageFocus.unit, coveredFinding, request.evidence, request.groundingContext ?? '')
+      const coverageFailed = Boolean(coverageFocus) && review.status !== 'passed'
+      const wasCoverageFocus = Boolean(coverageFocus)
+      const sourceCoverageLosses = sourceCoverage.losses(units, review, request.evidence, request.groundingContext ?? '')
+      const coverageCanFocus = review.status === 'passed'
+      if (!coverageFailed) coverageFocus = undefined
+      sourceCoverage.record(units, review, request.evidence, request.groundingContext ?? '')
+      review.sourceCoverageAnchors = sourceCoverage.snapshot()
+      if (sourceCoverageLosses.length) {
+        review.status = 'failed'
+        const errors = sourceCoverageLosses.map(loss => `${loss.unitId}: checker source-selection coverage changed on unchanged text. Removed or replaced selectors: ${JSON.stringify(loss.removedSelectors)}. An independent whole-unit review against only the current selected passages is required; repeating the narrowed selection is not confirmation.`)
+        review.errors.push(...errors)
+        review.validationErrors = [...(review.validationErrors ?? []), ...errors]
+      }
       if (review.status !== 'passed') verificationFailures.push({ attempt: attempt + 1, errors: [...review.errors], findings: review.findings, ...(review.explicitRejections?.length ? { explicitRejections: review.explicitRejections } : {}) })
         lastReview = review
       const checkerCorrectionNeeded = checkerSchemaFailure(review) || incompleteRejectedMetadata
-      if (review.status === 'passed' || substantiveFailure && !checkerCorrectionNeeded && !changedJudgments.length || attempt >= Math.min(2, this.config.maxRetries)) return review
+      if (review.status === 'passed' || coverageFailed || substantiveFailure && !checkerCorrectionNeeded && !changedJudgments.length || attempt >= Math.min(2, this.config.maxRetries)) return review
+      if (sourceCoverageLosses.length && coverageCanFocus) {
+        // Legacy normalized rows can omit metadata that today's keyed contract
+        // requires. Do not manufacture missing values while composing reviews.
+        if (!wasCoverageFocus) {
+          const rawRows = JSON.parse(groundingCorrectionContent(cleanModelJsonText(content))).findings as Record<string, Record<string, unknown>>
+          if (units.some(unit => !Array.isArray(rawRows?.[unit.id]?.supportTypes) || !Array.isArray(rawRows?.[unit.id]?.recordCitations))) {
+            review.errors.push('Selected-passage coverage cannot compose incomplete finding metadata; an explicit complete review is required.')
+            return review
+          }
+        }
+        const loss = sourceCoverageLosses[0]
+        const unit = units.find(unit => unit.id === loss.unitId)!
+        const finding = review.findings.find(finding => finding.unitId === loss.unitId)!
+        coverageFocus = { unit, finding, base: review }
+      }
       // Every same-draft MiniMax correction uses uniform rows, including semantic
       // rechecks. Dynamic keyed slots can flatten even after a valid first review.
       // Keep the same units, strict parser, model and retry budget.
