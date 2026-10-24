@@ -17,7 +17,7 @@ export function checkerSchemaFailure(review: GroundingReview): boolean {
   // A missing unit also gets a conservative unsupported status. Do not mistake
   // that placeholder for a malformed status returned for an actual finding.
   const substantive = review.findings.some(finding => ['unsupported', 'contradicted'].includes(finding.status) && finding.explanation.trim() && !errors.includes(`${finding.unitId}: a valid finding status is required.`))
-  return !substantive && errors.some(error => error.startsWith('Exact finding ID inventory:')) || errors.some(error => /^(?:Invalid JSON|Invalid findings schema)$/.test(error) || /: (?:ballot consistency requires|invalid support types|non-source support requires|checker explanation paragraph reference|checker changed judgment on unchanged text)/.test(error)) ||
+  return Boolean(review.sourceLocatorValidationUnitIds?.length) || !substantive && errors.some(error => error.startsWith('Exact finding ID inventory:')) || errors.some(error => /^(?:Invalid JSON|Invalid findings schema)$/.test(error) || /: (?:ballot consistency requires|invalid support types|non-source support requires|checker explanation paragraph reference|checker changed judgment on unchanged text)/.test(error)) ||
     !errors.some(error => error.startsWith('Exact finding ID inventory:')) && errors.some(error => /: a valid finding status is required\.$/.test(error))
 }
 

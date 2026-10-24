@@ -194,7 +194,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
   used.push(...comparison.labels)
   // Classify each threshold occurrence by its local proof-list scope. The
   // approved number never exempts a neighboring payment of the same amount.
-  const listThreshold = new RegExp(String.raw`\b(?:the\s+|a\s+)?(?:value|subject matter)(?:\s+of\s+[^$;.!?]{1,90}?)?\s+(?:exceeds|exceeded|exceeding|over|greater than)\s*(${amount})`, 'gi')
+  const listThreshold = new RegExp(String.raw`\b(?:the\s+|a\s+)?(?:(?:subject[- ]matter\s+)?value|subject[- ]matter)(?:\s+of\s+[^$;.!?]{1,90}?)?\s+(?:exceeds|exceeded|exceeding|over|greater than)\s*(${amount})`, 'gi')
   const approvedBurdenDirective = /\b(?:(?:current )?(?:approved|supplied)(?: exercise)?|current exercise) (?:issue|(?:value )?element) requires? (?:the )?Crown to (?:prove|establish)\b/i
   const crownBurdenDirective = new RegExp(String.raw`\b${crownBurden}\b`, 'i')
   const proofDirective = (value: string) => /\bCrown\b[^;.!?]{0,80}\bmust\s+(?:(?:still|also)\s+)?(?:prove|establish)\b/i.test(value) || approvedBurdenDirective.test(value) || crownBurdenDirective.test(value)
@@ -220,6 +220,9 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
     const instructionPrefix = prefix.replace(/["“][^"”]*["”]/g, ' ')
     if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(instructionPrefix)) return statement
     if (!proofDirective(instructionPrefix)) return statement
+    const lastProof = [...instructionPrefix.matchAll(/\bCrown\b[^;.!?]{0,80}\bmust\s+(?:(?:still|also)\s+)?(?:prove|establish)\b/gi)].at(-1)
+    const proofLead = lastProof ? instructionPrefix.slice(instructionPrefix.lastIndexOf(';', lastProof.index) + 1, lastProof.index) : ''
+    if (/\b(?:E-\d+|report|document|source|interview|affidavit|witness|deponent)\b[^;.!?]{0,120}\b(?:states?|stated|records?|reports?|says?|said|claims?|claimed)\b/i.test(proofLead)) return statement
     const localPrefix = instructionPrefix.split(';').at(-1) ?? ''
     if (/\bE-\d+\b|\b(?:records?|reports?|states?|says?|received|transferred|paid|deposited|withdrew)\b/i.test(localPrefix)) return statement
     if (!proofDirective(localPrefix) && !/^\s*(?:(?:and|or|that|together with|including|with)\s+)*$/i.test(localPrefix)) return statement
@@ -2258,6 +2261,19 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         explanation = sourceMismatch
           ? `Quotation source mismatch: the quoted words occur in another selected source, not the local reference set (${failedSourceQuotation.exhibitIds.join(', ')}). Bind each quotation to its own source with an immediate citation; matching words elsewhere cannot repair an explicit wrong attribution.`
           : 'A quotation presented as source wording must preserve the actual words in order. Use a contiguous excerpt or explicit ellipsis, or present a faithful unquoted paraphrase; do not silently delete or change words inside quotation marks.'
+        // A quotation may precede several other quoted fragments and share one
+        // trailing exhibit reference. Missing selected support needs a fresh
+        // checker locator, not an advocate rewrite or an inferred selection.
+        const selectedIds = [...new Set(citations.map(citation => citation.exhibitId))]
+        const intendedIds = failedSourceQuotation.exhibitIds.length === 1 ? failedSourceQuotation.exhibitIds
+          : !failedSourceQuotation.exhibitIds.length && failedSourceQuotation.documentAttributed && selectedIds.length === 1 ? selectedIds : []
+        const candidates = !failedSourceQuotation.peerActor && !failedSourceQuotation.instructionAttributed && ['supported', 'analysis'].includes(row?.status ?? '') ? evidence
+          .filter(source => intendedIds.includes(source.exhibitId) && !new RegExp(`^${source.exhibitId}:\\s*(?:excluded|struck|withheld|unavailable|not admitted)\\b`, 'im').test(approvedContext))
+          .flatMap(source => sourceParagraphs(source).filter(part => containsQuotation(part.text, failedSourceQuotation.pieces)).map(part => ({ exhibitId: source.exhibitId, paragraph: part.paragraph }))) : []
+        if (candidates.length) {
+          invalid(`${unit.id}: checker quotation locator omitted its actual source passage. Permitted candidate locators (up to 8 of ${candidates.length}; words only, not a meaning judgment): ${JSON.stringify(candidates.slice(0, 8))}. Re-check the SAME complete unit against the actual source, speaker, qualification and permitted purpose. Return a complete fresh finding and explicit supporting selectors or reject the claim. Do not rewrite its words, borrow another source, or copy a locator without checking its meaning.`)
+          sourceLocatorValidationUnitIds.push(unit.id)
+        }
         }
           const correspondenceError = !recordAttribution && sourceQuotations(unit.text).map(quotation => correspondenceAttributionError(quotation, citations, evidence)).find(Boolean)
           if (correspondenceError) {

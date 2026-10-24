@@ -296,7 +296,15 @@ export class MiniMaxClient implements ModelClient {
       let lastReview: GroundingReview | undefined
       let arrayVerification = false
       let strictCorrection = false
-      let comparison: Array<Pick<GroundingReview['findings'][number], 'unitId' | 'text' | 'status'>> | undefined = priorReview?.findings
+      const comparableFindings = (review: GroundingReview) => {
+        const validationErrors = review.validationErrors ?? []
+        if (!validationErrors.every(error => units.some(unit => error.startsWith(`${unit.id}:`)))) return []
+        const correctionIds = [...(review.sourceLocatorValidationUnitIds ?? []), ...(review.scopeValidationUnitIds ?? []), ...(review.roleValidationUnitIds ?? []), ...(review.peerReferenceValidationUnitIds ?? [])]
+        return review.findings.filter(finding => !correctionIds.includes(finding.unitId) &&
+          !validationErrors.some(error => error.startsWith(`${finding.unitId}:`)) &&
+          !review.incompleteFindings?.some(incomplete => incomplete.unitId === finding.unitId))
+      }
+      let comparison: Array<Pick<GroundingReview['findings'][number], 'unitId' | 'text' | 'status'>> | undefined = priorReview && comparableFindings(priorReview)
     const sourceCoverage = new CheckerSourceCoverageTracker(priorReview?.sourceCoverageAnchors)
     if (priorReview && !priorReview.sourceCoverageAnchors) sourceCoverage.record(units, priorReview, request.evidence, request.groundingContext ?? '')
     let coverageFocus: { unit: GroundingUnit; finding: GroundingReview['findings'][number]; base: GroundingReview } | undefined
@@ -504,12 +512,14 @@ export class MiniMaxClient implements ModelClient {
         if (!review.findings.length) review.errors.push(...completionRejections.map(finding => `${finding.unitId}: explicit ${finding.status} judgment retained during schema completion: ${finding.explanation}`))
       }
       const priorComparison = comparison
-      const validComparison = !review.validationErrors?.length && !incompleteRejectedMetadata
-      const changedJudgments = validComparison ? review.findings.filter(finding => {
+      // A locator failure in one unit must not discard a complete sibling
+      // judgment. Global/schema errors still prevent comparison of any row.
+      const comparable = comparableFindings(review)
+      const changedJudgments = comparable.filter(finding => {
         const prior = priorComparison?.find(old => old.unitId === finding.unitId && old.text === finding.text)
         return prior && ['supported', 'analysis'].includes(prior.status) !== ['supported', 'analysis'].includes(finding.status)
-      }) : []
-      if (comparison && validComparison) comparison = review.findings
+      })
+      if (comparable.length) comparison = [...(comparison ?? []).filter(old => !comparable.some(current => current.unitId === old.unitId)), ...comparable]
       if (changedJudgments.length) {
         review.status = 'failed'
         const errors = changedJudgments.map(finding => `${finding.unitId}: checker changed judgment on unchanged text. Earlier review: ${priorComparison?.find(old => old.unitId === finding.unitId && old.text === finding.text)?.status}; current review: ${finding.status}. Neither review is source evidence. Recheck the SAME current draft against its actual source, speaker, purpose and paragraph selectors; independently resolve the disagreement without preserving an earlier false acceptance or reversing a valid rejection to pass.`)
