@@ -62,7 +62,16 @@ export function createHardeningRouter(
     try {
       response.json(await renderPreservedPdfPage(source, page))
     } catch (error) {
-      response.status(422).json({ error: error instanceof Error ? error.message : 'Unable to render preserved PDF. Download the original for review.' })
+      const message = error instanceof Error ? error.message : ''
+      const domainError = [
+        'Page preview is only available for preserved PDFs.',
+        'PDF page must be a positive whole number.',
+        'Preserved source hash mismatch; preview was not rendered.',
+        'PDF page dimensions are unavailable. Download the preserved original for review.',
+        'PDF page could not be rendered. Download the preserved original for review.',
+      ].includes(message) || /^PDF page [1-9]\d* is outside the preserved file \(1–[1-9]\d*\)\.$/.test(message)
+      if (!domainError) logger.error('evidence.source.preview.failed', { evidenceId: source.evidenceId, matterId: source.matterId, page }, error)
+      response.status(422).json({ error: domainError ? message : 'Unable to render preserved PDF. Download the original for review.' })
     }
   }))
 

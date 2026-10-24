@@ -8,7 +8,12 @@ export function instructionElementDriftError(text: string, approved: Issue[] | u
   const delivered = instruction?.payload.issueInstructions as Issue[] | undefined
   const issues = instruction ? instruction.eventId && !instruction.payload.withheld && typeof instruction.payload.text === 'string' && instruction.payload.text.trim() && Array.isArray(delivered) ? delivered : undefined : approved
   const unquoted = text.replace(/[“"][^“”"]*[”"]|(?<!\w)'[^']*'(?!\w)/g, ' ')
-  const required = unquoted.split(/(?<=[.!?;])\s+|\s+(?:but|yet|whereas|however)\s+|,\s*and\s+(?=(?:the\s+)?Crown\b)/i).some(sentence => {
+  // A coordinated independent evidential predicate does not extend the earlier
+  // must-prove object. Lists and relative clauses remain inside that object.
+  const subjectWord = String.raw`(?!(?:that|which|who|whose|where|when|and|or|must)\b)[\p{L}\p{N}'’-]+`
+  const evidentialReliance = String.raw`(?:${subjectWord}\s+){0,6}reliance(?:\s+(?:on|upon|in)\s+(?:${subjectWord}\s+){0,9}${subjectWord})?\s+(?:supports?|shows?|suggests?|indicates?|bears? on|is (?:evidence|relevant))\b`
+  const boundaries = new RegExp(String.raw`(?<=[.!?;])\s+|\s+(?:but|yet|whereas|however)\s+|,\s*and\s+(?=(?:the\s+)?Crown\b)|,\s*(?:and|or)\s+(?=${evidentialReliance})`, 'iu')
+  const required = unquoted.split(boundaries).some(sentence => {
     if (sentence.trim().endsWith('?') || /\b(?:if|would|could|might)\b/i.test(sentence) ||
         /\b(?:incorrect|not true) to say\b|\b(?:need not|does not need to|not required to|must not)\b/i.test(sentence)) return false
     // Remove only the reliance occurrence whose own predicate denies a
