@@ -53,6 +53,42 @@ function assertFocus(body: Body, paragraphs: number[]) {
 }
 
 describe('checker source selection coverage is independently reviewed within the existing retry cap', () => {
+  it('carries current unchanged source selectors into an author repair as audit targets, not a judgment', async () => {
+    const previous = prior()
+    const current = { ...draft, title: 'Repaired fictional heading' }
+    const h = harness([units => rows(units, finding([1, 2, 3]))], 1)
+    const review = await h.client.reviewGrounding(request, current, previous)
+    expect(review.status).toBe('passed')
+    expect(h.bodies).toHaveLength(1)
+    const prompt = h.bodies[0].messages[1].content
+    expect(prompt).toContain('Unchanged-unit source coverage targets (selectors, not judgments or evidence):')
+    expect(prompt).toContain('"unitId":"content:1","selectors":[{"exhibitId":"E-001","paragraph":1},{"exhibitId":"E-001","paragraph":2},{"exhibitId":"E-001","paragraph":3}]')
+    expect(prompt).not.toContain('"unitId":"title:1","selectors"')
+  })
+
+  it('completes an independent coverage check despite a separate amount failure without accepting that failure', async () => {
+    const current = { ...draft, content: `${claim} Mira received $9,200.` }
+    const h = harness([units => rows(units, finding([5])), units => rows(units, finding([5]))], 1)
+    const review = await h.client.reviewGrounding(request, current, prior())
+    expect(h.bodies).toHaveLength(2)
+    assertFocus(h.bodies[1], [5])
+    expect(review.status).toBe('failed')
+    expect(review.errors.some(error => error.startsWith('content:2:'))).toBe(true)
+    expect(review.sourceCoverageAnchors?.find(anchor => anchor.unitId === 'content:1')?.selectors.map(selector => selector.paragraph)).toEqual([5])
+    expect(review.errors.some(error => error.startsWith('content:1:'))).toBe(false)
+  })
+
+  it.each(['text', 'source', 'permission'])('omits stale coverage targets after the %s changes', async mode => {
+    const previous = await harness([reply([1, 2, 3])], 0).client.reviewGrounding(request, draft)
+    expect(previous.status).toBe('passed')
+    const q = mode === 'permission' ? { ...request, groundingContext: 'E-001: admitted for attribution only.' }
+      : mode === 'source' ? { ...request, evidence: evidence.map(item => ({ ...item, sha256: 'changed-source' })) } : request
+    const current = mode === 'text' ? { ...draft, content: claim.replace('blue', 'green') } : draft
+    const h = harness([units => rows(units, finding([1, 2, 3]))], 0)
+    await h.client.reviewGrounding(q, current, previous)
+    expect(h.bodies[0].messages[1].content).not.toContain('Unchanged-unit source coverage targets (selectors, not judgments or evidence):')
+  })
+
   it('retains a valid source anchor beside a sibling metadata failure and holds a narrowed unsupported selection', async () => {
     const h = harness([reply([1, 2, 3], true), reply([1, 2, 4]), reply([1, 2, 4], false, 'unsupported')])
     const review = await h.client.reviewGrounding(request, draft)

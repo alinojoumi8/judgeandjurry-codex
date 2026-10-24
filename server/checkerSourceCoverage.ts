@@ -71,6 +71,16 @@ export class CheckerSourceCoverageTracker {
     return [...this.anchors.values()].map(anchor => ({ unitId: anchor.unitId, text: anchor.text, selectors: anchor.selectors.map(selector => ({ ...selector })), sources: [...anchor.sources].map(([id, fingerprint]) => [id, fingerprint]) }))
   }
 
+  /** Recheck targets only; no old judgment or source body may enter the prompt. */
+  targets(units: GroundingUnit[], evidence: EvidenceItem[], permissionKey = '') {
+    return units.flatMap(unit => {
+      const anchor = this.anchors.get(unitKey(unit))
+      return anchor && this.current(anchor, evidence, permissionKey)
+        ? [{ unitId: unit.id, selectors: anchor.selectors.map(({ exhibitId, paragraph }) => ({ exhibitId, paragraph })) }]
+        : []
+    })
+  }
+
   private current(anchor: Anchor, evidence: EvidenceItem[], permissionKey: string): boolean {
     return [...anchor.sources].every(([id, fingerprint]) => {
       const sources = evidence.filter(source => source.id === id)

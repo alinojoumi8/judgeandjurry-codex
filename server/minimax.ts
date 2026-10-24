@@ -315,10 +315,11 @@ export class MiniMaxClient implements ModelClient {
         verificationOpening: Boolean(request.courtroomProtocol),
         verificationAuthenticationKnowledge: authenticationKnowledgeForAudit(request),
           }
+      const coverageTargets = sourceCoverage.targets(units, request.evidence, request.groundingContext ?? '')
+      if (coverageTargets.length) checkerRequest.packet += `\nUnchanged-unit source coverage targets (selectors, not judgments or evidence): ${JSON.stringify(coverageTargets)}. Reassess every clause independently. Retain a selected passage while it still supplies a premise; do not silently drop that premise during JSON correction or another unit's repair. A changed selection requires an independent whole-unit review restricted to the current selected passages. Earlier selectors cannot override a source failure or supply missing support.`
       if (coverageFocus) {
-        // The full-record review already passed every other gate. Recheck this
-        // complete unchanged unit without letting omitted source passages leak
-        // back through public submissions, draft rationales or freeform setup.
+        // Recheck this complete unchanged unit without leaking omitted passages.
+        // Independent failures in other rows remain withheld in the combined review.
         checkerRequest.evidence = selectedSourceCoverageEvidence(request.evidence, coverageFocus.finding)
         checkerRequest.verificationUnits = [coverageFocus.unit]
         checkerRequest.packet = `Audit of ${request.stage}. Selected-passage coverage recheck. Independently assess EVERY factual clause of the complete unchanged unit using ONLY these currently selected source passages. Neither earlier findings nor omitted passages establish support. A named document cannot borrow a premise from another document. Attribution establishes what the selected account says, not its truth. If any clause lacks support, return unsupported; do not add selectors or rewrite the unit. Approved exercise elements (instructions only): ${JSON.stringify(request.approvedIssueInstructions ?? [])}.`
@@ -350,7 +351,8 @@ export class MiniMaxClient implements ModelClient {
             citations: finding.citations.map(({ exhibitId, paragraph }) => ({ exhibitId, paragraph })),
             recordCitations: (finding.recordCitations ?? []).map(({ eventId }) => ({ eventId })),
           }])) }))
-          if (review.status === 'passed') coveredFinding = focused.findings[0]
+          const current = review.findings.find(finding => finding.unitId === focused.findings[0]?.unitId)
+          if (current && ['supported', 'analysis'].includes(current.status) && !review.errors.some(error => error.startsWith(`${current.unitId}:`))) coveredFinding = focused.findings[0]
         }
       } else review = parseReview(cleanModelJsonText(content))
       } catch (error) {
@@ -514,11 +516,13 @@ export class MiniMaxClient implements ModelClient {
         review.errors.push(...errors)
         review.validationErrors = [...(review.validationErrors ?? []), ...errors]
       }
-      if (coverageFocus && coveredFinding && review.status === 'passed') sourceCoverage.acceptCovered(coverageFocus.unit, coveredFinding, request.evidence, request.groundingContext ?? '')
-      const coverageFailed = Boolean(coverageFocus) && review.status !== 'passed'
+      const coveredUnitId = coveredFinding?.unitId
+      if (coveredUnitId && review.errors.some(error => error.trimStart().startsWith(`${coveredUnitId}:`))) coveredFinding = undefined
+      if (coverageFocus && coveredFinding) sourceCoverage.acceptCovered(coverageFocus.unit, coveredFinding, request.evidence, request.groundingContext ?? '')
+      const coverageFailed = Boolean(coverageFocus) && !coveredFinding
       const wasCoverageFocus = Boolean(coverageFocus)
       const sourceCoverageLosses = sourceCoverage.losses(units, review, request.evidence, request.groundingContext ?? '')
-      const coverageCanFocus = review.status === 'passed'
+      const coverageCanFocus = !checkerSchemaFailure(review) && !incompleteRejectedMetadata && !changedJudgments.length
       if (!coverageFailed) coverageFocus = undefined
       sourceCoverage.record(units, review, request.evidence, request.groundingContext ?? '')
       review.sourceCoverageAnchors = sourceCoverage.snapshot()
@@ -531,7 +535,7 @@ export class MiniMaxClient implements ModelClient {
       if (review.status !== 'passed') verificationFailures.push({ attempt: attempt + 1, errors: [...review.errors], findings: review.findings, ...(review.explicitRejections?.length ? { explicitRejections: review.explicitRejections } : {}) })
         lastReview = review
       const checkerCorrectionNeeded = checkerSchemaFailure(review) || incompleteRejectedMetadata
-      if (review.status === 'passed' || coverageFailed || substantiveFailure && !checkerCorrectionNeeded && !changedJudgments.length || attempt >= Math.min(2, this.config.maxRetries)) return review
+      if (review.status === 'passed' || coverageFailed || substantiveFailure && !checkerCorrectionNeeded && !changedJudgments.length && !(sourceCoverageLosses.length && coverageCanFocus) || attempt >= Math.min(2, this.config.maxRetries)) return review
       if (sourceCoverageLosses.length && coverageCanFocus) {
         // Legacy normalized rows can omit metadata that today's keyed contract
         // requires. Do not manufacture missing values while composing reviews.
