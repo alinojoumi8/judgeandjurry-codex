@@ -81,7 +81,11 @@ function priorPartyClaims(text: string, actorRoles: string[] = []) {
   const ownRole = actorRoles.includes('crown') ? 'crown' : actorRoles.some(role => ['defence', 'defendant', 'accused'].includes(role)) ? 'defence' : undefined
   // A current advocate can perform its own present argument. Its separate
   // factual premises and any report of the other party remain reviewable.
-  if (ownRole) claims = claims.replace(new RegExp(`^(?:The )?${ownRole === 'crown' ? 'Crown' : 'Defen[cs]e'}\\s+(?:(?:expressly|explicitly)\\s+)?(?:concedes|acknowledges|states|says|argues|rejects|supplies|points to|relies on)\\b`, 'i'), '')
+  if (ownRole) {
+    const quotations = [...claims.matchAll(/[“"][^“”"]*[”"]|‘(?:[^’]|(?<=\w)’(?=\w))*’|(?<!\w)'[^']*'(?!\w)/g)].map(match => [match.index, match.index + match[0].length])
+    const presentClause = new RegExp(`(^|;\\s*|[.!?]\\s+)(?:(?:Here|Finally|In reply|Accordingly|Therefore|On this record|For these reasons|In closing),\\s*)?(?:The )?${ownRole === 'crown' ? 'Crown' : 'Defen[cs]e'}\\s+(?:(?:expressly|explicitly)\\s+)?(?:concedes|acknowledges|states|says|argues|rejects|supplies|points to|relies on)\\b`, 'gi')
+    claims = claims.replace(presentClause, (statement, boundary: string, offset: number) => quotations.some(([start, end]) => offset + boundary.length >= start && offset + boundary.length < end) ? statement : boundary)
+  }
   if (actorRoles.some(role => ['defence', 'defendant', 'accused'].includes(role))) claims = claims.replace(/\b(?:The )?Defen[cs]e\s+(?:accepts|acknowledges|notes)\s+the\s+(?=Crown(?:'s|’s)\s+(?:concession|submission|position|acknowledg(?:e)?ment)\b)/gi, '')
   if (actorRoles.includes('crown')) claims = claims.replace(/\b(?:The )?Crown\s+(?:accepts|acknowledges|notes)\s+the\s+(?=Defen[cs]e(?:'s|’s)\s+(?:concession|submission|position|acknowledg(?:e)?ment)\b)/gi, '')
   const verbs = [...claims.matchAll(/\b(Crown|Defence|Defense)(?:'s|’s)?\s+(?:own\s+)?(?:(?:closing|submission|opening|rebuttal|reply)\s+)?(?:(?:expressly|explicitly|correctly)\s+)?(?:concedes?|conceded|acknowledges?|acknowledged|states?|stated|says?|said|argues?|argued|rejects?|rejected|agreed|supplies|supplied|points? to|pointed to|relies on|relied on)\b/gi)]
@@ -221,10 +225,11 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
     if (approvedBurdenDirective.test(localPrefix) || crownBurdenDirective.test(instructionPrefix)) {
       // A report's directive remains reported source content across its list.
       // A later independent Crown directive starts its own semicolon clause.
-      const burdenDirective = crownBurdenDirective.exec(instructionPrefix)
-      const burdenPrefix = burdenDirective ? instructionPrefix.slice(0, burdenDirective.index).split(';').at(-1) ?? '' : ''
+      const burdenDirective = [...instructionPrefix.matchAll(new RegExp(crownBurdenDirective.source, 'gi'))].at(-1)
+      const burdenStart = burdenDirective ? instructionPrefix.lastIndexOf(';', burdenDirective.index) + 1 : 0
+      const burdenPrefix = burdenDirective ? instructionPrefix.slice(burdenStart, burdenDirective.index) : ''
       if (/\bE-\d+\b|\b(?:records?|reports?|states?|says?)\b/i.test(burdenPrefix)) return statement
-      if (/\b(?:not|never|without)\b/i.test(crownBurdenDirective.test(instructionPrefix) ? instructionPrefix : localPrefix)) return statement
+      if (/\b(?:not|never|without)\b/i.test(burdenDirective ? instructionPrefix.slice(burdenStart) : localPrefix)) return statement
       const clause = localPrefix + input.slice(offset).split(/;|(?<=[.!?])\s+/)[0]
       if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(clause)) return statement
       return removeProposedThreshold(statement, claimed, offset, input)

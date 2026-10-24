@@ -86,4 +86,23 @@ describe('equivalent approved burden phrasing retains each threshold occurrence 
     const text = 'The report records a transfer of $8,200; the Crown bears the burden of proving a dishonest act; and a value of the subject matter of the alleged fraud exceeding $1,750.'
     expect(audit(text).errors).toEqual([])
   })
+
+  it.each(['I do not decide credibility', 'The supplied account does not resolve credibility'])('does not carry an unrelated earlier negation into the current burden: %s', prefix => {
+    for (const value of ['a value of the subject matter of the alleged fraud exceeding $1,750', 'a dishonest act; and a value of the subject matter of the alleged fraud exceeding $1,750']) {
+      expect(audit(`${prefix}; the Crown bears the burden of proving ${value}.`).errors).toEqual([])
+    }
+  })
+
+  it('uses the latest independent Crown-bears directive after an earlier negated directive', () => {
+    const text = 'It is not true that the Crown bears the burden of proving a source account correct; the Crown bears the burden of proving a dishonest act; and a value of the subject matter of the alleged fraud exceeding $1,750.'
+    expect(audit(text).errors).toEqual([])
+  })
+
+  it.each([
+    'It is not true that the Crown bears the burden of proving a dishonest act; and a value of the subject matter of the alleged fraud exceeding $1,750.',
+    'The Crown bears the burden of proving not a dishonest act; and a value of the subject matter of the alleged fraud exceeding $1,750.',
+    'The Crown bears the burden of proving a dishonest act; and not a value of the subject matter of the alleged fraud exceeding $1,750.',
+  ])('retains negation within the governing directive or its continued list: %s', text => {
+    expect(audit(text).status).toBe('failed')
+  })
 })
