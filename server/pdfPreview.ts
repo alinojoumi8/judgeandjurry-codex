@@ -1,14 +1,19 @@
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
+import { dirname } from 'node:path'
 import { PDFParse } from 'pdf-parse'
 import type { EvidenceSource } from './db'
+
+// Resolve assets beside pdf-parse's own PDF.js dependency, including nested installs.
+const pdfAssets = dirname(createRequire(import.meta.resolve('pdf-parse')).resolve('pdfjs-dist/package.json')).replaceAll('\\', '/')
 
 export async function renderPreservedPdfPage(source: EvidenceSource, page: number) {
   if (source.mimeType !== 'application/pdf') throw new Error('Page preview is only available for preserved PDFs.')
   if (!Number.isSafeInteger(page) || page < 1) throw new Error('PDF page must be a positive whole number.')
   const bytes = await readFile(source.path)
   if (createHash('sha256').update(bytes).digest('hex') !== source.sha256) throw new Error('Preserved source hash mismatch; preview was not rendered.')
-  const parser = new PDFParse({ data: bytes })
+  const parser = new PDFParse({ data: bytes, wasmUrl: `${pdfAssets}/wasm/`, standardFontDataUrl: `${pdfAssets}/standard_fonts/` })
   try {
     const info = await parser.getInfo({ partial: [page], parsePageInfo: true })
     if (page > info.total) throw new Error(`PDF page ${page} is outside the preserved file (1–${info.total}).`)

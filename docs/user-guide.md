@@ -156,11 +156,26 @@ delivered instruction exists, approved exercise elements can supply the exercise
 threshold. They are identified as scenario setup and create no judicial record.
 Once an instruction exists, its actual current content controls.
 
+A conditional reference to the approved numeric value element uses that same
+current approval and currency. It does not assert a payment of that amount;
+neighboring factual amounts still require their own source support.
+
 After an author repair, a checker that changes an unchanged claim from accepted
 to rejected, or the reverse, receives a bounded independent recheck. Prior
 checker judgments are not evidence and cannot force acceptance. Two consistent
 fresh reviews may correct an earlier judgment; unresolved disagreement remains
 withheld with its audit history. Changed draft units are reviewed on their merits.
+
+Unchanged claims carry their earlier source selectors into the checker as audit
+targets while their text, source projection and permissions still match. Those
+selectors supply no judgment or evidence. A narrowed selection requires an
+independent review of the whole claim using only its current selected passages.
+That review can resolve coverage alongside a separate failure without accepting
+the failed claim or increasing the retry cap.
+
+Preserved PDF previews use local decoder and font assets, including JPEG 2000
+image decoding. A loaded image alone does not establish that a source page is
+legible. The original file and its hash remain unchanged by preview rendering.
 
 Responses marked truncated by the provider are withheld even when their partial JSON parses. Regeneration uses the existing retry and token limits and asks for a fresh, shorter complete object with exact references. Invalid checker JSON and misspelled citation fields can receive a bounded review of the same draft; no source is guessed from a misspelled field. Separate substantive rejections remain failures. Exhausted format repairs remain visible as failures.
 
