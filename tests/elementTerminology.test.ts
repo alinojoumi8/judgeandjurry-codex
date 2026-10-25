@@ -20,7 +20,13 @@ describe('approved element terminology', () => {
     expect(review.findings[0]).toMatchObject({ text: bad, status: 'unsupported', explanation: expect.stringContaining('deprivation') })
     expect(check(corrected).errors).toEqual([])
   })
-  it.each(['Depreciation is a required element.', 'The depreciation element must be proved.'])('preserves the approved legal element even beside source depreciation: %s', text => {
+  it.each([
+    'Depreciation is a required element.',
+    'The depreciation element must be proved.',
+    'For this count, depreciation is a required element.',
+    'Under these instructions, the depreciation element must still be proved.',
+    'Depreciation is not required, but for this count depreciation is a necessary element.',
+  ])('preserves the approved legal element even beside source depreciation: %s', text => {
     expect(check(text, { source: 'The report records asset depreciation.' }).status).toBe('failed')
   })
   it.each([
@@ -39,7 +45,13 @@ describe('approved element terminology', () => {
   it('retains an independent rejection after the wording is corrected', () => {
     expect(check(corrected, { status: 'unsupported' }).status).toBe('failed')
   })
-  it.each(['Is depreciation a required element?', 'Depreciation is not a required element.'])('preserves a question or denial rather than adding an element: %s', text => {
+  it.each([
+    'Is depreciation a required element?',
+    'For this count, is depreciation a required element?',
+    'Depreciation is not a required element.',
+    'It is incorrect to say depreciation is a required element.',
+    'If this were an asset exercise, depreciation is a required element.',
+  ])('preserves a question or denial rather than adding an element: %s', text => {
     expect(check(text).errors).toEqual([])
   })
   it('uses the latest usable delivered element labels rather than an older model', () => {

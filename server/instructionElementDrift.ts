@@ -13,18 +13,19 @@ export function instructionElementDriftError(text: string, approved: Issue[] | u
   // concepts or quoted source wording. An ambiguous assessment needs repair.
   const deprivationSupplied = labels.some(label => /\bdeprivation\b/i.test(label) && !/\b(?:no|not|without)\b[^;.!?]{0,70}\bdeprivation\b|\bdeprivation\b[^;.!?]{0,70}\b(?:not required|unnecessary)\b/i.test(label))
   if (deprivationSupplied && !labels.some(label => /\bdepreciation\b/i.test(label))) {
-    const misnamed = unquoted.split(/(?<=[.!?;])\s+/).some(sentence => {
-      if (sentence.trim().endsWith('?')) return false
-      return /^(?:the )?depreciation (?:element must (?:still )?be (?:proved|proven|established)|is (?:a )?(?:required|necessary|approved|supplied) element)\b/i.test(sentence.trim()) ||
+    const misnamed = unquoted.split(/(?<=[.!?;])\s+|\s+(?:but|yet|whereas|however)\s+/).some(sentence => {
+      if (sentence.trim().endsWith('?') || /\bif\b|\b(?:incorrect|not true) (?:to say|that)\b/i.test(sentence)) return false
+      return /\b(?:the )?depreciation (?:element must (?:still )?be (?:proved|proven|established)|is (?:a )?(?:required|necessary|approved|supplied) element)\b/i.test(sentence) ||
         (/^(?:the )?depreciation (?:remains?|is) (?:unresolved|unproved|unproven)\b/i.test(sentence.trim()) && !sourcePassages.some(passage => /\bdepreciation\b/i.test(passage)))
     })
     if (misnamed) return 'The supplied element is deprivation. This draft substitutes depreciation in an element or unqualified proof assessment without supporting source context. Use the approved element name, or clarify genuine source-backed asset depreciation; preserve quoted source words. The rejected text requires a fresh checked repair, not a silent spelling replacement.'
   }
-  // A coordinated independent evidential predicate does not extend the earlier
-  // must-prove object. Lists and relative clauses remain inside that object.
+  // Independent evidential predicates and nonrestrictive qualifiers do not
+  // extend the earlier must-prove object or make its requirement conditional.
+  // Coordinated lists and restrictive relative clauses remain inside it.
   const subjectWord = String.raw`(?!(?:that|which|who|whose|where|when|and|or|must)\b)[\p{L}\p{N}'’-]+`
   const evidentialReliance = String.raw`(?:${subjectWord}\s+){0,6}reliance(?:\s+(?:on|upon|in)\s+(?:${subjectWord}\s+){0,9}${subjectWord})?\s+(?:supports?|shows?|suggests?|indicates?|bears? on|is (?:evidence|relevant))\b`
-  const boundaries = new RegExp(String.raw`(?<=[.!?;])\s+|\s+(?:but|yet|whereas|however)\s+|,\s*and\s+(?=(?:the\s+)?Crown\b)|,\s*(?:and|or)\s+(?=${evidentialReliance})`, 'iu')
+  const boundaries = new RegExp(String.raw`(?<=[.!?;])\s+|\s+(?:but|yet|whereas|however)\s+|,\s*(?=(?:which|who|whose)\b)|,\s*and\s+(?=(?:the\s+)?Crown\b)|,\s*(?:and|or)\s+(?=(?:this|that|it)\s+(?:would|could|might)\b)|,\s*(?:and|or)\s+(?=${evidentialReliance})`, 'iu')
   const required = unquoted.split(boundaries).some(sentence => {
     if (sentence.trim().endsWith('?') || /\b(?:if|would|could|might)\b/i.test(sentence) ||
         /\b(?:incorrect|not true) to say\b|\b(?:need not|does not need to|not required to|must not)\b/i.test(sentence)) return false

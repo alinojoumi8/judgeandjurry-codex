@@ -13,6 +13,11 @@ describe('local reliance requirement negation', () => {
     'Reliance remains not a separate element.',
     'The Crown need not prove reliance, but must prove the listed conditions.',
     'It is incorrect to say the Crown must prove reliance.',
+    'If this were a different exercise, the Crown must prove reliance.',
+    'The Crown must prove reliance if this were a different exercise.',
+    'Reliance could be a required element in another exercise.',
+    'The Crown must prove deception, which could be established by testimony about reliance.',
+    'The Crown must prove deception, and reliance could support that inference.',
   ])('keeps an explicit local denial usable: %s', text => {
     expect(instructionElementDriftError(text, approved, [])).toBeUndefined()
   })
@@ -28,6 +33,10 @@ describe('local reliance requirement negation', () => {
     'Reliance is not required to establish deception, yet reliance is a required element.',
     'The Crown need not prove identity, and the Crown must prove reliance.',
     'It is incorrect to say reliance is necessary, but the Crown must prove reliance.',
+    'The Crown must prove reliance, which could be established by testimony.',
+    'The Crown must prove reliance, which might be established by testimony.',
+    'Reliance is a required element, which would be established by testimony.',
+    'The Crown must prove reliance, and this could be established by testimony.',
   ])('retains a separate positive requirement despite a neighboring denial: %s', text => {
     expect(instructionElementDriftError(text, approved, [])).toContain('adds investor reliance')
   })

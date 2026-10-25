@@ -32,6 +32,9 @@ Generated element and proof assessments preserve the approved term deprivation.
 An unqualified depreciation assessment with no supporting source context is
 withheld for a checked repair. Genuine asset depreciation and quoted source words
 remain unchanged; the checker never silently corrects historical output.
+An introductory phrase does not hide an explicit element claim. A later
+evidential qualifier does not make a preceding proof requirement conditional;
+questions, denials and conditions on the requirement retain their own scope.
 
 Authors and repairs state application source-use restrictions in a separate setup
 sentence, using the actual supplied permissions. Transcript introductory pages,
