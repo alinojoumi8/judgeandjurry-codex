@@ -16,10 +16,12 @@ export function sourceThresholdComparisons(text: string, citations: GroundingCit
     if (quoted.some(m => offset > m.index && offset + statement.length < m.index + m[0].length)) return statement
     // This additional form describes a recorded figure, not a payment, proved
     // principal loss or legal conclusion. Other claim checks still see its text.
-    const lead = text.slice(0, offset).split(/[;.!?]/).at(-1)!
+    // Keep decimal amounts inside their source clause; real sentence and
+    // semicolon boundaries must still prevent borrowing another attribution.
+    const lead = text.slice(0, offset).split(/[;!?]|\.(?!\d)/).at(-1)!
     if (sourceAmount && (!/\b(?:report|source|excerpt|table|record)\b.*\b(?:records|lists|reports)\b/i.test(lead) || /\b(?:proven|proved|loss|deprivation|principal|paid|received)\b/i.test(lead))) return statement
     const value = values(threshold)[0]
-    const clause = text.slice(0, offset).split(/[;.!?]/).at(-1)! + text.slice(offset).split(/;|(?<=[.!?])\s/)[0]
+    const clause = lead + text.slice(offset).split(/;|(?<=[.!?])\s/)[0]
     const ids = clause.match(/\bE-\d+\b/gi) ?? []
     const selected = citations.filter(c => !ids.length || ids.some(id => id.toUpperCase() === c.exhibitId.toUpperCase()))
     const amounts = selected.flatMap(c => [...c.quote.matchAll(new RegExp(amount, 'gi'))].map(m => ({ value: values(m[0])[0], currency: currency(m[0]) })))

@@ -18,6 +18,11 @@ approved element's threshold also checks that amount against the unique current
 instruction. Neither form establishes an actual charge or exempts adjacent source
 payments. An independent checker rejection remains withheld.
 
+Recorded-figure comparisons keep decimal points inside their source clause. A
+preceding decimal amount cannot erase the report attribution or named exhibit for
+a later comparison. Actual sentence and semicolon boundaries, currency and
+inequality checks, and independent factual/proof restrictions still apply.
+
 Authors and repairs state application source-use restrictions in a separate setup
 sentence, using the actual supplied permissions. Transcript introductory pages,
 oaths and attributed answers do not establish those permissions. An irrelevant
