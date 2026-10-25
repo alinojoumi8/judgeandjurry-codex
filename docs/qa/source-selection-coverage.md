@@ -11,6 +11,21 @@ including a list ending with "and a subject-matter value exceeding" the approved
 amount. A source reporting such a proof list still needs source support; it does
 not become a delivered or approved instruction.
 
+A current Crown proof directive can retain its subject across a long advocacy
+lead ending in "but must prove" or "and must establish". Sentence, clause and
+quotation boundaries govern this scope. A direct statement that an amount is the
+approved element's threshold also checks that amount against the unique current
+instruction. Neither form establishes an actual charge or exempts adjacent source
+payments. An independent checker rejection remains withheld.
+
+Authors and repairs state application source-use restrictions in a separate setup
+sentence, using the actual supplied permissions. Transcript introductory pages,
+oaths and attributed answers do not establish those permissions. An irrelevant
+exhibit/page/paragraph citation must be removed or replaced with genuine support;
+factual clauses retain their own citations. Removing a locator never accepts the
+replacement automatically: the complete response is checked again against the
+original source-use context, and unsupported proof permissions remain failures.
+
 For a quotation sharing a trailing exhibit citation with other quoted fragments,
 an omitted source paragraph can trigger a same-draft checker correction. Any
 candidate locators come only from the intended source's permitted passages and

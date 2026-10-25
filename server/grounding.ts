@@ -197,7 +197,14 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
   const listThreshold = new RegExp(String.raw`\b(?:the\s+|a\s+)?(?:(?:subject[- ]matter\s+)?value|subject[- ]matter)(?:\s+of\s+[^$;.!?]{1,90}?)?\s+(?:exceeds|exceeded|exceeding|over|greater than)\s*(${amount})`, 'gi')
   const approvedBurdenDirective = /\b(?:(?:current )?(?:approved|supplied)(?: exercise)?|current exercise) (?:issue|(?:value )?element) requires? (?:the )?Crown to (?:prove|establish)\b/i
   const crownBurdenDirective = new RegExp(String.raw`\b${crownBurden}\b`, 'i')
-  const proofDirective = (value: string) => /\bCrown\b[^;.!?]{0,80}\bmust\s+(?:(?:still|also)\s+)?(?:prove|establish)\b/i.test(value) || approvedBurdenDirective.test(value) || crownBurdenDirective.test(value)
+  // A coordinated current directive keeps the Crown as its subject across a
+  // long advocacy lead. Bound it by clauses/quotes, not a character count.
+  const crownProofDirective = /\bCrown\b(?:\s+|[^;.!?"“”]*?\b(?:but|and)\s+)must\s+(?:(?:still|also)\s+)?(?:prove|establish)\b/i
+  const proofDirective = (value: string) => {
+    const directive = value.match(crownProofDirective)
+    return Boolean(directive && !/\b(?:states?|stated|records?|reports?|says?|said|claims?|claimed)\b/i.test(directive[0])) || approvedBurdenDirective.test(value) || crownBurdenDirective.test(value)
+  }
+  const thresholdReference = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)The\s+(${amount})\s+(?:figure|amount) is the (?:current )?(?:approved|supplied)(?: exercise)? (?:value )?element['’]s threshold\b`, 'gi')
   const passiveCountThreshold = new RegExp(String.raw`\bproposed fraud[ -]+(?:exceeding|over|greater[ -]+than)[ -]*(${amount})\s+count\b`, 'gi')
   const removePassiveThreshold = (statement: string, claimed: string, offset: number, input: string) => {
     const prefix = input.slice(0, offset).split(/;|(?<=[.!?])\s+/).at(-1) ?? ''
@@ -220,7 +227,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
     const instructionPrefix = prefix.replace(/["“][^"”]*["”]/g, ' ')
     if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(instructionPrefix)) return statement
     if (!proofDirective(instructionPrefix)) return statement
-    const lastProof = [...instructionPrefix.matchAll(/\bCrown\b[^;.!?]{0,80}\bmust\s+(?:(?:still|also)\s+)?(?:prove|establish)\b/gi)].at(-1)
+    const lastProof = [...instructionPrefix.matchAll(new RegExp(crownProofDirective.source, 'gi'))].at(-1)
     const proofLead = lastProof ? instructionPrefix.slice(instructionPrefix.lastIndexOf(';', lastProof.index) + 1, lastProof.index) : ''
     if (/\b(?:E-\d+|report|document|source|interview|affidavit|witness|deponent)\b[^;.!?]{0,120}\b(?:states?|stated|records?|reports?|says?|said|claims?|claimed)\b/i.test(proofLead)) return statement
     const localPrefix = instructionPrefix.split(';').at(-1) ?? ''
@@ -283,6 +290,11 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
       const benchmark = statement.lastIndexOf(claimed)
       return statement.slice(0, benchmark) + statement.slice(benchmark + claimed.length)
     }
+    const removeReferenceThreshold = (statement: string, claimed: string, offset: number, input: string) => {
+      const clause = input.slice(offset).split(/;|(?<=[.!?])\s+/)[0]
+      if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(clause)) return statement
+      return removeProposedThreshold(statement, claimed, offset, input)
+    }
     // A quoted exercise element is setup, even when followed by source-based
     // argument. Match the entire current label and exempt only its threshold;
     // a neighboring transaction of the same amount still needs source support.
@@ -295,7 +307,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
       used.push(matching[0])
       return statement.replace(quotation, quotation.replace(claimed, ''))
     })
-    let factualText = quotedElementText.replace(listThreshold, removeListedThreshold).replace(passiveCountThreshold, (statement: string, claimed: string, offset: number, input: string) => removePassiveThreshold(statement, claimed, offset, input) ?? statement).replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(unresolvedElements, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(conditionalValueElement, removeThreshold).replace(conditionalFigureElement, removeConditionalFigureThreshold).replace(conditionalElementLabel, removeConditionalFigureThreshold).replace(requirement, removeRequirementThreshold).replace(proposedQuestion, removeProposedThreshold).replace(proposedBurden, removeProposedThreshold).replace(countCaption, removeProposedThreshold)
+    let factualText = quotedElementText.replace(listThreshold, removeListedThreshold).replace(passiveCountThreshold, (statement: string, claimed: string, offset: number, input: string) => removePassiveThreshold(statement, claimed, offset, input) ?? statement).replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(unresolvedElements, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(conditionalValueElement, removeThreshold).replace(conditionalFigureElement, removeConditionalFigureThreshold).replace(conditionalElementLabel, removeConditionalFigureThreshold).replace(requirement, removeRequirementThreshold).replace(proposedQuestion, removeProposedThreshold).replace(proposedBurden, removeProposedThreshold).replace(countCaption, removeProposedThreshold).replace(thresholdReference, removeReferenceThreshold)
   if (title) factualText = factualText.replace(caption, removeProposedThreshold)
     return { factualText, errors: [...comparison.errors, ...proposedErrors], labels: [...new Set(used)], event: used.length ? event : undefined }
 }
@@ -3086,7 +3098,8 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
 export function groundingRepairInstructions(review: GroundingReview): string {
   return [
     'The independent source check rejected the previous draft. Repair only rejected text with accurate, qualified claims, preserving accepted text verbatim and following the repair output contract. Do not repeat the rejected statement. Do not alter the evidence or choose a verdict to satisfy the checker.',
-    'Repair each rejected clause against its own named source. Shared topic, account label or a nearby citation cannot transfer a proposition between documents. If no permitted passage supports it, remove that clause or state the specific unresolved question without presupposing proof, admission or absence. For a quotation error, copy a contiguous passage, mark every omission with an ellipsis, or use an explicitly unquoted faithful paraphrase. Do not silently delete fillers or bridge another speaker. Preserve the actual source speaker and use only supplied names or pronouns.',
+    'Repair each rejected source claim against its own named source. Shared topic, account label or a nearby citation cannot transfer a proposition between documents. If no permitted passage supports it, remove that clause or state the specific unresolved question without presupposing proof, admission or absence. For a quotation error, copy a contiguous passage, mark every omission with an ellipsis, or use an explicitly unquoted faithful paraphrase. Do not silently delete fillers or bridge another speaker. Preserve the actual source speaker and use only supplied names or pronouns.',
+    'Repair source-use claims against the actual supplied restrictions, in a separate setup sentence introduced by under the supplied source-use restrictions. Remove an exhibit, page or paragraph citation that does not itself state that restriction; transcript introductions, oaths and attributed answers do not establish application permissions. Preserve the exact allowed and prohibited purposes. Do not turn a factual premise into a setup rule, infer a missing restriction, or remove a factual clause’s required citation. Every replacement is independently checked against the original context.',
     'Page locators refer only to the supplied PDF file. Printed folios and original-report page numbers are not supplied-file page numbers. If a page locator fails, use the actual supplied paragraph locator supporting that clause; never invent a mapping or borrow a different page. A valid page bound alone does not establish support.',
     'Put the exact source citation immediately after each quoted clause. For a quotation source mismatch, correct its attribution against the actual selected passage; do not rewrite faithful source words merely because a shared trailing reference list selected the wrong document.',
     'Do not insert a slash to represent a transcript line break. Remove printed line labels only as layout, preserve spoken words and punctuation, and never join across a question or speaker change without an explicit ellipsis. Do not introduce a new quotation merely to repair an unrelated amount or attribution; correct the rejected premise with the smallest supported edit, or use an explicitly unquoted faithful paraphrase.',
