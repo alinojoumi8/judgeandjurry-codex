@@ -23,6 +23,16 @@ preceding decimal amount cannot erase the report attribution or named exhibit fo
 a later comparison. Actual sentence and semicolon boundaries, currency and
 inequality checks, and independent factual/proof restrictions still apply.
 
+A value-element statement requiring proof beyond a reasonable doubt can refer to
+the approved threshold without claiming a transaction. It still needs one matching
+current instruction and currency; source reports, quotations, actual charge claims
+and neighboring payments keep their own support requirements.
+
+Generated element and proof assessments preserve the approved term deprivation.
+An unqualified depreciation assessment with no supporting source context is
+withheld for a checked repair. Genuine asset depreciation and quoted source words
+remain unchanged; the checker never silently corrects historical output.
+
 Authors and repairs state application source-use restrictions in a separate setup
 sentence, using the actual supplied permissions. Transcript introductory pages,
 oaths and attributed answers do not establish those permissions. An irrelevant

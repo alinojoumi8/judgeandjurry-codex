@@ -205,6 +205,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
     return Boolean(directive && !/\b(?:states?|stated|records?|reports?|says?|said|claims?|claimed)\b/i.test(directive[0])) || approvedBurdenDirective.test(value) || crownBurdenDirective.test(value)
   }
   const thresholdReference = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)The\s+(${amount})\s+(?:figure|amount) is the (?:current )?(?:approved|supplied)(?: exercise)? (?:value )?element['’]s threshold\b`, 'gi')
+  const valueProofRequirement = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)The (?:(?:current )?(?:approved|supplied)(?: exercise)? )?value element requires proof beyond a reasonable doubt that the (?:subject matter(?: of the alleged fraud)?|value(?: of the subject matter)?)\s+(?:exceeds|exceeded|is over|is greater than)\s*(${amount})`, 'gi')
   const passiveCountThreshold = new RegExp(String.raw`\bproposed fraud[ -]+(?:exceeding|over|greater[ -]+than)[ -]*(${amount})\s+count\b`, 'gi')
   const removePassiveThreshold = (statement: string, claimed: string, offset: number, input: string) => {
     const prefix = input.slice(0, offset).split(/;|(?<=[.!?])\s+/).at(-1) ?? ''
@@ -295,6 +296,11 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
       if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(clause)) return statement
       return removeProposedThreshold(statement, claimed, offset, input)
     }
+    const removeValueProofThreshold = (statement: string, claimed: string, offset: number, input: string) => {
+      const lead = input.slice(0, offset).split(/(?<=[.!?])\s+/).at(-1) ?? ''
+      if (/\b(?:E-\d+|report|document|source|interview|affidavit)\b[^;.!?]*\b(?:states?|records?|reports?|says?)\s+(?:(?:the )?following\s*)?;\s*$/i.test(lead)) return statement
+      return removeReferenceThreshold(statement, claimed, offset, input)
+    }
     // A quoted exercise element is setup, even when followed by source-based
     // argument. Match the entire current label and exempt only its threshold;
     // a neighboring transaction of the same amount still needs source support.
@@ -307,7 +313,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
       used.push(matching[0])
       return statement.replace(quotation, quotation.replace(claimed, ''))
     })
-    let factualText = quotedElementText.replace(listThreshold, removeListedThreshold).replace(passiveCountThreshold, (statement: string, claimed: string, offset: number, input: string) => removePassiveThreshold(statement, claimed, offset, input) ?? statement).replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(unresolvedElements, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(conditionalValueElement, removeThreshold).replace(conditionalFigureElement, removeConditionalFigureThreshold).replace(conditionalElementLabel, removeConditionalFigureThreshold).replace(requirement, removeRequirementThreshold).replace(proposedQuestion, removeProposedThreshold).replace(proposedBurden, removeProposedThreshold).replace(countCaption, removeProposedThreshold).replace(thresholdReference, removeReferenceThreshold)
+    let factualText = quotedElementText.replace(listThreshold, removeListedThreshold).replace(passiveCountThreshold, (statement: string, claimed: string, offset: number, input: string) => removePassiveThreshold(statement, claimed, offset, input) ?? statement).replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(unresolvedElements, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(conditionalValueElement, removeThreshold).replace(conditionalFigureElement, removeConditionalFigureThreshold).replace(conditionalElementLabel, removeConditionalFigureThreshold).replace(requirement, removeRequirementThreshold).replace(proposedQuestion, removeProposedThreshold).replace(proposedBurden, removeProposedThreshold).replace(countCaption, removeProposedThreshold).replace(thresholdReference, removeReferenceThreshold).replace(valueProofRequirement, removeValueProofThreshold)
   if (title) factualText = factualText.replace(caption, removeProposedThreshold)
     return { factualText, errors: [...comparison.errors, ...proposedErrors], labels: [...new Set(used)], event: used.length ? event : undefined }
 }
@@ -3066,7 +3072,7 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
       if (['analysis', 'supported'].includes(status)) {
         const referenceClaims = recordAttribution ? sourceClauses.join('; ') : unit.text
         const pageErrors = sourcePageReferenceErrors(referenceClaims, evidence)
-        const instructionError = instructionElementDriftError(referenceClaims, proceduralSetup?.approvedIssueInstructions, proceduralSetup?.events ?? [])
+        const instructionError = instructionElementDriftError(referenceClaims, proceduralSetup?.approvedIssueInstructions, proceduralSetup?.events ?? [], citations.map(citation => citation.quote))
         if (pageErrors.length || instructionError) {
           status = 'unsupported'
           explanation = [...pageErrors, ...(instructionError ? [instructionError] : [])].join(' ')
