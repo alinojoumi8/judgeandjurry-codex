@@ -39,10 +39,19 @@ permission scope invalidates the old anchor. Reordering or duplicating the same
 selection does not trigger a review. Complete alternative passages can pass an
 independent review without retaining an earlier mistaken selection.
 
-Each focused review consumes an existing checker correction attempt. Missing
-fields, unavailable selectors, unresolved coverage and exhausted attempts keep the
-response withheld. Provider request/time limits and transport retries still apply;
-the semantic correction limit does not itself count all HTTP attempts.
+A correction round reviews each affected unit at most once, sequentially in
+separate selected-only requests. Multiple changed selections share the round;
+they do not require one correction round per unit. No unit receives another
+unit's text, passages or review. A unit with an empty current selection receives
+no source passages. The combined result still undergoes the original full-request
+permission, history and whole-response checks.
+
+Every individual HTTP request counts against the shared provider request/time
+budget. The configured correction-round limit and transport retries remain
+unchanged. A rejected or malformed focus stops the queue with the response
+withheld; a transport/budget failure preserves completed checks and the unresolved
+claims. Missing fields, unavailable selectors, unresolved coverage and exhausted
+rounds remain failures. Correction rounds are not HTTP-request counts.
 
 Judgment consistency is tracked for each complete, valid unit while another
 unit's locator is corrected. Global schema errors do not establish comparable

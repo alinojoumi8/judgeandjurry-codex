@@ -308,7 +308,8 @@ export class MiniMaxClient implements ModelClient {
     const sourceCoverage = new CheckerSourceCoverageTracker(priorReview?.sourceCoverageAnchors)
     if (priorReview && !priorReview.sourceCoverageAnchors) sourceCoverage.record(units, priorReview, request.evidence, request.groundingContext ?? '')
     let coverageFocus: { unit: GroundingUnit; finding: GroundingReview['findings'][number]; base: GroundingReview } | undefined
-    for (let attempt = 0; ; attempt++) {
+    let pendingCoverageIds: string[] = []
+    for (let attempt = 0; ;) {
       let content = ''
       let receivedResponse = false
       let review: GroundingReview
@@ -544,6 +545,16 @@ export class MiniMaxClient implements ModelClient {
       }
       if (review.status !== 'passed') verificationFailures.push({ attempt: attempt + 1, errors: [...review.errors], findings: review.findings, ...(review.explicitRejections?.length ? { explicitRejections: review.explicitRejections } : {}) })
         lastReview = review
+      const nextCoverage = wasCoverageFocus && !coverageFailed && coverageCanFocus
+        ? sourceCoverageLosses.find(loss => pendingCoverageIds.includes(loss.unitId)) : undefined
+      if (nextCoverage) {
+        // One correction round checks each originally affected unit once, in
+        // separate selected-only requests. Every HTTP call still uses the
+        // shared transport budget; a failure cannot restart this queue.
+        pendingCoverageIds = pendingCoverageIds.filter(id => id !== nextCoverage.unitId)
+        coverageFocus = { unit: units.find(unit => unit.id === nextCoverage.unitId)!, finding: review.findings.find(finding => finding.unitId === nextCoverage.unitId)!, base: review }
+        continue
+      }
       const checkerCorrectionNeeded = checkerSchemaFailure(review) || incompleteRejectedMetadata
       if (review.status === 'passed' || coverageFailed || substantiveFailure && !checkerCorrectionNeeded && !changedJudgments.length && !(sourceCoverageLosses.length && coverageCanFocus) || attempt >= Math.min(2, this.config.maxRetries)) return review
       if (sourceCoverageLosses.length && coverageCanFocus) {
@@ -560,6 +571,7 @@ export class MiniMaxClient implements ModelClient {
         const unit = units.find(unit => unit.id === loss.unitId)!
         const finding = review.findings.find(finding => finding.unitId === loss.unitId)!
         coverageFocus = { unit, finding, base: review }
+        pendingCoverageIds = sourceCoverageLosses.slice(1).map(loss => loss.unitId)
       }
       // Every same-draft MiniMax correction uses uniform rows, including semantic
       // rechecks. Dynamic keyed slots can flatten even after a valid first review.
@@ -569,6 +581,7 @@ export class MiniMaxClient implements ModelClient {
       // Repair the checker record without asking the advocate to change an
       // otherwise supported draft merely because its auditor misquoted a PDF.
       feedback = checkerCorrectionFeedback(units, review, arrayVerification, arrayVerification && units.length === 1)
+      attempt += 1
     }
   }
 

@@ -157,20 +157,21 @@ describe('checker source selection coverage is independently reviewed within the
     expect(review.errors.join(' ')).toContain('coverage')
   })
 
-  it('checks two independently narrowed units separately within the same total cap', async () => {
+  it('checks two independently narrowed units separately in one correction round', async () => {
     const secondClaim = 'Mira’s account describes Rowan telling Ellis that the token was blue (E-001).'
     const current = { ...draft, content: `${claim} ${secondClaim}` }
     const complete = (units: GroundingUnit[], paragraphs: number[]) => ({ findings: Object.fromEntries(units.map(unit => [unit.id, unit.id.startsWith('content:') ? finding(paragraphs) : analysis])) })
     const units = groundingUnits(current)
     const previous = parseGroundingReview(JSON.stringify(complete(units, [1, 2, 3])), units, evidence)
     expect(previous.status).toBe('passed')
-    const h = harness([checked => complete(checked, [5]), checked => complete(checked, [5]), checked => complete(checked, [5])])
+    const h = harness([checked => complete(checked, [5]), checked => complete(checked, [5]), checked => complete(checked, [5])], 1)
     const review = await h.client.reviewGrounding(request, current, previous)
     expect(h.bodies).toHaveLength(3)
     expect(inventory(h.bodies[1])).toEqual([{ id: 'content:1', text: claim }])
     expect(inventory(h.bodies[2])).toEqual([{ id: 'content:2', text: secondClaim }])
     expect(review.errors).toEqual([])
     expect(review.status).toBe('passed')
+    expect(review.verificationRetries).toBe(1)
   })
 
   it('retains pending coverage after a malformed focus across a later whole-draft review', async () => {
