@@ -24,9 +24,12 @@ local-only commits second:
 git rev-list --left-right --count '@{upstream}...HEAD'
 ```
 
-A missing upstream, failed fetch or unavailable GitHub check is unknown remote
-state, not zero work. Check all worktrees before deleting a branch. Preserve
-dirty or detached worktrees and existing stashes.
+A missing upstream is a branch configuration state: inspect the intended remote
+branch, then configure tracking or create the branch as appropriate. A failed
+fetch leaves remote commit state unverified. An unavailable GitHub check leaves
+validation status unknown; retry or confirm it before claiming readiness.
+Check all worktrees before deleting a branch. Preserve dirty or detached
+worktrees and existing stashes.
 
 ## Recommend the next action
 
