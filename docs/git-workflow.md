@@ -54,7 +54,11 @@ GitHub; it does not certify readiness for main.
    standalone typecheck for documentation changes. Run the complete applicable
    CI/browser/evaluation gates. Preserve failures and report their actual scope.
 3. Commit only the selected files with a focused conventional commit message.
-   Naming those paths in `git commit` also protects unrelated staged changes.
+   `git commit -- <paths>` takes each named file's current contents, not only its
+   staged hunks. Use it only when every change in those files belongs to this
+   task, after reviewing both staged and unstaged diffs. If a file mixes task
+   changes with unrelated or private edits, prepare only the intended changes
+   in a clean worktree first. Naming paths excludes staged files at other paths.
 4. Recheck the branch, destination and PR immediately before pushing. Use the
    branch's intended remote; for this repository it is normally `origin`.
    Push the feature branch, never an unreviewed update directly to main.
