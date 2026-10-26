@@ -6,6 +6,13 @@ current approved model or controlling instruction. Reported source statements,
 actual filed charges, factual payments, unapproved currencies and neighboring
 amounts remain subject to source checks.
 
+Proposed-count references are checked against the single controlling approved
+value element by amount and currency. The burden can precede or follow the count
+reference, or use passive proof wording. Only the benchmark occurrence is removed
+from factual amount checking; another occurrence of the same number still needs
+its own support. Quoted, reported and historical words cannot supply the author's
+normative scope, and exercise approval does not establish an actual filed count.
+
 Approved proof lists also recognize articles and subject-matter value labels,
 including a list ending with "and a subject-matter value exceeding" the approved
 amount. A source reporting such a proof list still needs source support; it does
@@ -43,6 +50,13 @@ exhibit/page/paragraph citation must be removed or replaced with genuine support
 factual clauses retain their own citations. Removing a locator never accepts the
 replacement automatically: the complete response is checked again against the
 original source-use context, and unsupported proof permissions remain failures.
+
+Author repair prompts repeat each editable unit's actual deterministic and
+semantic errors beside its source text, including failures of an otherwise
+analysis-labelled finding. Joint errors remain available separately. The author
+must resolve the rejected clause itself; appending an explanation does not repair
+an unchanged unsupported premise. Accepted units remain immutable, the retry
+allowance is unchanged, and the complete replacement is freshly checked.
 
 For a quotation sharing a trailing exhibit citation with other quoted fragments,
 an omitted source paragraph can trigger a same-draft checker correction. Any
