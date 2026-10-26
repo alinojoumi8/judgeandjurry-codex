@@ -11,7 +11,7 @@ const boundary = /[;!?]|\.(?!\d)/
 export function proposedCountReferences(text: string, labels: string[], values: (text: string) => number[]) {
   const reference = new RegExp(String.raw`\bproposed ([\p{L}][\p{L} ’'-]{0,80}?)[ -]+(?:exceeding|over|greater[ -]+than)[ -]*(${money})\s+count\b`, 'giu')
   const element = new RegExp(String.raw`\bvalue\b[^.!?]{0,90}\b(?:exceeds|over|greater than)\s*(${money})`, 'i')
-  const quoted = /[“"][^“”"]*[”"]|(?<!\w)'[^']*'(?!\w)/g
+  const quoted = /[“"][^“”"]*[”"]|(?<!\w)[‘'](?:[^‘’']|[’'](?=\w))*[’'](?!\w)/g
   const quotations = [...text.matchAll(quoted)]
   const unquoted = text.replace(quoted, quotation => ' '.repeat(quotation.length))
   const errors: string[] = [], used: string[] = [], edits: Array<{ start: number; end: number }> = []
@@ -29,6 +29,7 @@ export function proposedCountReferences(text: string, labels: string[], values: 
         /\b(?:payment|paid|received|transferred|deposited|withdrew|withdrawal|receipt|balance)\b/i.test(prefix) ||
         /\bCrown\s+(?:does not|did not|need not|must not|cannot|never)\b|\b(?:no|not)\s+(?:(?:the|a|any)\s+)?(?:burden|onus|requirement)\b|\bmust not be (?:proved|proven|established)\b|\bno element\b/i.test(clause)) continue
     const active = /\bCrown\s+(?:must|has to|is required to)\s+(?:(?:still|also)\s+)?(?:prove|establish)\b/i.test(clause)
+    if (/\b(?:does not|doesn['’]t|never)\s+(?:lies?|rests?|remains?)\s+(?:with|on)\s+(?:the\s+)?Crown\b|\b(?:lies?|rests?|remains?)\s+(?:not|never)\s+(?:with|on)\s+(?:the\s+)?Crown\b/i.test(clause)) continue
     const burden = /\bCrown\s+(?:bears?|has|carries?)\s+(?:(?:the|a)\s+)?(?:burden|onus)\b/i.test(clause) ||
       /\b(?:burden|onus)\b[^;.!?]*\b(?:lies?|rests?|remains?)\s+(?:with|on)\s+(?:the\s+)?Crown\b/i.test(clause)
     const passive = /\belements?\b/i.test(clause) && /\bmust\s+(?:(?:each|all)\s+)?be\s+(?:proved|proven|established)\s+beyond a reasonable doubt\b/i.test(clause)

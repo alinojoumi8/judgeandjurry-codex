@@ -12,6 +12,8 @@ reference, or use passive proof wording. Only the benchmark occurrence is remove
 from factual amount checking; another occurrence of the same number still needs
 its own support. Quoted, reported and historical words cannot supply the author's
 normative scope, and exercise approval does not establish an actual filed count.
+Negated burden claims retain their own scope, including a denial that the burden
+rests with the Crown. Straight and curly source quotations remain source words.
 
 Approved proof lists also recognize articles and subject-matter value labels,
 including a list ending with "and a subject-matter value exceeding" the approved

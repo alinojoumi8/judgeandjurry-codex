@@ -50,6 +50,8 @@ describe('approved count references in normative burden context', () => {
     `The report states “${captured}” (E-001).`,
     `“${captured}”`,
     `'${captured}'`,
+    `‘${captured}’`,
+    `‘${captured.slice(0, -1)}, preserving the Crown’s burden.’`,
     captured.replace('proposed', 'operative'),
     captured.replace('proposed', 'filed'),
     captured.replace('bears the burden on', 'does not bear the burden on').replace('and must prove', 'and need not prove'),
@@ -60,6 +62,10 @@ describe('approved count references in normative burden context', () => {
     'The Crown must prove each element of the proposed fraud over $1,500 count that was filed yesterday.',
     `In the prior trial, ${captured}`,
     `Mira said ${captured}`,
+    'The burden of proof on the proposed fraud over $1,500 count does not rest with the Crown.',
+    'The burden of proof on the proposed fraud over $1,500 count never lies with the Crown.',
+    "The burden of proof on the proposed fraud over $1,500 count doesn't remain with the Crown.",
+    'The burden of proof on the proposed fraud over $1,500 count rests not with the Crown.',
   ])('retains source, charge, factual and denial boundaries: %s', text => {
     expect(check(text).status).toBe('failed')
   })
