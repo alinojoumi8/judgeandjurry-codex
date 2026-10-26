@@ -33,7 +33,8 @@ dirty or detached worktrees and existing stashes.
 | Observed state | Recommendation |
 | --- | --- |
 | A coherent task-owned change is implemented and checked | Commit the named files now, before starting another change. |
-| Local commits are absent from the intended GitHub branch | Review the outgoing commits for private data, then push to that branch after applicable checks. |
+| Local-only commits exist and the upstream-only count is zero | Review the outgoing commits for private data, then push to that branch after applicable checks. |
+| The upstream-only count is greater than zero, including divergence | Reconcile first using an authorized fast-forward, merge or rebase as appropriate. Preserve dirty work and avoid rewriting shared history; do not force-push to hide divergence. |
 | A feature branch has no upstream | Confirm the destination and create its own GitHub branch with `git push -u origin HEAD`. |
 | Work needs review or still has failing/unfinished acceptance checks | Push an appropriate checkpoint only within authorization; keep its PR draft and record the exact blockers. |
 | Current-head checks and CodeRabbit pass, and the requested behavior is complete | Recommend merging the PR into main; use existing merge authorization or request it. |
@@ -59,8 +60,11 @@ GitHub; it does not certify readiness for main.
    task, after reviewing both staged and unstaged diffs. If a file mixes task
    changes with unrelated or private edits, prepare only the intended changes
    in a clean worktree first. Naming paths excludes staged files at other paths.
-4. Recheck the branch, destination and PR immediately before pushing. Use the
-   branch's intended remote; for this repository it is normally `origin`.
+4. Recheck the branch, destination, PR and upstream-only count immediately before
+   pushing. If GitHub has commits absent locally, reconcile first within the
+   current authorization. For a new branch, verify the intended remote branch
+   does not already exist. Use the branch's intended remote; for this repository
+   it is normally `origin`.
    Push the feature branch, never an unreviewed update directly to main.
 5. Create or update the appropriate PR within authorization. Keep it draft until
    the behavior, current-head validation and completed CodeRabbit review meet

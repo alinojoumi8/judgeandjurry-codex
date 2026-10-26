@@ -39,8 +39,12 @@ arguments can be wrong, and synthetic ballots are not real verdict probabilities
 - Resolve the actual checkout, branch, upstream, ahead/behind counts and open PR.
   A branch name alone does not identify the newest work. Fetch before judging
   remote status; label offline or failed checks unknown.
-- Proactively suggest a focused commit when task-owned changes are ready, and a
-  push when commits are only local or the branch has no GitHub counterpart.
+- Proactively suggest a focused commit when task-owned changes are ready. Suggest
+  a push for local-only commits only when the upstream-only count is zero, or
+  after verifying that the intended GitHub branch does not exist. If upstream
+  has commits absent locally, recommend reconciliation first; preserve dirty
+  work and obtain any needed merge/rebase authorization. Never force-push to
+  hide divergence.
   When the current request already authorizes committing/pushing, perform those
   actions after the applicable checks instead of asking for the same permission.
 - Stage named, reviewed files only. Preserve unrelated work and private evidence.

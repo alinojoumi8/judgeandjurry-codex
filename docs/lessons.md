@@ -19,6 +19,7 @@ Read this file before starting a task. Keep entries short and actionable.
 - **What went wrong:** Work accumulated as local edits, unpublished commits and
   completed branches, making the active checkout and GitHub readiness unclear.
 - **Correct approach:** Verify branch/worktree/upstream state, recommend a
-  focused commit after each tested unit and a push for local-only commits, and
+  focused commit after each tested unit and a push for local-only commits only
+  when no upstream commits are missing locally. Reconcile divergence first and
   act when already authorized. Report draft PR blockers explicitly. Verify
   integration before deleting finished branches and preserve private history.
