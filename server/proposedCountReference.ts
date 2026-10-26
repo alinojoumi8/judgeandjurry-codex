@@ -3,6 +3,7 @@ import { monetarySuffix } from './sourceThresholds'
 const money = String.raw`(?:(?:CAD|CDN|USD)\s*\$?\s*|(?:US|CA|Cdn)\$\s*|\$\s*)\d[\d,]*(?:\.\d+)?${monetarySuffix}`
 const currency = (value: string) => /^(?:USD|US\$)/i.test(value) ? 'USD' : /^(?:CAD|CDN|CA\$|Cdn\$)/i.test(value) ? 'CAD' : '$'
 const boundary = /[;!?]|\.(?!\d)/
+const quoted = /[“"][^“”"]*[”"]|(?<!\w)[‘'](?:[^‘’']|[’'](?=\w))*[’'](?!\w)/g
 
 // The caller supplies only the controlling, usable issue's element labels.
 // Classify the count reference itself, independently of burden word order.
@@ -11,7 +12,6 @@ const boundary = /[;!?]|\.(?!\d)/
 export function proposedCountReferences(text: string, labels: string[], values: (text: string) => number[]) {
   const reference = new RegExp(String.raw`\bproposed ([\p{L}][\p{L} ’'-]{0,80}?)[ -]+(?:exceeding|over|greater[ -]+than)[ -]*(${money})\s+count\b`, 'giu')
   const element = new RegExp(String.raw`\bvalue\b[^.!?]{0,90}\b(?:exceeds|over|greater than)\s*(${money})`, 'i')
-  const quoted = /[“"][^“”"]*[”"]|(?<!\w)[‘'](?:[^‘’']|[’'](?=\w))*[’'](?!\w)/g
   const quotations = [...text.matchAll(quoted)]
   const unquoted = text.replace(quoted, quotation => ' '.repeat(quotation.length))
   const errors: string[] = [], used: string[] = [], edits: Array<{ start: number; end: number }> = []
@@ -50,4 +50,32 @@ export function proposedCountReferences(text: string, labels: string[], values: 
   let factualText = text
   for (const edit of edits.reverse()) factualText = factualText.slice(0, edit.start) + factualText.slice(edit.end)
   return { factualText, labels: [...new Set(used)], errors }
+}
+
+// A complete approved label can introduce an evidence argument without quotes.
+// Match the whole label, then remove only its benchmark, never its evidence.
+export function approvedElementLabelReferences(text: string, labels: string[]) {
+  const words = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase()
+  const used: string[] = []
+  let factualText = text
+  for (const label of labels) {
+    if (labels.filter(candidate => words(candidate) === words(label)).length !== 1 || [...label.matchAll(new RegExp(money, 'gi'))].length !== 1) continue
+    const benchmark = new RegExp(String.raw`\bvalue\b[^.!?]{0,90}\b(?:exceeds|over|greater than)\s*(${money})`, 'i')
+    if (!benchmark.test(label)) continue
+    const literal = label.trim().split(/\s+/).map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+')
+    const reference = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)(?:Finally,\s+)?for\s+(?:(?:the\s+)?(?:approved|supplied|exercise)\s+element\s+)?(${literal})\s*(?=[,:])`, 'giu')
+    factualText = factualText.replace(reference, (statement: string, supplied: string, offset: number, input: string) => {
+      if ([...input.matchAll(quoted)].some(quote => offset >= quote.index && offset < quote.index + quote[0].length)) return statement
+      const lead = input.slice(0, offset)
+      if (/\b(?:report|document|source|interview|affidavit|witness|deponent|E-\d+)\b[^;.!?]*\b(?:states?|stated|records?|reports?|says?|said|claims?|claimed)\s+(?:(?:the )?following\s*)?;\s*$/i.test(lead) ||
+          /\b(?:previous|prior|earlier|last) (?:trial|instruction|proceeding|hearing)\b[^.!?]*;\s*$/i.test(lead)) return statement
+      const clause = input.slice(offset).split(boundary)[0]
+      if (/\b(?:operative|filed|charged)\b[^;.!?]{0,80}\b(?:count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(clause)) return statement
+      const claimed = supplied.match(benchmark)?.[1]
+      if (!claimed) return statement
+      used.push(label)
+      return statement.replace(claimed, '')
+    })
+  }
+  return { factualText, labels: [...new Set(used)] }
 }

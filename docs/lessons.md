@@ -24,3 +24,13 @@ Read this file before starting a task. Keep entries short and actionable.
   permitted projection and selectors. Verify whether the words exist in a
   selected passage before changing normalization. Locator candidates require
   fresh source/meaning review; they must not silently become accepted support.
+
+## 2026-10-26 - Bind QA scope to the originating request
+
+- **What went wrong:** The focused live-test transport inferred its actor from
+  prompt text and blocked a legitimate independent coverage recheck whose
+  reduced context deliberately omitted that actor label.
+- **Correct approach:** Carry the originating structured stage and actor through
+  asynchronous provider calls. Test narrowed checker/correction calls and denied
+  later actors before a live run. Preserve the failed harness and its evidence;
+  do not broaden model context or treat the stopped test as an acceptance pass.

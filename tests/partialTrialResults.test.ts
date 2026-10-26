@@ -38,4 +38,23 @@ describe('partial proceeding results', () => {
     trial.decisionSheet = { complete: true, decisions: [], validationWarnings: [] }
     expect(renderToStaticMarkup(createElement(PartialTrialResults, { trial }))).toBe('')
   })
+  it.each(['no_verdict', 'no_decision', 'no_finding'])('withholds a saved valid %s outcome and preserves its reason', choice => {
+    const trial = fixture()
+    trial.ballots = [{ ...trial.ballots[0], id: 'saved-no-decision', choice, valid: true, rationale: 'Preserved saved explanation.' }]
+    const before = JSON.stringify(trial.ballots)
+    const html = renderToStaticMarkup(createElement(PartialTrialResults, { trial }))
+    expect(html).toContain('Initial positions: None valid · withheld or unavailable: 1')
+    expect(html).toContain('juror-1 · withheld or unavailable')
+    expect(html).toContain('Recorded initial reasons (1)')
+    expect(html).toContain('Preserved saved explanation.')
+    expect(JSON.stringify(trial.ballots)).toBe(before)
+  })
+  it('keeps ordinary and undecided initial positions while withholding all no-decision variants', () => {
+    const trial = fixture()
+    trial.ballots = ['liable', 'not_liable', 'undecided', 'no_verdict', 'no_decision', 'no_finding'].map((choice, i) => ({ ...trial.ballots[0], id: `mixed-${i}`, choice, valid: true }))
+    const html = renderToStaticMarkup(createElement(PartialTrialResults, { trial }))
+    expect(html).toContain('liable: 1 · not liable: 1 · undecided: 1 · withheld or unavailable: 3')
+    expect(html).not.toContain('no decision: 1')
+    expect(html).not.toContain('no finding: 1')
+  })
 })

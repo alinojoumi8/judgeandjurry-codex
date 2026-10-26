@@ -3,6 +3,7 @@ import { groundingUnits, parseGroundingReview, type GroundingUnit } from '../ser
 import { MiniMaxClient, type StageRequest } from '../server/minimax'
 import type { EvidenceItem, StageResult } from '../server/types'
 import { supportedOpeningSource } from '../samples/courtroom-realism/supported-opening'
+import { createTrialRequestScope } from '../scripts/trialRequestScope'
 
 const omitted = 'OMITTED_UNIQUE_PARAGRAPH_THREE'
 const texts = [
@@ -33,9 +34,10 @@ function prior(paragraphs = [1, 2, 3], priorDraft = draft, q = request) {
   expect(review.status).toBe('passed')
   return review
 }
-function harness(replies: Array<(units: GroundingUnit[], body: Body) => unknown>, maxRetries = 2) {
+function harness(replies: Array<(units: GroundingUnit[], body: Body) => unknown>, maxRetries = 2, scope?: ReturnType<typeof createTrialRequestScope>) {
   const bodies: Body[] = []
   const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional', baseUrl: 'https://fixture.invalid/v1', model: 'fictional', timeoutMs: 1000, maxRetries }, undefined, async (_url, init) => {
+    scope?.opening()
     const body = JSON.parse(String(init?.body)) as Body
     bodies.push(body)
     if (!replies[bodies.length - 1]) throw new Error('Unexpected extra mocked checker call.')
@@ -53,6 +55,17 @@ function assertFocus(body: Body, paragraphs: number[]) {
 }
 
 describe('checker source selection coverage is independently reviewed within the existing retry cap', () => {
+  it.each([true, false])('keeps narrowed internal review inside the originating Crown QA scope; complete=%s', async complete => {
+    const scope = createTrialRequestScope(), paragraphs = complete ? [5] : [1, 2, 4]
+    const h = harness([reply(paragraphs), reply(paragraphs, false, complete ? 'supported' : 'unsupported')], 1, scope)
+    const client = scope.wrap({ generateStage: async q => ({ ...draft, grounding: await h.client.reviewGrounding(q, draft, prior()) }) })
+    const result = await client.generateStage({ ...request, stage: 'crown_opening', packet: 'Fictional coverage exercise.\nActor: crown', courtroomActor: { id: 'crown', name: 'Crown', roles: ['crown'] } })
+    expect(result.grounding?.status).toBe(complete ? 'passed' : 'failed')
+    expect(h.bodies).toHaveLength(2)
+    assertFocus(h.bodies[1], paragraphs)
+    expect(h.bodies[0].messages[1].content).toContain('Actor: crown')
+    expect(h.bodies[1].messages[1].content).not.toContain('Actor: crown')
+  })
   it('carries current unchanged source selectors into an author repair as audit targets, not a judgment', async () => {
     const previous = prior()
     const current = { ...draft, title: 'Repaired fictional heading' }

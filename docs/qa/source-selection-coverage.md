@@ -37,6 +37,12 @@ the approved threshold without claiming a transaction. It still needs one matchi
 current instruction and currency; source reports, quotations, actual charge claims
 and neighboring payments keep their own support requirements.
 
+An evidence argument can also start with `For` and the complete unquoted
+approved value-element label. Only that exact label's benchmark is exempted;
+every adjacent source amount still needs its own support. Missing, ambiguous,
+stale or unusable approval, source reports, historical/quoted words and actual
+charge claims do not gain that exemption.
+
 Generated element and proof assessments preserve the approved term deprivation.
 An unqualified depreciation assessment with no supporting source context is
 withheld for a checked repair. Genuine asset depreciation and quoted source words
@@ -101,6 +107,12 @@ unchanged. A rejected or malformed focus stops the queue with the response
 withheld; a transport/budget failure preserves completed checks and the unresolved
 claims. Missing fields, unavailable selectors, unresolved coverage and exhausted
 rounds remain failures. Correction rounds are not HTTP-request counts.
+
+The local focused-run QA transport uses `scripts/trialRequestScope.ts` to carry
+the originating application's actor and stage through asynchronous model calls.
+Narrowed checker prompts may omit actor labels without leaving the Crown turn.
+Unknown or later actors remain blocked; model prompt text cannot grant scope.
+This helper does not alter provider prompts, source permissions or run limits.
 
 Judgment consistency is tracked for each complete, valid unit while another
 unit's locator is corrected. Global schema errors do not establish comparable

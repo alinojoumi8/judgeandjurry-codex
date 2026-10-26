@@ -11,7 +11,7 @@ import { groundingSupportTypes, groundingSupportTypesContract } from './groundin
 import { checkerParagraphReferenceErrors } from './checkerParagraphReferences'
 import { sourceAbsenceScopeError } from './sourceAbsenceScope'
 import { monetarySuffix, sourceThresholdComparisons } from './sourceThresholds'
-import { proposedCountReferences } from './proposedCountReference'
+import { approvedElementLabelReferences, proposedCountReferences } from './proposedCountReference'
 import { jurorHistoryError, initialHistoryStatement, jurorConditionalState, jurorDiscussionState, jurorInfluenceStatement, jurorInstructionState, jurorStateAttribution, matchingCurrentJurorState, matchingJurorInfluence, matchingUnusableHistory, unusableHistoryStatement, type currentJurorDraft } from './checkerJurorState'
 
 // Input must be the actor's already authorized/redacted event projection.
@@ -305,7 +305,9 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
     const countReferences = proposedCountReferences(comparison.factualText, labels, dollarAmounts)
     used.push(...countReferences.labels)
     proposedErrors.push(...countReferences.errors)
-    const quotedElementText = countReferences.factualText.replace(quotedElement, (statement: string, quotation: string) => {
+    const labelReferences = approvedElementLabelReferences(countReferences.factualText, labels)
+    used.push(...labelReferences.labels)
+    const quotedElementText = labelReferences.factualText.replace(quotedElement, (statement: string, quotation: string) => {
       const matching = labels.filter(label => elementWords(label) === elementWords(quotation))
       const claimed = matching.length === 1 ? matching[0].match(threshold)?.[1] : undefined
       if (!claimed) return statement
