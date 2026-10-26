@@ -32,6 +32,27 @@ arguments can be wrong, and synthetic ballots are not real verdict probabilities
    that today's code passes. Do not publish, deploy, or send private material
    externally unless that action is covered by the user's request.
 
+## Commit and push checkpoints
+
+- Follow [docs/git-workflow.md](docs/git-workflow.md) at the start of work, after
+  each coherent tested change, before switching tasks, and in the final handoff.
+- Resolve the actual checkout, branch, upstream, ahead/behind counts and open PR.
+  A branch name alone does not identify the newest work. Fetch before judging
+  remote status; label offline or failed checks unknown.
+- Proactively suggest a focused commit when task-owned changes are ready, and a
+  push when commits are only local or the branch has no GitHub counterpart.
+  When the current request already authorizes committing/pushing, perform those
+  actions after the applicable checks instead of asking for the same permission.
+- Stage named, reviewed files only. Preserve unrelated work and private evidence.
+  Keep unfinished features in draft PRs with explicit blockers; do not treat a
+  successful push or green CI as proof that the feature is ready for main.
+- End substantive work with the branch, commit/push state, PR/check status and
+  the next recommendation. Do not let another feature silently accumulate on an
+  uncommitted change. Record why any requested checkpoint could not be made.
+- Suggest deleting completed local/remote branches after confirming their work
+  is integrated and no worktree or open PR still needs them. Obtain deletion or
+  merge authorization when it is not already covered by the user's request.
+
 ## Hard rules (always follow, no exceptions)
 
 ### Ask before anything irreversible
