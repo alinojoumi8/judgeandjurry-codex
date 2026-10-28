@@ -52,8 +52,9 @@ export function proposedCountReferences(text: string, labels: string[], values: 
   return { factualText, labels: [...new Set(used)], errors }
 }
 
-// A complete approved label can introduce an evidence argument without quotes.
-// Match the whole label, then remove only its benchmark, never its evidence.
+// A complete approved label can introduce an evidence argument, including a
+// standalone quoted label followed by a proof requirement. Remove only its
+// benchmark, never neighboring evidence or a reported source's requirement.
 export function approvedElementLabelReferences(text: string, labels: string[]) {
   const words = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase()
   const used: string[] = []
@@ -63,9 +64,12 @@ export function approvedElementLabelReferences(text: string, labels: string[]) {
     const benchmark = new RegExp(String.raw`\bvalue\b[^.!?]{0,90}\b(?:exceeds|over|greater than)\s*(${money})`, 'i')
     if (!benchmark.test(label)) continue
     const literal = label.trim().split(/\s+/).map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+')
-    const reference = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)(?:Finally,\s+)?for\s+(?:(?:the\s+)?(?:approved|supplied|exercise)\s+element\s+)?(${literal})\s*(?=[,:])`, 'giu')
-    factualText = factualText.replace(reference, (statement: string, supplied: string, offset: number, input: string) => {
-      if ([...input.matchAll(quoted)].some(quote => offset >= quote.index && offset < quote.index + quote[0].length)) return statement
+    const references = [
+      new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)(?:Finally,\s+)?for\s+(?:(?:the\s+)?(?:approved|supplied|exercise)\s+element\s+)?(${literal})\s*(?=[,:])`, 'giu'),
+      new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)(?:Finally,\s+)?([“"]${literal}[”"])(?=\s+requires?\s+(?:proof\b|an?\s+established\s+(?:matching\s+)?amount\b))`, 'giu'),
+    ]
+    for (const reference of references) factualText = factualText.replace(reference, (statement: string, supplied: string, offset: number, input: string) => {
+      if ([...input.matchAll(quoted)].some(quote => offset >= quote.index && offset < quote.index + quote[0].length && (offset !== quote.index || statement !== quote[0]))) return statement
       const lead = input.slice(0, offset)
       if (/\b(?:report|document|source|interview|affidavit|witness|deponent|E-\d+)\b[^;.!?]*\b(?:states?|stated|records?|reports?|says?|said|claims?|claimed)\s+(?:(?:the )?following\s*)?;\s*$/i.test(lead) ||
           /\b(?:previous|prior|earlier|last) (?:trial|instruction|proceeding|hearing)\b[^.!?]*;\s*$/i.test(lead)) return statement

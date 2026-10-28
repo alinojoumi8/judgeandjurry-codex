@@ -125,3 +125,18 @@ These controls detect selection loss across reviews. They do not independently
 prove the semantic completeness of a first, stable model selection. A fresh frozen
 browser acceptance run remains necessary before concluding that the real case
 completes or reporting a simulated jury decision.
+
+A standalone quoted current value-element label followed by an explicit proof
+requirement can refer to the approved benchmark without the word `for`. The whole
+label must match one usable current approval. This removes only that benchmark
+from factual amount checking; source reports, prior instructions, actual charges,
+different currencies and neighboring payments keep their own support requirements.
+
+Author-written extracted-paragraph locators, including comma-separated ranges,
+must agree with the independently selected passages. A mismatch is an author
+repair failure, not a checker JSON-format error. Source-quoted pointer words are
+not treated as new author locators. Printed numbering cannot supply an extracted
+paragraph mapping. A repair may correct or omit an uncertain pointer, but cannot
+replace an assessment of insufficient proof with an unsupported blanket claim
+that no source passage contains relevant evidence. Such document-wide absence
+claims remain rejected when the source is supplied only as selected excerpts.

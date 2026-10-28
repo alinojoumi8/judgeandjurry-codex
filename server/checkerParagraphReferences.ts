@@ -13,7 +13,7 @@ export function checkerParagraphReferenceErrors(explanation: string, citations: 
     }
   }
   const numbers = '(\\d+(?:\\s*(?:[-–,]|and)\\s*\\d+)*)'
-  for (const match of explanation.matchAll(new RegExp(`\\b(E-\\d+)\\s*(?:(?:paragraphs?|paras?\\.?|¶)\\s*|:\\s*)${numbers}`, 'gi'))) check(match[1], match[2])
+  for (const match of explanation.matchAll(new RegExp(`\\b(E-\\d+)\\s*,?\\s*(?:(?:paragraphs?|paras?\\.?|¶)\\s*|:\\s*)${numbers}`, 'gi'))) check(match[1], match[2])
   for (const match of explanation.matchAll(new RegExp(`\\b(?:paragraphs?|paras?\\.?)\\s*${numbers}\\s+(?:of|in)\\s+(E-\\d+)\\b`, 'gi'))) check(match[2], match[1])
   return [...new Set(errors)]
 }

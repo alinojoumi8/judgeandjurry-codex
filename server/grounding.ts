@@ -3073,10 +3073,16 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
       if (['analysis', 'supported'].includes(status)) {
         const referenceClaims = recordAttribution ? sourceClauses.join('; ') : unit.text
         const pageErrors = sourcePageReferenceErrors(referenceClaims, evidence)
+        // Quoted words may themselves report a pointer. Author-written prose
+        // locators, however, must agree with independently selected passages.
+        const paragraphErrors = checkerParagraphReferenceErrors(referenceClaims.replace(/[“"][^“”"]*[”"]/g, quotation => ' '.repeat(quotation.length)), citations)
         const instructionError = instructionElementDriftError(referenceClaims, proceduralSetup?.approvedIssueInstructions, proceduralSetup?.events ?? [], citations.map(citation => citation.quote))
-        if (pageErrors.length || instructionError) {
+        if (pageErrors.length || paragraphErrors.length || instructionError) {
           status = 'unsupported'
-          explanation = [...pageErrors, ...(instructionError ? [instructionError] : [])].join(' ')
+          // Keep invalid author pointers out of the checker's explanation;
+          // they are author-repair diagnostics, not checker-format failures.
+          if (paragraphErrors.length) errors.push(`${unit.id}: author paragraph reference is not a selected, verified locator: ${paragraphErrors.join(', ')}. Cite only actual permitted supporting paragraphs, or omit the unsupported prose pointer without changing the factual premise.`)
+          explanation = [...pageErrors, ...(paragraphErrors.length ? ['An author paragraph reference is outside the independently selected support. Repair the pointer without inventing a new factual premise.'] : []), ...(instructionError ? [instructionError] : [])].join(' ')
         }
       }
       const explanationReferences = checkerParagraphReferenceErrors(explanation, citations)
@@ -3106,8 +3112,10 @@ export function groundingRepairInstructions(review: GroundingReview): string {
   return [
     'The independent source check rejected the previous draft. Repair only rejected text with accurate, qualified claims, preserving accepted text verbatim and following the repair output contract. Do not repeat the rejected statement. Do not alter the evidence or choose a verdict to satisfy the checker.',
     'Repair each rejected source claim against its own named source. Shared topic, account label or a nearby citation cannot transfer a proposition between documents. If no permitted passage supports it, remove that clause or state the specific unresolved question without presupposing proof, admission or absence. For a quotation error, copy a contiguous passage, mark every omission with an ellipsis, or use an explicitly unquoted faithful paraphrase. Do not silently delete fillers or bridge another speaker. Preserve the actual source speaker and use only supplied names or pronouns.',
+    'Keep a proof-sufficiency assessment distinct from a source-content absence claim. Not established beyond the supplied standard does not mean no passage contains a relevant amount or connection. Do not replace a rejected threshold reference or locator with a new blanket no-evidence premise. Preserve the original qualified assessment, correct only the rejected reference, or remove that clause if it cannot be supported. Any source-content absence claim needs its own permitted scope and independent source review.',
     'Repair source-use claims against the actual supplied restrictions, in a separate setup sentence introduced by under the supplied source-use restrictions. Remove an exhibit, page or paragraph citation that does not itself state that restriction; transcript introductions, oaths and attributed answers do not establish application permissions. Preserve the exact allowed and prohibited purposes. Do not turn a factual premise into a setup rule, infer a missing restriction, or remove a factual clause’s required citation. Every replacement is independently checked against the original context.',
     'Page locators refer only to the supplied PDF file. Printed folios and original-report page numbers are not supplied-file page numbers. If a page locator fails, use the actual supplied paragraph locator supporting that clause; never invent a mapping or borrow a different page. A valid page bound alone does not establish support.',
+    'Generated paragraph ranges are citations too: every number, including range endpoints and comma-separated additions, must be an actual permitted paragraph independently selected for that claim. Do not copy printed affidavit or transcript numbering into extracted-paragraph locators. Omit an uncertain prose pointer rather than inventing or widening its range; keep any factual claim and source attribution unchanged unless independently corrected.',
     'Put the exact source citation immediately after each quoted clause. For a quotation source mismatch, correct its attribution against the actual selected passage; do not rewrite faithful source words merely because a shared trailing reference list selected the wrong document.',
     'Do not insert a slash to represent a transcript line break. Remove printed line labels only as layout, preserve spoken words and punctuation, and never join across a question or speaker change without an explicit ellipsis. Do not introduce a new quotation merely to repair an unrelated amount or attribution; correct the rejected premise with the smallest supported edit, or use an explicitly unquoted faithful paraphrase.',
     'For a correspondence attribution mismatch, distinguish the report author’s summary from actual reproduced correspondence. Attribute a report summary to the report, preserving the actual quote and its limits; do not claim the correspondent wrote those words unless an explicitly attributed quotation or reproduced body supports it.',
