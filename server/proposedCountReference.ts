@@ -67,10 +67,15 @@ export function approvedElementLabelReferences(text: string, labels: string[]) {
     const references = [
       new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)(?:Finally,\s+)?for\s+(?:(?:the\s+)?(?:approved|supplied|exercise)\s+element\s+)?(${literal})\s*(?=[,:])`, 'giu'),
       new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)(?:Finally,\s+)?([“"]${literal}[”"])(?=\s+requires?\s+(?:proof\b|an?\s+established\s+(?:matching\s+)?amount\b))`, 'giu'),
+      new RegExp(String.raw`([“"]${literal}[,.]?[”"])`, 'giu'),
     ]
-    for (const reference of references) factualText = factualText.replace(reference, (statement: string, supplied: string, offset: number, input: string) => {
+    for (const [kind, reference] of references.entries()) factualText = factualText.replace(reference, (statement: string, supplied: string, offset: number, input: string) => {
       if ([...input.matchAll(quoted)].some(quote => offset >= quote.index && offset < quote.index + quote[0].length && (offset !== quote.index || statement !== quote[0]))) return statement
       const lead = input.slice(0, offset)
+      // A current author's explicit proof list can quote the approved labels.
+      // Only list separators may intervene; source reports and prior directives
+      // cannot supply that normative scope.
+      if (kind === 2 && !/(?:^|(?<=[.!?])\s+)(?:The\s+)?Crown\s+must\s+(?:prove|establish)(?:\s+beyond a reasonable doubt)?\s*:\s*[;,\s]*(?:(?:and|or)\s*)?$/i.test(lead.replace(quoted, quotation => ' '.repeat(quotation.length)))) return statement
       if (/\b(?:report|document|source|interview|affidavit|witness|deponent|E-\d+)\b[^;.!?]*\b(?:states?|stated|records?|reports?|says?|said|claims?|claimed)\s+(?:(?:the )?following\s*)?;\s*$/i.test(lead) ||
           /\b(?:previous|prior|earlier|last) (?:trial|instruction|proceeding|hearing)\b[^.!?]*;\s*$/i.test(lead)) return statement
       const clause = input.slice(offset).split(boundary)[0]

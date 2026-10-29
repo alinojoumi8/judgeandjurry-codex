@@ -140,3 +140,12 @@ paragraph mapping. A repair may correct or omit an uncertain pointer, but cannot
 replace an assessment of insufficient proof with an unsupported blanket claim
 that no source passage contains relevant evidence. Such document-wide absence
 claims remain rejected when the source is supplied only as selected excerpts.
+
+Quoted approved labels can also belong to an explicit current `Crown must prove:`
+list. Only quoted labels and list separators may intervene in that normative
+scope; reports, earlier instructions and actual payment claims do not inherit it.
+New author prompts request exhibit IDs for speech citation pointers; precise
+paragraphs remain in the independent source audit. Locator-only repair feedback
+asks for the original claim words with the uncertain coordinates removed, rather
+than a guessed mapping or a newly expanded factual assertion. This does not edit
+saved drafts or automatically accept a replacement; the full repair is checked.

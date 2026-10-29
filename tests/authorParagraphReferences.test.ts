@@ -11,6 +11,27 @@ function check(text = content, paragraphs = [1, 2]) {
 }
 
 describe('author paragraph locators', () => {
+  it.each([false, true])('keeps a printed-page repair local without inventing a paragraph mapping: guessed=%s', async guessed => {
+    const original = 'The report describes a blue token (E-001, pp. 36, 41–42).'
+    const replacement = guessed ? 'The report describes a blue token (E-001, paragraphs 1–2).' : 'The report describes a blue token (E-001).'
+    let authors = 0
+    const prompts: string[] = []
+    const client = new MiniMaxClient({ provider: 'openai-compatible', baseUrl: 'https://fixture.invalid/v1', model: 'fictional', apiKey: 'fixture', maxRetries: 1, timeoutMs: 1000 }, undefined, async (_url, init) => {
+      const prompt = JSON.parse(String(init?.body)).messages[1].content as string
+      prompts.push(prompt)
+      const marker = 'Draft units to check:\n'
+      const units = prompt.includes(marker) ? JSON.parse(prompt.split(marker)[1]) as Array<{ id: string }> : undefined
+      const value = units ? { findings: Object.fromEntries(units.map(unit => [unit.id, row([1])])) } : ++authors === 1
+        ? { title: '', content: original, citations: ['E-001'], jurors: [] } : { repairs: [{ unitId: 'content:1', replacement }] }
+      return Response.json({ choices: [{ message: { content: JSON.stringify(value) } }] })
+    })
+    const result = client.generateStage({ stage: 'crown_opening', packet: 'Fictional exercise.', previousTurns: '', groundingRequired: true, evidence: evidence.map(item => ({ ...item, sourcePages: [1, 2, 3] })) })
+    if (guessed) await expect(result).rejects.toMatchObject({ grounding: { status: 'failed', errors: expect.arrayContaining([expect.stringContaining('author paragraph reference')]) } })
+    else expect((await result).content).toBe(replacement)
+    expect(authors).toBe(2)
+    expect(prompts.find(prompt => prompt.includes('OUTPUT CONTRACT FOR THIS REPAIR:'))).toContain('preserve the claim words verbatim')
+    expect(prompts[0]).toContain('Use supplied exhibit IDs alone for your authored citation pointers')
+  })
   it.each([
     'E-001, paragraphs 1–3', 'E-001 paragraphs 1 and 3', 'E-001, para. 3', 'paragraph 3 of E-001', 'E-001:3',
   ])('rejects a prose reference outside the selected support: %s', pointer => {

@@ -15,6 +15,21 @@ function check(content = text, options: { approved?: typeof approved; events?: G
 }
 
 describe('standalone quoted approved threshold labels', () => {
+  const list = `The Crown must prove beyond a reasonable doubt: “A prohibited dishonest act”; and “${label}.”`
+  const listApproval = [{ issueId: 'fictional-count', elements: [{ label: 'A prohibited dishonest act' }, { label }] }]
+  it.each([list, list.replace('beyond a reasonable doubt: ', ': '), list.replaceAll('“', '"').replaceAll('”', '"')])('accepts exact approved labels in a current quoted proof list: %s', content => {
+    expect(check(content, { approved: listApproval }).errors).toEqual([])
+  })
+  it.each([
+    list.replace('$1,500', '$1,600'), list.replace('$1,500', 'USD $1,500'),
+    list.replace('must prove', 'must not prove'),
+    `The report states the following; ${list}`,
+    `In the previous instruction; ${list}`,
+    list.replace('must prove beyond a reasonable doubt:', 'records a payment:'),
+    list + ' Arin received $1,500 (E-001).',
+  ])('keeps proof-list references separate from reports, history and transactions: %s', content => {
+    expect(check(content, { approved: listApproval }).status).toBe('failed')
+  })
   it.each([
     text,
     text.replace('Finally, ', ''),
