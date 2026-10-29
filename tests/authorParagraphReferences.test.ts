@@ -11,6 +11,11 @@ function check(text = content, paragraphs = [1, 2]) {
 }
 
 describe('author paragraph locators', () => {
+  it.each(['E-001: 3 investors describe a blue token.', 'E-001: 2019 report describes a blue token.', 'E-001: 3,007 investors describe a blue token.', 'E-001: 3.5 percent describe a blue token.'])('does not invent a colon locator from ordinary prose: %s', text => {
+    const source = [{ ...evidence[0], text: text.replace('E-001: ', '') }]
+    const review = parseGroundingReview(JSON.stringify({ findings: { 'content:1': row([1]) } }), [{ id: 'content:1', text }], source)
+    expect(review.errors).toEqual([])
+  })
   it.each([false, true])('keeps a printed-page repair local without inventing a paragraph mapping: guessed=%s', async guessed => {
     const original = 'The report describes a blue token (E-001, pp. 36, 41–42).'
     const replacement = guessed ? 'The report describes a blue token (E-001, paragraphs 1–2).' : 'The report describes a blue token (E-001).'
