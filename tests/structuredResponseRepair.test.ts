@@ -83,14 +83,17 @@ describe('structured response repairs', () => {
     let calls = 0
     const client = new MiniMaxClient(config, undefined, async (_url, init) => {
       calls++; const prompt = JSON.parse(String(init?.body)).messages.map((m: { content: string }) => m.content).join('\n')
-      const output = JSON.parse(reviewText(prompt, { expitId: 'E-001', paragraph: 1 }))
+      const output = JSON.parse(reviewText(prompt, calls === 1 ? { expitId: 'E-001', paragraph: 1 } : { exhibitId: 'E-001', paragraph: 1 }))
       output.findings.at(-1).status = 'unsupported'
       output.findings.at(-1).explanation = 'The second sentence invents an event.'
       return reply(JSON.stringify(output))
     })
     const review = await client.reviewGrounding(request, { ...draft, content: `${draft.content} The witness admitted fraud.` })
     expect(review.status).toBe('failed')
-    expect(calls).toBe(1)
+    expect(calls).toBe(2)
+    expect(review.findings.at(-1)?.status).toBe('unsupported')
+    expect(review.errors.join(' ')).toContain('The second sentence invents an event.')
+    expect(review.sourceLocatorValidationUnitIds ?? []).toEqual([])
   })
 
   it.each(['401', 'transport'])('does not relabel %s failures as checker JSON failures', async failure => {

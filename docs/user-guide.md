@@ -125,6 +125,10 @@ Every same-draft MiniMax checker correction uses uniform findings, including sem
 
 When an explicit negative finding omits support metadata, the checker can complete its review on the same draft within the existing correction budget before an author repair. Completion cannot promote a substantive rejection on unchanged text to acceptance; mechanically identified checker scope errors retain their existing independent recheck path, and the original rejection and omitted fields remain in the audit. A remaining substantive rejection can still receive the existing bounded author repair. Empty reviews remain failures, and tool schemas require the exact finding inventory and support domains even for rejected claims.
 
+An explicit rejection also remains in the audit when a malformed sibling row invalidates the overall checker schema. Only a unique supplied unit ID, its unchanged text, an explicit negative judgment and the actual explanation can anchor completion; missing support domains or references are never inferred. A newly reported rejection can correct an earlier false acceptance while its metadata is completed. A complete opposite judgment still requires an independent consistency recheck within the existing budget.
+
+Advocates distinguish a document's author, a speaker quoted inside it and an opposing party's recorded submission. Reporting what the other party argued requires its actual visible, usable public submission. An affidavit, a private theory or a withheld contribution cannot supply that procedural claim. Accurately attributed source accounts and clearly hypothetical arguments remain available under their permitted purposes.
+
 An unresolved question referring to an approved proposed-count value threshold can appear alongside source-backed analysis. Proposed captions can also retain a trailing party-name suffix. A burden statement that the Crown must prove every element of that proposed count beyond a reasonable doubt identifies the exercise requirement without asserting a transaction amount. The threshold is checked against the unique approved exercise element or current delivered instruction, rather than a source transaction. Quotations, actual-charge claims, reversed burdens and actual financial assertions retain their source requirements. Source money cannot authorize a different or missing exercise threshold, and this distinction does not establish an actual charge or a proved element.
 
 When a quotation is attributed to correspondence reproduced in a report, matching words in the report narrative do not establish the correspondent's wording. The selected passages must contain an explicitly attributed quotation or a reproduced correspondence body with its actual sender. Only selected adjacent passages from the same exhibit can establish a continued body; unselected pages or a different sender cannot supply it. A report-author summary may instead be quoted as that report's summary. Attribution failures remain visible and can receive the existing bounded author repair, followed by an independent source check.
@@ -152,11 +156,26 @@ delivered instruction exists, approved exercise elements can supply the exercise
 threshold. They are identified as scenario setup and create no judicial record.
 Once an instruction exists, its actual current content controls.
 
+A conditional reference to the approved numeric value element uses that same
+current approval and currency. It does not assert a payment of that amount;
+neighboring factual amounts still require their own source support.
+
 After an author repair, a checker that changes an unchanged claim from accepted
 to rejected, or the reverse, receives a bounded independent recheck. Prior
 checker judgments are not evidence and cannot force acceptance. Two consistent
 fresh reviews may correct an earlier judgment; unresolved disagreement remains
 withheld with its audit history. Changed draft units are reviewed on their merits.
+
+Unchanged claims carry their earlier source selectors into the checker as audit
+targets while their text, source projection and permissions still match. Those
+selectors supply no judgment or evidence. A narrowed selection requires an
+independent review of the whole claim using only its current selected passages.
+That review can resolve coverage alongside a separate failure without accepting
+the failed claim or increasing the retry cap.
+
+Preserved PDF previews use local decoder and font assets, including JPEG 2000
+image decoding. A loaded image alone does not establish that a source page is
+legible. The original file and its hash remain unchanged by preview rendering.
 
 Responses marked truncated by the provider are withheld even when their partial JSON parses. Regeneration uses the existing retry and token limits and asks for a fresh, shorter complete object with exact references. Invalid checker JSON and misspelled citation fields can receive a bounded review of the same draft; no source is guessed from a misspelled field. Separate substantive rejections remain failures. Exhausted format repairs remain visible as failures.
 

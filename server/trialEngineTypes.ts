@@ -276,7 +276,7 @@ export type TrialRole =
   | 'user'
 
 export interface EvidenceUse {
-  scope?: { paragraphs?: number[]; issueIds?: string[]; partyIds?: string[]; prohibitedPurposes?: string[] }
+  scope?: { paragraphs?: number[]; issueIds?: string[]; partyIds?: string[]; prohibitedPurposes?: string[]; purpose?: string }
   id: string
   ledgerVersionId: string
   evidenceId: string

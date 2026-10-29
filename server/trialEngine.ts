@@ -35,7 +35,7 @@ import { usablePeerContribution } from './groundingRecords'
 import { compareScenario } from './scenarioComparison'
 import { actorContextCharacterBudget, actorContextCharacters, assembleActorContext } from './actorContext'
 import { authorisedRecord, contextHash } from './actorMemory'
-import { permittedReference } from './evidenceRestrictions'
+import { permittedReference, validateProceedingPurposes } from './evidenceRestrictions'
 import { courtroomState, commitCourtroomCommand } from './courtroom'
 import type { CourtroomCommand } from './courtroomState'
 import { legalPacketReadiness } from './legalPacket'
@@ -115,6 +115,7 @@ export class TrialEngineService {
     const ledger = input.admissionLedgerId ? this.store.workflow.getAdmissionLedger(input.admissionLedgerId) : undefined
     if (ledger && ledger.matterId !== input.matterId) throw new Error('Source-use settings do not belong to the selected matter.')
     const evidence = this.store.listEvidence(input.matterId)
+    validateProceedingPurposes(evidence, ledger?.evidenceUses ?? [])
     const actors = [...actorRoster(model, input.config), ...model.witnesses.filter(w => input.config.witnessPlan.some(p => p.witnessId === w.id)).map(w => ({ id: w.id, role: 'witness' as const }))]
     const scopes = [{}, ...model.decisionIssues.map(issue => ({ issueId: issue.id, partyIds: issue.respondingPartyIds }))]
     const projections = actors.flatMap(actor => scopes.map(useScope => {
@@ -126,12 +127,20 @@ export class TrialEngineService {
       })
       return { actorId: actor.id, characters: actorContextCharacters(record.evidence), evidence: record.evidence }
     }))
-    const largest = projections.reduce((a, b) => b.characters > a.characters ? b : a, { actorId: '', characters: 2, evidence: [] as EvidenceItem[] })
-    const fits = largest.characters <= actorContextCharacterBudget
-    return { fits, characterBudget: actorContextCharacterBudget, characters: largest.characters, actorId: largest.actorId,
-      sources: largest.evidence.map(e => ({ exhibitId: e.exhibitId, characters: JSON.stringify(e).length })).sort((a, b) => b.characters - a.characters),
-      message: fits ? 'Selected sources fit. Arguments and testimony add context as the proceeding develops.'
-        : `Selected sources need ${largest.characters.toLocaleString('en-US')} characters; the limit is ${actorContextCharacterBudget.toLocaleString('en-US')}. Select documents or permitted paragraphs in Admitted Record and save a new version before starting. Nothing has been omitted.`,
+    const largest = projections.reduce((a, b) => b.characters > a.characters ? b : a, { actorId: '', characters: 0, evidence: [] as EvidenceItem[] })
+    // Allow for the configured exchange before spending on the first request.
+    // This is an estimate, not a promise about unbounded manual contributions;
+    // every actual actor projection still checks the full record against the cap.
+    const jurors = actors.filter(actor => ['juror', 'foreperson'].includes(actor.role)).length
+    const historyReserveCharacters = 18_000 + jurors * Math.max(3, input.config.deliberation.maxRounds) * 1_000 + input.config.witnessPlan.length * 8_000
+    const characters = largest.characters + historyReserveCharacters
+    const fits = characters <= actorContextCharacterBudget
+    const detail = `${largest.characters.toLocaleString('en-US')} source characters plus ${historyReserveCharacters.toLocaleString('en-US')} reserved for planned arguments, instructions and history`
+    return { fits, characterBudget: actorContextCharacterBudget, characters, sourceCharacters: largest.characters,
+      historyReserveCharacters, headroomCharacters: actorContextCharacterBudget - characters, actorId: largest.actorId,
+      sources: largest.evidence.map(e => ({ exhibitId: e.exhibitId, characters: actorContextCharacters([e]) })).sort((a, b) => b.characters - a.characters),
+      message: fits ? `Projected context fits: ${detail}. This is an estimate; the full actual record is checked on every turn and nothing is silently omitted.`
+        : `Projected context needs ${characters.toLocaleString('en-US')} characters (${detail}); the limit is ${actorContextCharacterBudget.toLocaleString('en-US')}. Select documents or permitted paragraphs in Admitted Record and save a new version before starting. Nothing has been omitted.`,
     }
   }
 
@@ -352,17 +361,17 @@ export class TrialEngineService {
 
   view(runId: string, viewerId?: string, viewerRoles: string[] = []): TrialRunView {
     const run = this.store.workflow.getTrialRun(runId)
-    const completedAudit = run.status === 'completed' && viewerId === 'user'
+    const ownerAudit = ['completed', 'failed', 'interrupted', 'cancelled'].includes(run.status) && viewerId === 'user'
     const sheet = this.store.workflow.getDecisionSheet(runId)
     return {
       run,
-      events: this.store.workflow.listTrialEvents(runId, completedAudit ? undefined : viewerId, completedAudit ? [] : viewerRoles),
+      events: this.store.workflow.listTrialEvents(runId, ownerAudit ? undefined : viewerId, ownerAudit ? [] : viewerRoles),
       checkpoints: this.store.workflow.listCheckpoints(runId),
-      jurorProfiles: completedAudit || viewerRoles.includes('system') ? this.store.workflow.listJurorProfiles(runId) : [],
-      ballots: completedAudit || viewerRoles.includes('system') ? this.store.workflow.listBallots(runId) : [],
+      jurorProfiles: ownerAudit || viewerRoles.includes('system') ? this.store.workflow.listJurorProfiles(runId) : [],
+      ballots: ownerAudit || viewerRoles.includes('system') ? this.store.workflow.listBallots(runId) : [],
       // A trace contains isolated ballot explanations, available only in the
-      // completed owner audit or system view; it never enters actor context.
-      decisionSheet: sheet && (completedAudit || viewerRoles.includes('system') ? sheet : { ...sheet, decisions: sheet.decisions.map(({ trace: _trace, ...decision }) => decision) }),
+      // terminal owner audit or system view; it never enters actor context.
+      decisionSheet: sheet && (ownerAudit || viewerRoles.includes('system') ? sheet : { ...sheet, decisions: sheet.decisions.map(({ trace: _trace, ...decision }) => decision) }),
       recordCoverage: buildRecordCoverage(this.store.workflow.getCaseModel(run.caseModelId), this.store.listEvidence(run.matterId, true), run.admissionLedgerId ? this.store.workflow.getAdmissionLedger(run.admissionLedgerId) : undefined),
     }
   }
@@ -379,9 +388,18 @@ export class TrialEngineService {
     const party = model.parties.find((candidate) => candidate.id === actorId)
     const events = this.store.workflow.listTrialEvents(runId)
     const uses = run.admissionLedgerId ? this.store.workflow.getAdmissionLedger(run.admissionLedgerId).evidenceUses : []
+    // Extraction locators describe the pages in the actual supplied file. Printed
+    // footer numbers and source filenames cannot establish citation bounds.
+    const entries = this.store.workflow.listCorpusJobs(run.matterId).flatMap(job => this.store.workflow.listManifestEntries(job.id))
+    const evidence = this.store.listEvidence(run.matterId).map(item => {
+      const entry = entries.find(candidate => candidate.evidenceId === item.id)
+      const sourcePages = entry ? [...new Set(this.store.workflow.listDerivedArtifacts(entry.id).flatMap(artifact =>
+        typeof artifact.locator.page === 'number' && Number.isInteger(artifact.locator.page) && artifact.locator.page > 0 ? [artifact.locator.page] : []))].sort((a, b) => a - b) : []
+      return sourcePages.length ? { ...item, sourcePages } : item
+    })
     const context = assembleActorContext({ runId, actorId, roles: roles as TrialRole[], events, useScope,
       ballots: this.store.workflow.listBallots(run.id).filter(b => b.actorId === actorId),
-      throughSequence: events.at(-1)?.sequence ?? 0, evidence: this.store.listEvidence(run.matterId), uses,
+      throughSequence: events.at(-1)?.sequence ?? 0, evidence, uses,
       protocol: run.config.courtroomProtocol === 'courtroom_v1',
       approvedStatementRefs: model.witnesses.find(w => w.id === actorId)?.approvedStatementRefs ?? [],
     })
@@ -1252,17 +1270,25 @@ export class TrialEngineService {
       : []
     const restrictions = evidence.map((item) => {
       const use = uses.find((candidate) => candidate.evidenceId === item.id)
-      return `${item.exhibitId}: ${use?.status ?? 'admitted'}; permitted purposes: ${use?.purposes.join('; ') || 'general use'}${use?.note ? `; ${use.note}` : ''}`
+      return `${item.exhibitId}: ${use?.status ?? 'admitted'}; permitted purposes: ${use?.purposes.join('; ') || 'general use'}${use?.scope?.purpose ? `; selected purpose: ${use.scope.purpose}` : ''}${use?.scope?.prohibitedPurposes?.length ? `; prohibited purposes: ${use.scope.prohibitedPurposes.join('; ')}` : ''}${use?.note ? `; ${use.note}` : ''}`
     }).join('\n')
-    const prompt = `${packet}\nActor: ${actorId}\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\n${restrictions}\n${recordScopePrompt(model, evidence)}`
+    const visibleEvents = courtroomAuditEvents(context.events)
+    const advocateStage = ['crown_opening', 'defence_opening', 'crown_rebuttal', 'defence_rebuttal'].includes(stage)
+    const attributionContract = advocateStage ? [
+      'Public-submission attribution contract (also applies to every repair): Keep the document author, any quoted speaker, and the party making a public submission separate. An affidavit quoting or disputing another person does not make that account the deponent’s admission, that person’s own document, or the Defence’s argument.',
+      'Before saying a party points to, argues, concedes or explains something, match the complete claim to that party’s actual visible public submission and approved actor identity. An exhibit, a private theory, a shared topic or a source-use permission cannot establish what another party submitted. Preserve the actual source speaker, quotation and disputed status in a separate source-attributed sentence.',
+      'When the relevant submission or speaker attribution is unavailable in this actor projection, omit the attribution or frame the inference as your own assessment or an explicitly hypothetical challenge. Do not invent an opponent position, a business-failure account, an admission or a public-submission reference. Absence from this projection establishes no global absence.',
+      `Actor-visible other-party submission references (positions, not evidence truth): ${JSON.stringify(visibleEvents.filter(event => event.type === 'public_submission' && event.actorId !== actorId && model.parties.some(party => party.id === event.actorId) && !event.payload.withheld && typeof event.payload.text === 'string' && event.payload.text.trim()).map(event => ({ eventId: event.eventId, actorId: event.actorId })))}`,
+    ].join('\n') : ''
+    const prompt = `${packet}\nActor: ${actorId}\nDo not reveal private strategy or chain-of-thought.\n${attributionContract}\nSource-use restrictions (apply to the visible source record):\n${restrictions}\n${recordScopePrompt(model, evidence)}`
       const controllingPacket = run.config.courtroomProtocol ? `\nPinned legal packet ${model.legalPacket!.contentHash}: ${JSON.stringify({ issues: model.legalPacket!.issues, instructions: model.legalPacket!.instructions })}\nApproved evidence plan: ${JSON.stringify(run.config.witnessPlan.map(p => ({ witnessId: p.witnessId, name: model.witnesses.find(w => w.id === p.witnessId)?.name, calledByPartyId: p.calledByPartyId, scope: 'Own approved passages only; no promise of facts outside that account.' })))}` : ''
     const request: StageRequest = {
       courtroomProtocol: Boolean(run.config.courtroomProtocol),
-        approvedIssueInstructions: run.config.courtroomProtocol ? undefined : model.decisionIssues.map(issue => ({ issueId: issue.id, elements: issue.elements.map(element => ({ label: element.label })) })),
+        approvedIssueInstructions: run.config.courtroomProtocol ? undefined : model.decisionIssues.map(issue => ({ issueId: issue.id, elements: issue.elements.map(element => ({ label: element.label, burden: element.burden })) })),
         approvedPartyRoles: model.parties.map(({ id, name, role }) => ({ id, name, role })),
         // The checker needs the same authorized public record as the author,
         // including in full proceedings without the reviewed courtroom protocol.
-        courtroomEvents: courtroomAuditEvents(context.events),
+        courtroomEvents: visibleEvents,
         courtroomActor: { id: actorId, name: model.witnesses.find(w => w.id === actorId)?.name ?? model.parties.find(p => p.id === actorId)?.name ?? actorId, roles: context.memory.roles },
           courtroomState: run.config.courtroomProtocol ? { juryPresent: this.courtroom(run.id).juryPresent, examination: this.courtroom(run.id).examination, pendingInstruction: this.courtroom(run.id).pendingInstruction } : undefined,
           courtroomAssessments: context.memory.issueAssessments.map(({ issueId, round, choice, confidence, rationale, usable }) => ({ issueId, round, choice, confidence, rationale, usable })),

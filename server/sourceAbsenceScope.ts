@@ -22,7 +22,7 @@ export function sourceAbsenceScopeError(text: string, citations: GroundingCitati
   if (!partial.length) return
   const prose = text.replace(/["“]([^"”]+)["”]/g, (whole, quote: string) => citations.some(c => c.quote.includes(quote)) ? ' '.repeat(whole.length) : whole)
   for (const sentence of prose.split(/(?<=[.!?])\s+|;\s*|,?\s+\b(?:but|yet|while|and)\b\s+(?=(?:(?:the|this|that|a|an)\s+)?(?:(?:whole|entire|complete|accounting)\s+)*(?:report|interview|affidavit|document)\b|E-\d+\b)/i)) {
-    const absence = sentence.match(/\b(?:does not|do not|doesn't|don't|contains? no|includes? no|lacks?|never)\s+(?:(?:itself|themselves)\s+)?(?:trac\w*|match\w*|map\w*|pair\w*|identify|identifies|includ\w*|contain\w*|record\w*|mention\w*|stat\w*|say\w*|report\w*|provid\w*|suppl\w*|link\w*|repayment|tracing|mapping)\b|\bis not in\b/i)
+    const absence = sentence.match(/\b(?:does not|do not|doesn't|don't|contains? no|includes? no|lacks?|never)\s+(?:(?:itself|themselves)\s+)?(?:trac\w*|match\w*|map\w*|pair\w*|identify|identifies|includ\w*|contain\w*|record\w*|mention\w*|stat\w*|say\w*|report\w*|provid\w*|suppl\w*|link\w*|repayment|tracing|mapping)\b|\bis not in\b|\bno (?:passage|paragraph|page)\b[^.;!?]{0,100}\b(?:ties?|links?|connects?|records?|mentions?|states?|includes?|provides?)\b/i)
     if (!absence) continue
     if (/\b(?:supplied|selected|provided|quoted|available)\b[^.;!?]{0,80}\b(?:excerpts?|extracts?|pages?|passages?|schedules?|paragraphs?)\b/i.test(sentence)) continue
     if (/\b(?:supplied|selected|provided|quoted|available)\s+(?:summary|summaries)\b/i.test(sentence.slice(0, absence.index))) continue

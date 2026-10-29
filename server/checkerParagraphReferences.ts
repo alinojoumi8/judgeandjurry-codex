@@ -13,7 +13,9 @@ export function checkerParagraphReferenceErrors(explanation: string, citations: 
     }
   }
   const numbers = '(\\d+(?:\\s*(?:[-–,]|and)\\s*\\d+)*)'
-  for (const match of explanation.matchAll(new RegExp(`\\b(E-\\d+)\\s*(?:(?:paragraphs?|paras?\\.?|¶)\\s*|:\\s*)${numbers}`, 'gi'))) check(match[1], match[2])
+  // A colon also introduces counts and dates in ordinary prose. Require a
+  // closed pointer; do not backtrack to a prefix of a decimal or count list.
+  for (const match of explanation.matchAll(new RegExp(`\\b(E-\\d+)\\s*,?\\s*(?:(?:paragraphs?|paras?\\.?|¶)\\s*${numbers}|:\\s*${numbers}(?=\\s*(?:[)\\];]|\\.(?!\\d)|$)))`, 'gi'))) check(match[1], match[2] ?? match[3])
   for (const match of explanation.matchAll(new RegExp(`\\b(?:paragraphs?|paras?\\.?)\\s*${numbers}\\s+(?:of|in)\\s+(E-\\d+)\\b`, 'gi'))) check(match[2], match[1])
   return [...new Set(errors)]
 }

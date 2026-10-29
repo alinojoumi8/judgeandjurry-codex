@@ -14,6 +14,7 @@ import { verificationScopeValidationUnits } from './checkerVerificationScope'
 import { classificationScopeValidationUnits } from './checkerMetadataScope'
 import { suppliedBurdenScopeValidationUnits } from './checkerSuppliedBurdenScope'
 import { authenticationKnowledgeForAudit } from './checkerAuthenticationKnowledge'
+import { CheckerSourceCoverageTracker, selectedSourceCoverageEvidence } from './checkerSourceCoverage'
 import { excerptScopeValidationUnits } from './sourceAbsenceScope'
 import type { AuthenticationKnowledge } from './checkerAuthenticationKnowledge'
 import {
@@ -58,7 +59,7 @@ const nextProviderRequest = new Map<string, number>()
 export interface StageRequest {
   ballotContract?: { initialChoice?: string; permittedOutcomes: string[]; instructionEventId?: string; events: Array<{ eventId: string; exhibitIds: string[] }> }
   courtroomProtocol?: boolean
-  approvedIssueInstructions?: Array<{ issueId: string; elements: Array<{ label: string }> }>
+  approvedIssueInstructions?: Array<{ issueId: string; elements: Array<{ label: string; burden?: string }> }>
   approvedPartyRoles?: Array<Pick<import('./trialEngineTypes').CaseParty, 'id' | 'name' | 'role'>>
   courtroomEvents?: ReturnType<typeof import('./grounding').courtroomAuditEvents>
   courtroomActor?: { id: string; name: string; roles: string[] }
@@ -295,26 +296,74 @@ export class MiniMaxClient implements ModelClient {
       let lastReview: GroundingReview | undefined
       let arrayVerification = false
       let strictCorrection = false
-      let comparison = priorReview
-    for (let attempt = 0; ; attempt++) {
+      const comparableFindings = (review: GroundingReview) => {
+        const validationErrors = review.validationErrors ?? []
+        if (!validationErrors.every(error => units.some(unit => error.startsWith(`${unit.id}:`)))) return []
+        const correctionIds = [...(review.sourceLocatorValidationUnitIds ?? []), ...(review.scopeValidationUnitIds ?? []), ...(review.roleValidationUnitIds ?? []), ...(review.peerReferenceValidationUnitIds ?? [])]
+        return review.findings.filter(finding => !correctionIds.includes(finding.unitId) &&
+          !validationErrors.some(error => error.startsWith(`${finding.unitId}:`)) &&
+          !review.incompleteFindings?.some(incomplete => incomplete.unitId === finding.unitId))
+      }
+      let comparison: Array<Pick<GroundingReview['findings'][number], 'unitId' | 'text' | 'status'>> | undefined = priorReview && comparableFindings(priorReview)
+    const sourceCoverage = new CheckerSourceCoverageTracker(priorReview?.sourceCoverageAnchors)
+    if (priorReview && !priorReview.sourceCoverageAnchors) sourceCoverage.record(units, priorReview, request.evidence, request.groundingContext ?? '')
+    let coverageFocus: { unit: GroundingUnit; finding: GroundingReview['findings'][number]; base: GroundingReview } | undefined
+    let pendingCoverageIds: string[] = []
+    for (let attempt = 0; ;) {
       let content = ''
       let receivedResponse = false
       let review: GroundingReview
+      let coveredFinding: GroundingReview['findings'][number] | undefined
       try {
-      content = await this.requestStage({
+      const checkerRequest: StageRequest = {
         ...request, stage: 'factual_verification', groundingRequired: false,
         // Private advocacy directions and prior generated assertions are not
         // source evidence for the independent checker.
-          packet: `Audit of ${request.stage}. ${request.packet.match(/^Actor: .+$/m)?.[0] ?? ''}\nLegal standard: ${request.legalTemplate?.burdenLabel ?? 'Apply the supplied scenario standard.'}\nAbsence from the supplied record does not establish absence from disclosure.\n${request.groundingContext ?? ''}\nApproved exercise issue elements (scenario setup only, not source facts or delivered judicial instructions): ${JSON.stringify(request.approvedIssueInstructions ?? [])}. Use them only for the stated exercise threshold before a delivered instruction exists; the latest actual judicial instruction controls once present.\nSource-attribution contract: Audit each reported clause against its own named document and selected passages, including clauses joined by and. A source supporting technology or an affiliation does not thereby support reliance, inducement or material influence on an investment. A different document cannot supply a missing premise. When an affidavit quotes another speaker and disputes that account, preserve both the quoted speaker and the dispute; do not treat the excerpt as the affidavit author admitting its truth. Separate reported source contents from trailing assessments such as remains an allegation requiring proof. Audit absence within actual coverage: selected_extracts cannot establish what an entire report or interview lacks. Require a local supplied-excerpt qualifier for negative content statements. When the subject is the supplied report excerpt, preserve that scope across coordinated clauses: "The supplied report excerpt lists a deposit but does not include a repayment schedule" concerns only the text supplied here, not omitted report pages. Check the claimed absence against all supplied text, not merely one selected quotation; reject it if that text includes the claimed missing material. Omitted pages cannot defeat a bounded excerpt-content statement or establish global absence; a source failing to resolve doubt is a distinct assessment of weight. A standalone numerical comparison uses a chosen comparison benchmark: if a selected source records $8,000, the quoted amount exceeds $5,000 is true arithmetic even when $5,000 is not itself in the source or an instruction. The benchmark asserts no transaction, legal rule, principal loss or proved element. A claimed exercise issue threshold still needs the actual approved elements or controlling instruction. Check currency, inequality and all selected figures. A mixed factual and proof-assessment unit needs the same amount support whether classified supported or analysis.${proceedingContext}${request.courtroomProtocol ? `\nCourtroom audit setup (labels and instructions, not evidence):\n${openingContext || 'No approved positions or pinned elements supplied.'}\nOpening audit contract: An allegation label does not supply its factual premise. Only an expressly supplied approved party position or permitted attributed account can support that allegation; issue wording and respondent metadata cannot. Do not invent charge elements: compare any claimed elements with the pinned packet, including placeholder warnings. A generic legal-instruction label cannot excuse invented scenario elements. Statements such as "only exhibit before the court", "only filed exhibit", or "that allegation is pleaded" need actual scope or pleading support; supplied-to-this-run coverage cannot establish the court record. Promises to meet the burden through later evidence need a supplied evidence plan; generic future assurances are not supported previews. Mark missing support unsupported even when prose is prefaced by "the Crown alleges", "will contend", "party submission", or "analysis". Preserve accurately attributed disputed accounts and conditional inferences that add no unsupported premise. Notice-only restrictions are setup instructions, not words quoted from E-001; use analysis for the restriction itself and verified source citations for what the notice actually records.` : ''}`,
+          packet: `Audit of ${request.stage}. ${request.packet.match(/^Actor: .+$/m)?.[0] ?? ''}\nLegal standard: ${request.legalTemplate?.burdenLabel ?? 'Apply the supplied scenario standard.'}\nAbsence from the supplied record does not establish absence from disclosure.\n${request.groundingContext ?? ''}\nApproved exercise issue elements (scenario setup only, not source facts or delivered judicial instructions): ${JSON.stringify(request.approvedIssueInstructions ?? [])}. They control the exercise elements as well as the threshold before a delivered instruction exists; the latest actual judicial instruction controls once present. Audit every claimed must-prove requirement against this closed supplied element list, including mixed advocacy or analysis. An attributed source account of reliance does not add investor reliance as an independent element when the approved model does not require it. Preserve a factual account or argument about causation without changing the supplied elements. Do not substitute remembered law or advocacy for the approved exercise model.\nSource-attribution contract: Audit each reported clause against its own named document and selected passages, including clauses joined by and. A source supporting technology or an affiliation does not thereby support reliance, inducement or material influence on an investment. A different document cannot supply a missing premise. When an affidavit quotes another speaker and disputes that account, preserve both the quoted speaker and the dispute; do not treat the excerpt as the affidavit author admitting its truth. Separate reported source contents from trailing assessments such as remains an allegation requiring proof. Audit absence within actual coverage: selected_extracts cannot establish what an entire report or interview lacks. Require a local supplied-excerpt qualifier for negative content statements. When the subject is the supplied report excerpt, preserve that scope across coordinated clauses: "The supplied report excerpt lists a deposit but does not include a repayment schedule" concerns only the text supplied here, not omitted report pages. Check the claimed absence against all supplied text, not merely one selected quotation; reject it if that text includes the claimed missing material. Omitted pages cannot defeat a bounded excerpt-content statement or establish global absence; a source failing to resolve doubt is a distinct assessment of weight. A standalone numerical comparison uses a chosen comparison benchmark: if a selected source records $8,000, the quoted amount exceeds $5,000 is true arithmetic even when $5,000 is not itself in the source or an instruction. The benchmark asserts no transaction, legal rule, principal loss or proved element. A claimed exercise issue threshold still needs the actual approved elements or controlling instruction. Check currency, inequality and all selected figures. A mixed factual and proof-assessment unit needs the same amount support whether classified supported or analysis. Value-inference audit: assess a leading allegation-value conclusion separately from adjacent correctly sourced amounts. A balance or separate payment does not itself establish the value of the alleged subject matter. Preserve a faithfully attributed quantified allegation, and permit an explicitly conditional connection to the approved value element when it adds no factual premise. Matching currency is needed for a numerical comparison; unknown currency or subject-matter connection remains unresolved rather than supplied by another transaction. Do not turn source uncertainty into a new independent-verification, corroboration or net-loss element; apply only the current closed approved element list.${proceedingContext}${request.courtroomProtocol ? `\nCourtroom audit setup (labels and instructions, not evidence):\n${openingContext || 'No approved positions or pinned elements supplied.'}\nOpening audit contract: An allegation label does not supply its factual premise. Only an expressly supplied approved party position or permitted attributed account can support that allegation; issue wording and respondent metadata cannot. Do not invent charge elements: compare any claimed elements with the pinned packet, including placeholder warnings. A generic legal-instruction label cannot excuse invented scenario elements. Statements such as "only exhibit before the court", "only filed exhibit", or "that allegation is pleaded" need actual scope or pleading support; supplied-to-this-run coverage cannot establish the court record. Promises to meet the burden through later evidence need a supplied evidence plan; generic future assurances are not supported previews. Mark missing support unsupported even when prose is prefaced by "the Crown alleges", "will contend", "party submission", or "analysis". Preserve accurately attributed disputed accounts and conditional inferences that add no unsupported premise. Notice-only restrictions are setup instructions, not words quoted from E-001; use analysis for the restriction itself and verified source citations for what the notice actually records.` : ''}`,
           previousTurns: '', jurorProfiles: undefined, retrievedChunks: undefined, verificationUnits: units, verificationFeedback: feedback,
         verificationOpening: Boolean(request.courtroomProtocol),
         verificationAuthenticationKnowledge: authenticationKnowledgeForAudit(request),
-          }, this.logger.child({ stage: 'factual_verification', provider: this.config.provider, model: this.config.model }), attempt + 1, arrayVerification)
+          }
+      const coverageTargets = sourceCoverage.targets(units, request.evidence, request.groundingContext ?? '')
+      if (coverageTargets.length) checkerRequest.packet += `\nUnchanged-unit source coverage targets (selectors, not judgments or evidence): ${JSON.stringify(coverageTargets)}. Reassess every clause independently. Retain a selected passage while it still supplies a premise; do not silently drop that premise during JSON correction or another unit's repair. A changed selection requires an independent whole-unit review restricted to the current selected passages. Earlier selectors cannot override a source failure or supply missing support.`
+      if (coverageFocus) {
+        // Recheck this complete unchanged unit without leaking omitted passages.
+        // Independent failures in other rows remain withheld in the combined review.
+        checkerRequest.evidence = selectedSourceCoverageEvidence(request.evidence, coverageFocus.finding)
+        checkerRequest.verificationUnits = [coverageFocus.unit]
+        checkerRequest.packet = `Audit of ${request.stage}. Selected-passage coverage recheck. Independently assess EVERY factual clause of the complete unchanged unit using ONLY these currently selected source passages. Neither earlier findings nor omitted passages establish support. A named document cannot borrow a premise from another document. Attribution establishes what the selected account says, not its truth. If any clause lacks support, return unsupported; do not add selectors or rewrite the unit. Approved exercise elements (instructions only): ${JSON.stringify(request.approvedIssueInstructions ?? [])}.`
+        checkerRequest.verificationFeedback = undefined
+        checkerRequest.verificationAuthenticationKnowledge = undefined
+        checkerRequest.courtroomEvents = []
+        checkerRequest.groundingContext = undefined
+        checkerRequest.groundingRepair = undefined
+        checkerRequest.juryBallots = undefined
+        checkerRequest.courtroomAssessments = undefined
+      }
+      content = await this.requestStage(checkerRequest, this.logger.child({ stage: 'factual_verification', provider: this.config.provider, model: this.config.model }), attempt + 1, arrayVerification)
       receivedResponse = true
       // Preserve strict metadata diagnostics after a schema correction, including
       // historical text responses, without tightening unrelated legacy rechecks.
       if (strictCorrection) content = groundingCorrectionContent(cleanModelJsonText(content))
-      review = parseGroundingReview(cleanModelJsonText(content), units, request.evidence, request.groundingContext ?? '', request.courtroomActor && request.courtroomAssessments ? { actorId: request.courtroomActor.id, assessments: request.courtroomAssessments, profile: request.jurorProfiles?.find(p => p.juror === request.courtroomActor?.id) } : undefined, request.courtroomEvents || request.approvedIssueInstructions?.length ? { packet: request.courtroomProtocol ? request.packet : '', events: request.courtroomEvents ?? [], actorRoles: request.courtroomActor?.roles ?? [], partyRoles: request.approvedPartyRoles ?? [], actor: request.courtroomActor, stage: request.stage, ballotRound: request.ballotRound, currentJuror: currentDraft, approvedIssueInstructions: request.approvedIssueInstructions, courtroomState: request.courtroomState } : undefined)
+      const parseReview = (raw: string, checkedUnits = units, evidence = request.evidence, selectedOnly = false) => parseGroundingReview(raw, checkedUnits, evidence, request.groundingContext ?? '', request.courtroomActor && request.courtroomAssessments ? { actorId: request.courtroomActor.id, assessments: request.courtroomAssessments, profile: request.jurorProfiles?.find(p => p.juror === request.courtroomActor?.id) } : undefined, selectedOnly || request.courtroomEvents || request.approvedIssueInstructions?.length ? { packet: !selectedOnly && request.courtroomProtocol ? request.packet : '', events: selectedOnly ? [] : request.courtroomEvents ?? [], actorRoles: request.courtroomActor?.roles ?? [], partyRoles: request.approvedPartyRoles ?? [], actor: request.courtroomActor, stage: request.stage, ballotRound: request.ballotRound, currentJuror: currentDraft, approvedIssueInstructions: request.approvedIssueInstructions, courtroomState: request.courtroomState } : undefined)
+      if (coverageFocus) {
+        const focused = parseReview(groundingCorrectionContent(cleanModelJsonText(content)), [coverageFocus.unit], checkerRequest.evidence, true)
+        if (focused.status !== 'passed') {
+          review = { ...coverageFocus.base, status: 'failed', findings: coverageFocus.base.findings.map(finding => focused.findings.find(current => current.unitId === finding.unitId) ?? finding), errors: [...coverageFocus.base.errors, ...focused.errors, `${coverageFocus.unit.id}: selected-passage coverage remains unresolved.`], validationErrors: [...(focused.validationErrors ?? [])] }
+        } else {
+          // Reparse the actual complete rows, preserving the original full
+          // request's purpose, history and whole-ballot checks. No selectors or
+          // support domains are inferred or restored from the earlier review.
+          const findings = coverageFocus.base.findings.map(finding => focused.findings.find(current => current.unitId === finding.unitId) ?? finding)
+          review = parseReview(JSON.stringify({ findings: Object.fromEntries(findings.map(finding => [finding.unitId, {
+            status: finding.status, supportTypes: finding.supportTypes, explanation: finding.explanation,
+            citations: finding.citations.map(({ exhibitId, paragraph }) => ({ exhibitId, paragraph })),
+            recordCitations: (finding.recordCitations ?? []).map(({ eventId }) => ({ eventId })),
+          }])) }))
+          const current = review.findings.find(finding => finding.unitId === focused.findings[0]?.unitId)
+          if (current && ['supported', 'analysis'].includes(current.status) && !review.errors.some(error => error.startsWith(`${current.unitId}:`))) coveredFinding = focused.findings[0]
+        }
+      } else review = parseReview(cleanModelJsonText(content))
       } catch (error) {
         const formatFailure = error instanceof ModelProviderError && /^Model output (?:was not valid JSON|violated checker schema|did not contain a JSON object)/.test(error.message)
           if (!receivedResponse && !formatFailure) {
@@ -380,7 +429,7 @@ export class MiniMaxClient implements ModelClient {
         }
         const influenceValidationUnitIds = jurorInfluenceValidationUnits(request, result, units, review)
         if (influenceValidationUnitIds.length) {
-          const errors = influenceValidationUnitIds.map(id => `${id}: checker current-influence scope mismatch. This author explains how an actual peer concern reinforces the current assessment; it does not assert a separately recorded internal event. Reassess the SAME draft against the selected peer's actual words, every added qualifier and supplied choice history. Do not invent peer premises, earlier influence events or unchanged votes. Acceptance requires a valid new review; all separate failures remain withheld.`)
+          const errors = influenceValidationUnitIds.map(id => `${id}: checker current-influence scope mismatch. This author explains how an actual peer contribution reinforces or changes the current assessment; a separate earlier record of that present internal influence is not required. Verify the stated initial choice against usable own history and the destination against the current structured choice. Reassess the SAME draft against the selected peer's actual words and every qualifier. Do not invent peer premises, earlier influence events or unchanged votes. Acceptance requires a valid new review; all separate failures remain withheld.`)
           review.status = 'failed'
           review.validationErrors = [...(review.validationErrors ?? []), ...errors]
           review.errors.push(...errors)
@@ -451,25 +500,79 @@ export class MiniMaxClient implements ModelClient {
       // repair its schema on the same draft before deciding its merits.
       // A schema-only metadata correction cannot promote a substantive negative
       // finding on unchanged author text. Preserve it as the comparison anchor.
-      const incompleteRejectedMetadata = review.findings.some(finding => review.errors.some(error => error.startsWith(`${finding.unitId}: rejected finding omitted `)))
-      if (!comparison && incompleteRejectedMetadata && substantiveFindings.length) comparison = { ...review, findings: substantiveFindings }
+      const incompleteRejectedMetadata = Boolean(review.incompleteFindings?.length)
+      const schemaFailure = checkerSchemaFailure(review)
+      const completionRejections = schemaFailure && !review.findings.length ? review.explicitRejections ?? [] : incompleteRejectedMetadata ? substantiveFindings : []
+      if (completionRejections.length) {
+        // A partial negative is not a complete merit review. Retain its actual
+        // judgment while completing this same draft, including when a malformed
+        // sibling row prevents the parser from producing any complete findings.
+        // This also permits correction of an earlier false acceptance: a newly
+        // reported source failure must not be lost while its metadata is fixed.
+        comparison = [...(comparison ?? []).filter(old => !completionRejections.some(current => current.unitId === old.unitId && current.text === old.text)), ...completionRejections]
+        if (!review.findings.length) review.errors.push(...completionRejections.map(finding => `${finding.unitId}: explicit ${finding.status} judgment retained during schema completion: ${finding.explanation}`))
+      }
       const priorComparison = comparison
-      const validComparison = !review.validationErrors?.length
-      const changedJudgments = validComparison ? review.findings.filter(finding => {
-        const prior = priorComparison?.findings.find(old => old.unitId === finding.unitId && old.text === finding.text)
+      // A locator failure in one unit must not discard a complete sibling
+      // judgment. Global/schema errors still prevent comparison of any row.
+      const comparable = comparableFindings(review)
+      const changedJudgments = comparable.filter(finding => {
+        const prior = priorComparison?.find(old => old.unitId === finding.unitId && old.text === finding.text)
         return prior && ['supported', 'analysis'].includes(prior.status) !== ['supported', 'analysis'].includes(finding.status)
-      }) : []
-      if (comparison && validComparison) comparison = review
+      })
+      if (comparable.length) comparison = [...(comparison ?? []).filter(old => !comparable.some(current => current.unitId === old.unitId)), ...comparable]
       if (changedJudgments.length) {
         review.status = 'failed'
-        const errors = changedJudgments.map(finding => `${finding.unitId}: checker changed judgment on unchanged text. Earlier review: ${priorComparison?.findings.find(old => old.unitId === finding.unitId)?.status}; current review: ${finding.status}. Neither review is source evidence. Recheck the SAME current draft against its actual source, speaker, purpose and paragraph selectors; independently resolve the disagreement without preserving an earlier false acceptance or reversing a valid rejection to pass.`)
+        const errors = changedJudgments.map(finding => `${finding.unitId}: checker changed judgment on unchanged text. Earlier review: ${priorComparison?.find(old => old.unitId === finding.unitId && old.text === finding.text)?.status}; current review: ${finding.status}. Neither review is source evidence. Recheck the SAME current draft against its actual source, speaker, purpose and paragraph selectors; independently resolve the disagreement without preserving an earlier false acceptance or reversing a valid rejection to pass.`)
         review.errors.push(...errors)
         review.validationErrors = [...(review.validationErrors ?? []), ...errors]
       }
-      if (review.status !== 'passed') verificationFailures.push({ attempt: attempt + 1, errors: [...review.errors], findings: review.findings })
+      const coveredUnitId = coveredFinding?.unitId
+      if (coveredUnitId && review.errors.some(error => error.trimStart().startsWith(`${coveredUnitId}:`))) coveredFinding = undefined
+      if (coverageFocus && coveredFinding) sourceCoverage.acceptCovered(coverageFocus.unit, coveredFinding, request.evidence, request.groundingContext ?? '')
+      const coverageFailed = Boolean(coverageFocus) && !coveredFinding
+      const wasCoverageFocus = Boolean(coverageFocus)
+      const sourceCoverageLosses = sourceCoverage.losses(units, review, request.evidence, request.groundingContext ?? '')
+      const coverageCanFocus = !checkerSchemaFailure(review) && !incompleteRejectedMetadata && !changedJudgments.length
+      if (!coverageFailed) coverageFocus = undefined
+      sourceCoverage.record(units, review, request.evidence, request.groundingContext ?? '')
+      review.sourceCoverageAnchors = sourceCoverage.snapshot()
+      if (sourceCoverageLosses.length) {
+        review.status = 'failed'
+        const errors = sourceCoverageLosses.map(loss => `${loss.unitId}: checker source-selection coverage changed on unchanged text. Removed or replaced selectors: ${JSON.stringify(loss.removedSelectors)}. An independent whole-unit review against only the current selected passages is required; repeating the narrowed selection is not confirmation.`)
+        review.errors.push(...errors)
+        review.validationErrors = [...(review.validationErrors ?? []), ...errors]
+      }
+      if (review.status !== 'passed') verificationFailures.push({ attempt: attempt + 1, errors: [...review.errors], findings: review.findings, ...(review.explicitRejections?.length ? { explicitRejections: review.explicitRejections } : {}) })
         lastReview = review
+      const nextCoverage = wasCoverageFocus && !coverageFailed && coverageCanFocus
+        ? sourceCoverageLosses.find(loss => pendingCoverageIds.includes(loss.unitId)) : undefined
+      if (nextCoverage) {
+        // One correction round checks each originally affected unit once, in
+        // separate selected-only requests. Every HTTP call still uses the
+        // shared transport budget; a failure cannot restart this queue.
+        pendingCoverageIds = pendingCoverageIds.filter(id => id !== nextCoverage.unitId)
+        coverageFocus = { unit: units.find(unit => unit.id === nextCoverage.unitId)!, finding: review.findings.find(finding => finding.unitId === nextCoverage.unitId)!, base: review }
+        continue
+      }
       const checkerCorrectionNeeded = checkerSchemaFailure(review) || incompleteRejectedMetadata
-      if (review.status === 'passed' || substantiveFailure && !checkerCorrectionNeeded && !changedJudgments.length || attempt >= Math.min(2, this.config.maxRetries)) return review
+      if (review.status === 'passed' || coverageFailed || substantiveFailure && !checkerCorrectionNeeded && !changedJudgments.length && !(sourceCoverageLosses.length && coverageCanFocus) || attempt >= Math.min(2, this.config.maxRetries)) return review
+      if (sourceCoverageLosses.length && coverageCanFocus) {
+        // Legacy normalized rows can omit metadata that today's keyed contract
+        // requires. Do not manufacture missing values while composing reviews.
+        if (!wasCoverageFocus) {
+          const rawRows = JSON.parse(groundingCorrectionContent(cleanModelJsonText(content))).findings as Record<string, Record<string, unknown>>
+          if (units.some(unit => !Array.isArray(rawRows?.[unit.id]?.supportTypes) || !Array.isArray(rawRows?.[unit.id]?.recordCitations))) {
+            review.errors.push('Selected-passage coverage cannot compose incomplete finding metadata; an explicit complete review is required.')
+            return review
+          }
+        }
+        const loss = sourceCoverageLosses[0]
+        const unit = units.find(unit => unit.id === loss.unitId)!
+        const finding = review.findings.find(finding => finding.unitId === loss.unitId)!
+        coverageFocus = { unit, finding, base: review }
+        pendingCoverageIds = sourceCoverageLosses.slice(1).map(loss => loss.unitId)
+      }
       // Every same-draft MiniMax correction uses uniform rows, including semantic
       // rechecks. Dynamic keyed slots can flatten even after a valid first review.
       // Keep the same units, strict parser, model and retry budget.
@@ -478,6 +581,7 @@ export class MiniMaxClient implements ModelClient {
       // Repair the checker record without asking the advocate to change an
       // otherwise supported draft merely because its auditor misquoted a PDF.
       feedback = checkerCorrectionFeedback(units, review, arrayVerification, arrayVerification && units.length === 1)
+      attempt += 1
     }
   }
 
@@ -674,6 +778,11 @@ export class MiniMaxClient implements ModelClient {
         panelRules && !isScopeRuling && (isJuryStage || isJudgeStage || isChargeStage || isBallotStage)
         ? `Panel decision rule: ${panelRules.ruleLabel}.`
         : '',
+      !request.courtroomProtocol && request.approvedIssueInstructions?.length
+        ? `Controlling approved exercise issue elements and burdens (closed list; scenario setup, not source facts or an operative charge): ${JSON.stringify(request.approvedIssueInstructions)}\nApply these actual labels and burdens in this response and every repair. Do not add, replace or remove a required element. Copy the approved element names faithfully: when the list names deprivation, do not substitute depreciation in an element or proof assessment. Preserve genuine source-backed asset depreciation and quoted source words. An evidence theory, source allegation or prior advocate submission does not amend this list. Discuss reliance or inducement as evidence or a causal argument only when supported; do not turn either into an independent must-prove requirement unless the actual approved list requires it. Preserve separate subjective knowledge and deprivation conditions. If no supplied instruction resolves a question, identify that uncertainty instead of filling it from remembered law. The latest actual delivered judicial instruction controls once present; source-review feedback is not such an instruction.`
+        : '',
+      request.groundingRequired ? 'Value-inference contract: report each source amount with its actual account or transaction, attribution and currency; preserve unknown currency as unknown. A source balance or separate payment does not itself justify a positive allegation-value conclusion. If the connection is unresolved, argue conditionally: if the recorded figure is established as the value of the alleged subject matter in the currency of the approved element, it could support that element; do not assert that connection already exists. A faithfully attributed quantified allegation may be compared in matching currency while remaining an allegation. Keep the approved elements and burdens unchanged: independent verification, corroboration and net loss are not new required elements. Apply the current closed approved element list, and distinguish a source limitation from a legal requirement.' : '',
+      request.groundingRequired ? 'Source-locator contract: Use supplied exhibit IDs alone for your authored citation pointers, for example (E-001). The independent source audit records precise selected paragraphs. Do not add PDF page, printed folio, transcript line or paragraph numbers to your own citation pointers. Preserve numbers and locator words that are actually part of a faithful source quotation.' : '',
       `Agent role instruction: ${roleInstruction}`,
         !request.courtroomProtocol && !isolatedJuror && template?.stagePrompts[request.stage]
         ? `Stage focus: ${template.stagePrompts[request.stage]}`
@@ -718,7 +827,7 @@ export class MiniMaxClient implements ModelClient {
           : request.courtroomProtocol ? 'Keep content concise and proportional to the supplied record; there is no minimum length. If proof is absent, acknowledge that limit rather than inventing chronology, motive, assets, amounts or corroboration.' : 'The content field must be substantive, stage-specific, and 80 to 160 words unless this is the jury stage.',
       'Cite at least one uploaded exhibit ID in content when making factual claims; if only one exhibit is available, cite E-001.',
       request.groundingRequired ? 'Bind each factual clause to the source that actually supplies it. Split statements from different documents into separately cited sentences; one correct clause cannot lend its exhibit ID to another. Put each exhibit citation before that sentence’s final punctuation, or begin a separate line with its explicit source ID. Separate source quotations from agreement with a peer, and say which source supplies the quoted words. Prefer a specific unresolved question over an unsupported assertion that no evidence, tracing or admission exists.' : '',
-      request.groundingRequired ? 'Source-use notes describe this application’s permitted use, not words spoken by the source. Do not say a report warns or requires interpretation unless its actual text says so; describe your own interpretive caution separately. Quote exact source wording for an attributed caution. Do not compute or state percentages without the actual cited numerator, denominator and derivation. A document’s availability does not establish filing or admission status.' : '',
+      request.groundingRequired ? 'Source-use notes describe this application’s permitted use, not words spoken by the source. Keep application source-use explanations in a separate setup sentence introduced by under the supplied source-use restrictions, without an exhibit, page or paragraph citation unless the source itself states that restriction. Transcript introductions, oaths and attributed answers do not establish application permissions. Preserve the actual allowed and prohibited purposes; no supplied restriction means no rule may be invented. Keep independently factual premises separately attributed and cited. Do not say a report warns or requires interpretation unless its actual text says so; describe your own interpretive caution separately. Quote exact source wording for an attributed caution. Do not compute or state percentages without the actual cited numerator, denominator and derivation. A document’s availability does not establish filing or admission status.' : '',
       request.groundingRequired && request.courtroomEvents ? `Approved record reference choices: ${JSON.stringify(visibleRecordReferences(request.courtroomEvents))}. In speech refer to the supplied instructions without adding opaque event IDs unless needed. When an event reference or instructionEventId is required, copy the exact supplied eventId for that record type; never generate a UUID or guess from a juror number. A checker record:N selector indexes this table, not a juror number. A source citation must use its own actual exhibit ID.` : '',
       isolatedJuror ? `Your recorded own prior assessments are ${JSON.stringify(request.courtroomAssessments ?? null)}. Compare only usable assessments for this issue. If exactly one usable initial ballot is supplied, explain its actual stability or change; an independent final ballot still has recorded history. If no usable initial ballot is supplied, say so and give your current independent assessment. Do not then call the position unchanged, stable or remaining from an initial assessment: an unusable placeholder cannot establish continuity. These are your positions, not source facts or other jurors' private ballots.` : '',
       isBallotStage ? 'Before returning the ballot, reconcile the content, rationale and structured leaning with the same intended current choice under the supplied outcomes. No verdict is mixed; it is distinct from not guilty, which is defence. Do not rewrite an assessment to force consensus or choose an outcome merely to pass validation. Keep historical and conditional choices explicitly qualified.' : '',
