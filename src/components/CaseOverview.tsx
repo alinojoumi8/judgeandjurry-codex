@@ -12,9 +12,18 @@ export function CaseOverview({ matter, model, documentCount, trial, onSave, onEd
 }) {
   const [draft, setDraft] = useState<CaseDetailsInput>({ title: matter.title, narrative: matter.narrative, jurisdiction: matter.jurisdiction })
   const [saved, setSaved] = useState(draft)
+  const [received, setReceived] = useState(matter)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved)
+  // React only to incoming details; local save completion must not restore older props.
+  if (received.id !== matter.id || received.title !== matter.title || received.narrative !== matter.narrative || received.jurisdiction !== matter.jurisdiction) {
+    setReceived(matter)
+    if (received.id !== matter.id || (!dirty && !saving)) {
+      const incoming = { title: matter.title, narrative: matter.narrative, jurisdiction: matter.jurisdiction }
+      setDraft(incoming); setSaved(incoming); setError('')
+    }
+  }
   useEffect(() => { onEditState(dirty, saving); return () => onEditState(false, false) }, [dirty, saving, onEditState])
   useEffect(() => {
     if (!dirty) return

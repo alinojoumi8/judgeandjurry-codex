@@ -12,12 +12,14 @@ export function CaseDocuments({ matterId, evidence, onUpload, onReview }: { matt
   const upload = async (files: File[]) => {
     if (!files.length || uploading.current) return
     uploading.current = true; setError('')
+    let currentFile = files[0].name
     try {
       for (let index = 0; index < files.length; index++) {
+        currentFile = files[index].name
         setProgress(`Preserving document ${index + 1} of ${files.length}: ${files[index].name}`)
         await onUpload(files[index])
       }
-    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Upload failed. The remaining documents were not uploaded.') }
+    } catch (caught) { setError(`${currentFile}: ${caught instanceof Error ? caught.message : 'Upload failed. The remaining documents were not uploaded.'}`) }
     finally { uploading.current = false; setProgress(''); if (input.current) input.current.value = '' }
   }
   return <section className="case-documents" aria-label="Case documents">

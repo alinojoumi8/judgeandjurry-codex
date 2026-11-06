@@ -18,3 +18,5 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 
 Approved comp: docs/qa/case-workspace-2026-11-06/approved-concept.png
 Quality bar: readable reasons and sources at desktop/phone widths; explicit failed/no-ballot states; keyboard source inspection and focus return; saved case/run/view restoration without generation; every visible action works. No new shipping raster is needed: document previews display preserved user files, never the illustrative comp.
+
+Final visual authority: the user reviewed and approved the rendered desktop/phone source workspace on 6 November 2026 ('Approve this design and merge after checks'). Use docs/qa/case-workspace-2026-11-06/desktop-viewport.png, mobile-viewport.png, mobile-source.png and user-901.png as the final references. The original illustrative concept remains historical; its 65.37%/67.14% comparisons are not passing results.

@@ -71,9 +71,18 @@ and omission of the proposal-only banner. Source controls exist at a different
 vertical position. These are recorded rather than hidden by changing fixture
 results or suppressing warnings.
 
-At this checkpoint the user has been asked whether to approve the rendered
-implementation as the final design reference. Until that answer and CodeRabbit/CI
-are complete, this change must remain a draft and must not merge.
+The user reviewed the rendered implementation and explicitly approved it on
+6 November 2026: "Approve this design and merge after checks." The implementation
+captures below are therefore the final visual authority. The original concept
+and numeric failures remain historical evidence; they have not been relabelled
+as passing. The independent reviewer subsequently scored both listed fixes resolved and returned disposition ship under that explicit approval. This is a verdict on the scored fixes, not a new whole-surface review. CodeRabbit and CI must still pass before merge.
+
+CodeRabbit's first review of c19c9fd against b63d6ea raised two minor issues:
+clean case details could remain stale after a server refresh, and a failed batch
+upload did not name the failed file. Both received focused fixes and three
+behavioral regressions, including dirty-draft preservation and retry of the
+remaining files. The final committed review and check results are recorded in
+the pull request.
 
 ## Evidence
 
