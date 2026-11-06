@@ -43,3 +43,7 @@ videos/
 coverage/
 __pycache__/
 *.py[cod]
+
+# Local design measurements and browser captures
+.impeccable/build/
+.impeccable/review/

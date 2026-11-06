@@ -2,17 +2,15 @@ import {
   FileDown,
   FileUp,
   Download,
-  Gavel,
   Loader2,
   Play,
   Plus,
   RotateCcw,
-  Scale,
   Settings,
   Share2,
   SlidersHorizontal,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   archiveEvidence,
@@ -33,6 +31,8 @@ import {
   uploadEvidence,
 } from './api'
 import './App.css'
+import './caseWorkspace.css'
+import { readCaseArea, rememberCaseArea, type CaseArea } from './caseWorkspace'
 import { logClientEvent } from './clientLogger'
 import { useMatterArchives } from './hooks/useMatterArchives'
 import { BrandMark } from './components/BrandMark'
@@ -85,10 +85,14 @@ function App() {
   const [workspaceMode, setWorkspaceMode] = useState<'decision' | 'trialforge' | 'workflow'>(
     () => {
       const saved = localStorage.getItem('judge-jury:workspace-mode')
-      return saved === 'workflow' || saved === 'trialforge' ? saved : 'decision'
+      return saved === 'decision' || saved === 'trialforge' ? saved : 'workflow'
     },
   )
-  const [selectedMatterId, setSelectedMatterId] = useState<string | undefined>()
+  const [selectedMatterId, setSelectedMatterId] = useState<string | undefined>(() => {
+    try { return localStorage.getItem('judge-jury:active-matter') ?? undefined } catch { return undefined }
+  })
+  const [caseArea, setCaseArea] = useState<CaseArea>('Overview')
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | undefined>()
   const [runOptions, setRunOptions] = useState<RunOptions | null>(null)
   const [runConfig, setRunConfig] = useState<RunConfig>(fallbackRunConfig)
@@ -101,6 +105,13 @@ function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRunning, setIsRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const caseEdits = useRef({ dirty: false, saving: false })
+  const updateCaseEditState = useCallback((dirty: boolean, saving: boolean) => { caseEdits.current = { dirty, saving } }, [])
+  const leaveCase = () => {
+    if (caseEdits.current.saving) { setError('Please wait until the case finishes saving.'); return false }
+    return !caseEdits.current.dirty || window.confirm('Leave these unsaved case details? Save them first to keep your changes.')
+  }
+  const hasLoadedState = useRef(false)
   const eventSourceRef = useRef<{ sessionId: string; source: EventSource } | null>(null)
 
   useEffect(() => {
@@ -111,10 +122,13 @@ function App() {
     let cancelled = false
     setIsLoading(true)
     fetchState(selectedMatterId)
+      .catch((caught: unknown) => { if (!cancelled && selectedMatterId && !hasLoadedState.current) return fetchState(); throw caught })
       .then((nextState) => {
         if (cancelled) {
           return
         }
+        setError(null)
+        hasLoadedState.current = true
         setState(nextState)
         setSelectedMatterId(nextState.activeMatter?.id)
         setSelectedEvidenceId((current) => {
@@ -125,6 +139,7 @@ function App() {
         })
       })
       .catch((caught: unknown) => {
+        if (cancelled) return
         const message =
           caught instanceof Error ? caught.message : 'Unable to load app state.'
         logClientEvent('error', 'client.state.load_failed', {
@@ -142,7 +157,7 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [selectedMatterId])
+  }, [selectedMatterId, loadAttempt])
 
   const selectedEvidence = useMemo(() => {
     return state?.evidence.find((item) => item.id === selectedEvidenceId) ?? null
@@ -152,6 +167,15 @@ function App() {
   const activeTrialForgeSession = state?.activeTrialForgeSession ?? null
   const activeMatter = state?.activeMatter ?? null
   const activeMatterId = activeMatter?.id
+  useEffect(() => {
+    if (!activeMatterId) return
+    setCaseArea(readCaseArea(activeMatterId))
+    try { localStorage.setItem('judge-jury:active-matter', activeMatterId) } catch { /* View preferences are optional. */ }
+  }, [activeMatterId])
+  const changeCaseArea = (area: CaseArea) => {
+    setCaseArea(area)
+    if (activeMatterId) rememberCaseArea(activeMatterId, area)
+  }
   const matterArchives = useMatterArchives({
     activeMatter,
     onImported(nextState) {
@@ -178,6 +202,7 @@ function App() {
         setPacketPreview(null)
       })
       .catch((caught: unknown) => {
+        if (cancelled) return
         const message =
           caught instanceof Error ? caught.message : 'Unable to load run options.'
         logClientEvent('error', 'client.run_options.load_failed', {
@@ -211,6 +236,7 @@ function App() {
   }
 
   const handleCreateMatter = async () => {
+    if (!leaveCase()) return
     setError(null)
     logClientEvent('info', 'client.matter.create_click')
     try {
@@ -266,6 +292,7 @@ function App() {
   }
 
   const handleSaveMatter = async (input: {
+    title?: string
     narrative: string
     jurisdiction: string
   }) => {
@@ -292,6 +319,7 @@ function App() {
         error: message,
       })
       setError(message)
+      throw caught
     }
   }
 
@@ -325,6 +353,7 @@ function App() {
         error: message,
       })
       setError(message)
+      throw caught
     }
   }
 
@@ -746,6 +775,10 @@ function App() {
     }
   }, [])
 
+  if (!isLoading && !state && error) {
+    return <main className="empty-screen"><BrandMark /><h1>Unable to open your cases</h1><p role="alert">{error}</p><button type="button" onClick={() => setLoadAttempt(value => value + 1)}>Retry connection</button><p>Your saved cases have not been changed.</p></main>
+  }
+
   if (isLoading || !state) {
     return (
       <main className="loading-screen">
@@ -759,15 +792,15 @@ function App() {
     return (
       <main className="empty-screen">
         <BrandMark />
-        <p>No matters yet.</p>
+        <h1>Your case, from documents to decisions</h1><p>Create a case, review its sources, then explore a simulated decision.</p>
         {error && <div className="error-banner">{error}</div>}
         <button type="button" onClick={() => void handleCreateMatter()}>
           <Plus size={16} />
-          New Matter
+          New case
         </button>
-        <button type="button" onClick={matterArchives.openImportPicker}>
+        <button type="button" onClick={() => { if (leaveCase()) matterArchives.openImportPicker() }}>
           <FileUp size={16} />
-          Import Matter
+          Import saved case
         </button>
         <input
           ref={matterArchives.inputRef}
@@ -781,12 +814,17 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell case-shell ${workspaceMode === 'workflow' ? 'is-guided' : 'is-advanced'}`}>
       <Sidebar
         matters={state.matters}
         activeMatterId={activeMatter.id}
-        activeSession={activeSession}
-        onSelectMatter={setSelectedMatterId}
+        area={caseArea}
+        mode={workspaceMode}
+        onAreaChange={changeCaseArea}
+        onModeChange={mode => { if (mode === workspaceMode || leaveCase()) setWorkspaceMode(mode) }}
+        onImport={() => { if (leaveCase()) matterArchives.openImportPicker() }}
+        onSettings={() => { if (workspaceMode === 'workflow') changeCaseArea('Simulation'); else setIsSettingsOpen(true) }}
+        onSelectMatter={id => { if (id === activeMatter.id || leaveCase()) setSelectedMatterId(id) }}
         onCreateMatter={() => void handleCreateMatter()}
         onDeleteMatter={(matterId) => void handleDeleteMatter(matterId)}
       />
@@ -806,40 +844,11 @@ function App() {
               hidden
               onChange={(event) => void matterArchives.importSelectedFile(event.target.files?.[0])}
             />
-            <button type="button" onClick={matterArchives.openImportPicker}>
-              <FileUp size={16} />
-              Import
-            </button>
             <button type="button" onClick={() => void matterArchives.exportActiveMatter()}>
               <FileDown size={16} />
-              Archive
+              Download case
             </button>
-            <div className="mode-switch" aria-label="Workspace mode">
-              <button
-                type="button"
-                className={workspaceMode === 'decision' ? 'selected' : ''}
-                onClick={() => setWorkspaceMode('decision')}
-              >
-                <Scale size={15} />
-                Decision
-              </button>
-              <button
-                type="button"
-                className={workspaceMode === 'trialforge' ? 'selected' : ''}
-                onClick={() => setWorkspaceMode('trialforge')}
-              >
-                <Gavel size={15} />
-                TrialForge
-              </button>
-              <button
-                type="button"
-                className={workspaceMode === 'workflow' ? 'selected' : ''}
-                onClick={() => setWorkspaceMode('workflow')}
-              >
-                <Scale size={15} />
-                Full Proceeding
-              </button>
-            </div>
+
 
             {workspaceMode === 'decision' && activeSession?.status === 'running' && (
               <span className="status-chip">Simulation in progress</span>
@@ -915,7 +924,7 @@ function App() {
         />}
 
         {error && <div className="error-banner">{error}</div>}
-        {activeSession?.status === 'failed' && activeSession.error && (
+        {workspaceMode === 'decision' && activeSession?.status === 'failed' && activeSession.error && (
           <div className="error-banner">
             Simulation paused at {formatStage(activeSession.currentStage)}:{' '}
             {activeSession.error}
@@ -931,6 +940,7 @@ function App() {
                 selectedEvidenceId={selectedEvidenceId}
                 onSelectEvidence={setSelectedEvidenceId}
                 onSaveMatter={handleSaveMatter}
+
                 onUploadEvidence={handleUploadEvidence}
               />
 
@@ -961,6 +971,7 @@ function App() {
               selectedEvidenceId={selectedEvidenceId}
               onSelectEvidence={setSelectedEvidenceId}
               onSaveMatter={handleSaveMatter}
+
               onUploadEvidence={handleUploadEvidence}
             />
             <TrialForgeConsole
@@ -981,6 +992,14 @@ function App() {
             key={activeMatter.id}
             matterId={activeMatter.id}
             matterTitle={activeMatter.title}
+            matter={activeMatter}
+            evidence={state.evidence}
+            area={caseArea}
+            onAreaChange={changeCaseArea}
+            onSaveMatter={handleSaveMatter}
+
+            onUploadEvidence={handleUploadEvidence}
+            onEditState={updateCaseEditState}
             onEvidenceImported={() => refreshState(activeMatter.id)}
             provider={runOptions?.provider ?? null}
           />
