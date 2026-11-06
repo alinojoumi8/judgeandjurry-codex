@@ -18,7 +18,7 @@ const use = { evidenceId: 'source-1', status: 'limited', purposes: ['Fictional l
 const settings = { id: 'settings-2', matterId: 'matter-1', version: 2, reason: 'USER_SAVED_SETTINGS', evidenceUses: [use] }
 const ruling = { ...settings, id: 'run-ledger-3', version: 3, trialRunId: 'prior-run', reason: 'PRIOR_SIMULATED_RULING', evidenceUses: [{ ...use, status: 'excluded' }] }
 const model = { id: 'model-1', status: 'approved', procedureAdapter: 'ontario_criminal_jury_v1', parties: [], witnesses: [], decisionIssues: [], recordScope: { description: 'Fictional record', documents: [{ evidenceId: 'source-1', kind: 'primary', coverage: 'whole_document' }], missingMaterials: [] } }
-const savedRun = { id: 'prior-run', caseModelId: model.id, admissionLedgerId: ruling.id, procedureAdapter: model.procedureAdapter, status: 'completed', config: { externalDisclosureConfirmed: false }, createdAt: '2026-10-01T00:00:00Z' }
+const savedRun = { id: 'prior-run', caseModelId: model.id, admissionLedgerId: ruling.id, procedureAdapter: model.procedureAdapter, status: 'completed', phase: 'decision', config: { externalDisclosureConfirmed: false }, createdAt: '2026-10-01T00:00:00Z' }
 
 afterEach(async () => {
   for (const root of roots.splice(0)) await act(async () => root.unmount())
@@ -30,14 +30,14 @@ async function workspace(step = 7, ledgers = [ruling, settings], restore = false
   storage.setItem('workflow:matter-1:run', restore ? savedRun.id : 'setup')
   api.fetchWorkflowState.mockResolvedValue({ trials: [savedRun], models: [model], jobs: [], evidence: [{ id: 'source-1', exhibitId: 'E-001', name: 'Fictional note' }], ledgers, motions: [], findings: [] })
   api.fetchTheoryBriefs.mockResolvedValue([]); api.fetchAdmissionLedgers.mockResolvedValue(ledgers)
-  api.fetchTrialRun.mockResolvedValue({ run: savedRun, events: [] })
+  api.fetchTrialRun.mockResolvedValue({ run: savedRun, events: [], ballots: [] })
   api.preflightTrialRun.mockResolvedValue({ fits: true, message: 'Fictional sources fit.', characters: 20, characterBudget: 1000, sources: [] })
   api.createTrialRun.mockResolvedValue({ run: { id: 'new-run' } })
   api.startAutonomousTrial.mockResolvedValue(null)
   api.saveAdmissionLedger.mockResolvedValue({ ...settings, id: 'settings-4', version: 4 })
   const element = browserDocument.createElement('div'); browserDocument.body.append(element)
   const root = createRoot(element); roots.push(root)
-  await act(async () => root.render(createElement(FullWorkflowWorkspace, { matterId: 'matter-1', matterTitle: 'Fictional matter', provider: null, onEvidenceImported: async () => {} })))
+  await act(async () => root.render(createElement(FullWorkflowWorkspace, { matterId: 'matter-1', matterTitle: 'Fictional matter', matter: { id: 'matter-1', title: 'Fictional matter', narrative: '', jurisdiction: 'Ontario' }, evidence: [], area: step === 6 ? 'Documents' : 'Simulation', onAreaChange: () => {}, onSaveMatter: async () => {}, onUploadEvidence: async () => {}, onEditState: () => {}, provider: null, onEvidenceImported: async () => {} })))
   const button = (text: string) => {
     const found = Array.from(element.querySelectorAll('button')).find((item: any) => item.textContent.includes(text)) as HTMLButtonElement | undefined
     if (!found) throw new Error(`Missing button ${text}`)

@@ -1,0 +1,435 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-06T14:22:51Z",
+  "title": "Design System: TrialLens",
+  "extensions": {
+    "colorMeta": {
+      "case-accent": {
+        "role": "primary",
+        "displayName": "Case Accent",
+        "tonalRamp": [
+          "oklch(15.00% 0.1388 14.22)",
+          "oklch(26.43% 0.1388 14.22)",
+          "oklch(37.86% 0.1388 14.22)",
+          "oklch(49.29% 0.1388 14.22)",
+          "oklch(60.71% 0.1388 14.22)",
+          "oklch(72.14% 0.1388 14.22)",
+          "oklch(83.57% 0.1388 14.22)",
+          "oklch(95.00% 0.1388 14.22)"
+        ]
+      },
+      "case-accent-hover": {
+        "role": "primary",
+        "displayName": "Case Accent Hover",
+        "tonalRamp": [
+          "oklch(15.00% 0.1151 13.78)",
+          "oklch(26.43% 0.1151 13.78)",
+          "oklch(37.86% 0.1151 13.78)",
+          "oklch(49.29% 0.1151 13.78)",
+          "oklch(60.71% 0.1151 13.78)",
+          "oklch(72.14% 0.1151 13.78)",
+          "oklch(83.57% 0.1151 13.78)",
+          "oklch(95.00% 0.1151 13.78)"
+        ]
+      },
+      "case-accent-soft": {
+        "role": "primary",
+        "displayName": "Case Accent Soft",
+        "tonalRamp": [
+          "oklch(15.00% 0.0120 350.98)",
+          "oklch(26.43% 0.0120 350.98)",
+          "oklch(37.86% 0.0120 350.98)",
+          "oklch(49.29% 0.0120 350.98)",
+          "oklch(60.71% 0.0120 350.98)",
+          "oklch(72.14% 0.0120 350.98)",
+          "oklch(83.57% 0.0120 350.98)",
+          "oklch(95.00% 0.0120 350.98)"
+        ]
+      },
+      "case-ink": {
+        "role": "neutral",
+        "displayName": "Case Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.0132 285.39)",
+          "oklch(26.43% 0.0132 285.39)",
+          "oklch(37.86% 0.0132 285.39)",
+          "oklch(49.29% 0.0132 285.39)",
+          "oklch(60.71% 0.0132 285.39)",
+          "oklch(72.14% 0.0132 285.39)",
+          "oklch(83.57% 0.0132 285.39)",
+          "oklch(95.00% 0.0132 285.39)"
+        ]
+      },
+      "case-muted": {
+        "role": "neutral",
+        "displayName": "Case Muted",
+        "tonalRamp": [
+          "oklch(15.00% 0.0175 285.73)",
+          "oklch(26.43% 0.0175 285.73)",
+          "oklch(37.86% 0.0175 285.73)",
+          "oklch(49.29% 0.0175 285.73)",
+          "oklch(60.71% 0.0175 285.73)",
+          "oklch(72.14% 0.0175 285.73)",
+          "oklch(83.57% 0.0175 285.73)",
+          "oklch(95.00% 0.0175 285.73)"
+        ]
+      },
+      "case-border": {
+        "role": "neutral",
+        "displayName": "Case Border",
+        "tonalRamp": [
+          "oklch(15.00% 0.0081 286.24)",
+          "oklch(26.43% 0.0081 286.24)",
+          "oklch(37.86% 0.0081 286.24)",
+          "oklch(49.29% 0.0081 286.24)",
+          "oklch(60.71% 0.0081 286.24)",
+          "oklch(72.14% 0.0081 286.24)",
+          "oklch(83.57% 0.0081 286.24)",
+          "oklch(95.00% 0.0081 286.24)"
+        ]
+      },
+      "case-surface": {
+        "role": "neutral",
+        "displayName": "Case Surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.0013 286.38)",
+          "oklch(26.43% 0.0013 286.38)",
+          "oklch(37.86% 0.0013 286.38)",
+          "oklch(49.29% 0.0013 286.38)",
+          "oklch(60.71% 0.0013 286.38)",
+          "oklch(72.14% 0.0013 286.38)",
+          "oklch(83.57% 0.0013 286.38)",
+          "oklch(95.00% 0.0013 286.38)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "tonalRamp": [
+          "oklch(15.00% 0.0000 0.00)",
+          "oklch(26.43% 0.0000 0.00)",
+          "oklch(37.86% 0.0000 0.00)",
+          "oklch(49.29% 0.0000 0.00)",
+          "oklch(60.71% 0.0000 0.00)",
+          "oklch(72.14% 0.0000 0.00)",
+          "oklch(83.57% 0.0000 0.00)",
+          "oklch(95.00% 0.0000 0.00)"
+        ]
+      },
+      "control-border": {
+        "role": "neutral",
+        "displayName": "Control Border",
+        "tonalRamp": [
+          "oklch(15.00% 0.0141 286.07)",
+          "oklch(26.43% 0.0141 286.07)",
+          "oklch(37.86% 0.0141 286.07)",
+          "oklch(49.29% 0.0141 286.07)",
+          "oklch(60.71% 0.0141 286.07)",
+          "oklch(72.14% 0.0141 286.07)",
+          "oklch(83.57% 0.0141 286.07)",
+          "oklch(95.00% 0.0141 286.07)"
+        ]
+      },
+      "input-border": {
+        "role": "neutral",
+        "displayName": "Input Border",
+        "tonalRamp": [
+          "oklch(15.00% 0.0154 286.04)",
+          "oklch(26.43% 0.0154 286.04)",
+          "oklch(37.86% 0.0154 286.04)",
+          "oklch(49.29% 0.0154 286.04)",
+          "oklch(60.71% 0.0154 286.04)",
+          "oklch(72.14% 0.0154 286.04)",
+          "oklch(83.57% 0.0154 286.04)",
+          "oklch(95.00% 0.0154 286.04)"
+        ]
+      },
+      "outcome-surface": {
+        "role": "neutral",
+        "displayName": "Outcome Surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.0059 350.80)",
+          "oklch(26.43% 0.0059 350.80)",
+          "oklch(37.86% 0.0059 350.80)",
+          "oklch(49.29% 0.0059 350.80)",
+          "oklch(60.71% 0.0059 350.80)",
+          "oklch(72.14% 0.0059 350.80)",
+          "oklch(83.57% 0.0059 350.80)",
+          "oklch(95.00% 0.0059 350.80)"
+        ]
+      },
+      "warning-text": {
+        "role": "neutral",
+        "displayName": "Warning Text",
+        "tonalRamp": [
+          "oklch(15.00% 0.0869 72.78)",
+          "oklch(26.43% 0.0869 72.78)",
+          "oklch(37.86% 0.0869 72.78)",
+          "oklch(49.29% 0.0869 72.78)",
+          "oklch(60.71% 0.0869 72.78)",
+          "oklch(72.14% 0.0869 72.78)",
+          "oklch(83.57% 0.0869 72.78)",
+          "oklch(95.00% 0.0869 72.78)"
+        ]
+      },
+      "warning-surface": {
+        "role": "neutral",
+        "displayName": "Warning Surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.0215 83.26)",
+          "oklch(26.43% 0.0215 83.26)",
+          "oklch(37.86% 0.0215 83.26)",
+          "oklch(49.29% 0.0215 83.26)",
+          "oklch(60.71% 0.0215 83.26)",
+          "oklch(72.14% 0.0215 83.26)",
+          "oklch(83.57% 0.0215 83.26)",
+          "oklch(95.00% 0.0215 83.26)"
+        ]
+      },
+      "focus": {
+        "role": "neutral",
+        "displayName": "Focus",
+        "tonalRamp": [
+          "oklch(15.00% 0.1128 79.19)",
+          "oklch(26.43% 0.1128 79.19)",
+          "oklch(37.86% 0.1128 79.19)",
+          "oklch(49.29% 0.1128 79.19)",
+          "oklch(60.71% 0.1128 79.19)",
+          "oklch(72.14% 0.1128 79.19)",
+          "oklch(83.57% 0.1128 79.19)",
+          "oklch(95.00% 0.1128 79.19)"
+        ]
+      },
+      "selected-passage": {
+        "role": "neutral",
+        "displayName": "Selected Passage",
+        "tonalRamp": [
+          "oklch(15.00% 0.0483 87.57)",
+          "oklch(26.43% 0.0483 87.57)",
+          "oklch(37.86% 0.0483 87.57)",
+          "oklch(49.29% 0.0483 87.57)",
+          "oklch(60.71% 0.0483 87.57)",
+          "oklch(72.14% 0.0483 87.57)",
+          "oklch(83.57% 0.0483 87.57)",
+          "oklch(95.00% 0.0483 87.57)"
+        ]
+      },
+      "selected-passage-border": {
+        "role": "neutral",
+        "displayName": "Selected Passage Border",
+        "tonalRamp": [
+          "oklch(15.00% 0.0927 84.32)",
+          "oklch(26.43% 0.0927 84.32)",
+          "oklch(37.86% 0.0927 84.32)",
+          "oklch(49.29% 0.0927 84.32)",
+          "oklch(60.71% 0.0927 84.32)",
+          "oklch(72.14% 0.0927 84.32)",
+          "oklch(83.57% 0.0927 84.32)",
+          "oklch(95.00% 0.0927 84.32)"
+        ]
+      },
+      "complete-text": {
+        "role": "neutral",
+        "displayName": "Complete Text",
+        "tonalRamp": [
+          "oklch(15.00% 0.0739 165.19)",
+          "oklch(26.43% 0.0739 165.19)",
+          "oklch(37.86% 0.0739 165.19)",
+          "oklch(49.29% 0.0739 165.19)",
+          "oklch(60.71% 0.0739 165.19)",
+          "oklch(72.14% 0.0739 165.19)",
+          "oklch(83.57% 0.0739 165.19)",
+          "oklch(95.00% 0.0739 165.19)"
+        ]
+      },
+      "save-error": {
+        "role": "neutral",
+        "displayName": "Save Error",
+        "tonalRamp": [
+          "oklch(15.00% 0.1534 25.58)",
+          "oklch(26.43% 0.1534 25.58)",
+          "oklch(37.86% 0.1534 25.58)",
+          "oklch(49.29% 0.1534 25.58)",
+          "oklch(60.71% 0.1534 25.58)",
+          "oklch(72.14% 0.1534 25.58)",
+          "oklch(83.57% 0.1534 25.58)",
+          "oklch(95.00% 0.1534 25.58)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Case-view heading with documented narrow-screen overrides."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Guided section heading."
+      },
+      "section": {
+        "displayName": "Section",
+        "purpose": "Smaller section and reason-group heading."
+      },
+      "outcome": {
+        "displayName": "Outcome",
+        "purpose": "Recorded synthetic outcome, with the narrow Results override."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default case-workspace reading text."
+      },
+      "passage": {
+        "displayName": "Passage",
+        "purpose": "Source extraction text with a more open line height."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Guided actions and source references."
+      },
+      "support": {
+        "displayName": "Support",
+        "purpose": "Status and explanatory copy."
+      },
+      "metadata": {
+        "displayName": "Metadata",
+        "purpose": "Locators, provenance, and secondary context."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "reduced-motion",
+        "value": "@media (prefers-reduced-motion: reduce) { animation: none !important; transition: none !important; scroll-behavior: auto !important; }",
+        "purpose": "Applies to the case shell and descendants; no duration or easing token is introduced."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact-desktop",
+        "value": "1150px"
+      },
+      {
+        "name": "top-navigation-and-modal-source",
+        "value": "900px"
+      },
+      {
+        "name": "phone",
+        "value": "540px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Burgundy action used to advance guided preparation.",
+      "html": "<button class=\"ds-primary\" type=\"button\">Review case</button>",
+      "css": ".ds-primary { font-family: Inter, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.4; min-height: 38px; border: 1px solid #b6b6c0; border-radius: 6px; padding: 8px 13px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; background: var(--case-accent, #7a0f2a); border-color: var(--case-accent, #7a0f2a); color: #ffffff; } .ds-primary:hover { background: #5f0b20; } .ds-primary:focus-visible { outline: 3px solid #966a09; outline-offset: 3px; } .ds-primary:disabled { opacity: .55; cursor: not-allowed; }"
+    },
+    {
+      "name": "Secondary Action",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Paper control for explicit saving and supporting actions.",
+      "html": "<button class=\"ds-secondary\" type=\"button\">Save case details</button>",
+      "css": ".ds-secondary { font-family: Inter, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.4; min-height: 38px; border: 1px solid #b6b6c0; border-radius: 6px; padding: 8px 13px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; background: #ffffff; color: var(--case-ink, #202027); } .ds-secondary:hover { background: var(--case-surface, #fafafb); border-color: var(--case-accent, #7a0f2a); } .ds-secondary:focus-visible { outline: 3px solid #966a09; outline-offset: 3px; } .ds-secondary:disabled { opacity: .55; cursor: not-allowed; }"
+    },
+    {
+      "name": "Case Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Visible label and editable case detail on white.",
+      "html": "<label class=\"ds-field\">Case name<input type=\"text\" value=\"Fictional deposit dispute\"></label>",
+      "css": ".ds-field { display: grid; gap: 7px; font-family: Inter, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 550; color: var(--case-ink, #202027); } .ds-field input { font-family: Inter, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; background: #ffffff; color: var(--case-ink, #202027); border: 1px solid #b9b9c4; border-radius: 6px; padding: 10px 12px; caret-color: var(--case-accent, #7a0f2a); max-width: 100%; } .ds-field input:focus-visible { outline: 3px solid #966a09; outline-offset: 3px; }"
+    },
+    {
+      "name": "Case Destination",
+      "kind": "nav",
+      "refersTo": "navigation-item",
+      "description": "Text and stroke icon with the current destination selected.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Case destinations\"><button type=\"button\">Overview</button><button type=\"button\" aria-current=\"page\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 3v18h18\"/><path d=\"M18 17V9\"/><path d=\"M13 17V5\"/><path d=\"M8 17v-3\"/></svg>Results</button></nav>",
+      "css": ".ds-nav { display: grid; gap: 5px; } .ds-nav button { font-family: Inter, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.5; display: flex; align-items: center; gap: 12px; border: 0; border-radius: 6px; background: transparent; color: var(--case-ink, #202027); padding: 12px 10px; text-align: left; cursor: pointer; } .ds-nav button[aria-current=\"page\"] { background: var(--case-accent-soft, #f3e9ed); color: var(--case-accent, #7a0f2a); font-weight: 650; } .ds-nav button:hover { filter: brightness(.96); } .ds-nav button:focus-visible { outline: 3px solid #966a09; outline-offset: 3px; }"
+    },
+    {
+      "name": "Source Reference",
+      "kind": "chip",
+      "refersTo": "source-reference",
+      "description": "Underlined source action adjacent to a recorded reason.",
+      "html": "<button class=\"ds-source\" type=\"button\">View E-001</button>",
+      "css": ".ds-source { font-family: Inter, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.4; min-height: 38px; border: 1px solid #b6b6c0; border-radius: 6px; padding: 8px 13px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; color: var(--case-accent, #7a0f2a); background: var(--case-accent-soft, #f3e9ed); border-color: transparent; text-decoration: underline; text-underline-offset: 3px; text-align: left; justify-content: start; } .ds-source:hover { background: var(--case-surface, #fafafb); border-color: var(--case-accent, #7a0f2a); } .ds-source:focus-visible { outline: 3px solid #966a09; outline-offset: 3px; }"
+    },
+    {
+      "name": "Recorded Outcome",
+      "kind": "card",
+      "refersTo": "outcome-summary",
+      "description": "Synthetic outcome with its limitation kept in context.",
+      "html": "<section class=\"ds-outcome\"><h4>No unanimous decision</h4><p>Decision rule: 12 of 12</p><p class=\"ds-outcome-warning\">No outcome met the 12-of-12 decision rule.</p></section>",
+      "css": ".ds-outcome { font-family: Inter, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.5; color: var(--case-ink, #202027); background: #faf5f7; border-radius: 8px; padding: 24px; } .ds-outcome h4 { font-size: 29px; line-height: 1.2; color: var(--case-accent, #7a0f2a); margin: 0 0 20px; font-weight: 700; } .ds-outcome p { margin: 12px 0 0; } .ds-outcome .ds-outcome-warning { color: #765017; background: #fff7e8; padding: 12px; border-radius: 5px; font-size: 13px; }"
+    },
+    {
+      "name": "Visible Warning",
+      "kind": "custom",
+      "refersTo": "warning",
+      "description": "Extraction and locator limitations beside source content.",
+      "html": "<p class=\"ds-warning\">No verified exact passage was recorded for this citation.</p>",
+      "css": ".ds-warning { font-family: Inter, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #765017; background: #fff7e8; padding: 12px; border-radius: 5px; font-size: 13px; }"
+    },
+    {
+      "name": "Selected Source Passage",
+      "kind": "card",
+      "refersTo": "source-passage-selected",
+      "description": "Extracted passage with its locator and selection treatment.",
+      "html": "<article class=\"ds-passage\"><strong>Paragraph 1 · PDF page 1</strong><p>Fictional source excerpt for a component preview. Review the preserved original and any extraction warnings.</p></article>",
+      "css": ".ds-passage { font-family: Inter, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; color: var(--case-ink, #202027); padding: 15px; border: 0; background: #fff0cd; border-radius: 4px; outline: 1px solid #c4a462; outline-offset: -1px; } .ds-passage strong { font-size: 12px; color: var(--case-muted, #5e5e69); } .ds-passage p { font-size: 15px; line-height: 1.65; margin: 8px 0 0; overflow-wrap: anywhere; }"
+    },
+    {
+      "name": "Source Inspector Header",
+      "kind": "custom",
+      "refersTo": "source-inspector",
+      "description": "Square-edged panel with a named close control; modal behavior belongs to the application.",
+      "html": "<section class=\"ds-inspector\"><header><h2>Source behind this reason</h2><button type=\"button\" aria-label=\"Close source\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M18 6 6 18M6 6l12 12\"/></svg></button></header><p>Inspect the preserved record and its use.</p></section>",
+      "css": ".ds-inspector { font-family: Inter, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.5; background: #ffffff; color: var(--case-ink, #202027); padding: 28px 24px; border-left: 1px solid var(--case-border, #dedee4); border-radius: 0; } .ds-inspector header { display: flex; align-items: start; gap: 12px; justify-content: space-between; margin-bottom: 22px; } .ds-inspector h2 { font-size: 21px; line-height: 1.25; margin: 0; } .ds-inspector button { font-family: Inter, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.4; min-height: 38px; border: 1px solid #b6b6c0; border-radius: 6px; padding: 8px 13px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; border: 0; padding: 0; min-height: 26px; flex-shrink: 0; background: #ffffff; color: var(--case-ink, #202027); } .ds-inspector button:hover { background: var(--case-surface, #fafafb); } .ds-inspector button:focus-visible { outline: 3px solid #966a09; outline-offset: 3px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Case Workspace",
+    "overview": "The case workspace uses white reading surfaces, ink text, burgundy actions, and quiet gray dividers. One sans-serif stack keeps navigation, explanations, and preserved source passages in the same visual language. The existing TrialLens mark remains the identity asset.\n\nThe visual hierarchy supports close reading: restrained panels identify outcomes and warnings, while source references stay beside the explanations that cite them. Status words and saved-state feedback remain visible. The design does not turn a synthetic outcome into a prediction or a source reference into a finding of truth.",
+    "keyCharacteristics": [
+      "Burgundy primary actions and selected destinations on white and pale gray surfaces.",
+      "Compact controls with generous reading space and wrapping source text.",
+      "Flat containers, light borders, and tonal emphasis instead of decorative shadows.",
+      "Visible warnings, keyboard focus, and an explicit Save action."
+    ],
+    "rules": [
+      {
+        "name": "The Meaningful Accent Rule",
+        "body": "Use burgundy for primary actions, the current destination, and source references. Keep warnings and completion states in their observed semantic colors.",
+        "section": "colors"
+      },
+      {
+        "name": "The Reading Rhythm Rule",
+        "body": "Keep source passages at the body size with the more open passage line height; do not compress them to metadata size.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Reading Surface Rule",
+        "body": "Separate the case rail, result, and source with borders, spacing, and pale surfaces. The guided workspace adds no decorative box shadows.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use the existing TrialLens mark and the documented burgundy, white, ink, and sans-serif system.",
+      "Do keep source references adjacent to the recorded reason and preserve an obvious way back from source inspection.",
+      "Do show warning text, attempt status, valid-ballot counts, and the simulation limitation alongside the relevant content.",
+      "Do keep visible focus, accessible control labels, and the explicit Save action with truthful saved, unsaved, saving, and failed states.",
+      "Do allow long case names, citations, passages, and hashes to wrap within their available space."
+    ],
+    "donts": [
+      "Don't present an incomplete attempt as a completed decision or a synthetic ballot distribution as a real-world verdict probability.",
+      "Don't remove source or extraction warnings to make a result appear cleaner.",
+      "Don't use new decorative imagery in place of preserved documents or replace the existing identity asset.",
+      "Don't transfer historical advanced-workflow eyebrows or compact status typography into the new workspace's reusable hierarchy."
+    ]
+  }
+}

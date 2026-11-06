@@ -23,6 +23,7 @@ export function CaseIntake({
   const [narrative, setNarrative] = useState(matter.narrative)
   const [jurisdiction, setJurisdiction] = useState(matter.jurisdiction)
   const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -35,6 +36,9 @@ export function CaseIntake({
     setIsSaving(true)
     try {
       await onSaveMatter({ narrative, jurisdiction })
+      setSaveError('')
+    } catch (caught) {
+      setSaveError(caught instanceof Error ? caught.message : 'Changes not saved.')
     } finally {
       setIsSaving(false)
     }
@@ -48,6 +52,9 @@ export function CaseIntake({
     setIsUploading(true)
     try {
       await onUploadEvidence(file)
+      setSaveError('')
+    } catch (caught) {
+      setSaveError(caught instanceof Error ? caught.message : 'Upload failed.')
     } finally {
       setIsUploading(false)
       if (fileInputRef.current) {
@@ -58,6 +65,7 @@ export function CaseIntake({
 
   return (
     <section className="intake-panel" aria-label="Case intake">
+      {saveError && <p role="alert">{saveError}</p>}
       <div className="panel-header">
         <span>Case Intake</span>
         <button className="text-button danger" type="button" onClick={() => setNarrative('')}>

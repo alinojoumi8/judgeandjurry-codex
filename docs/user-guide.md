@@ -19,6 +19,21 @@ This guide preserves the existing operational documentation during the TrialLens
 
 This is decision-support software only. It is not legal advice and does not produce binding court outcomes.
 
+## Guided case workspace
+
+The default workspace has four destinations:
+
+1. **Overview** shows the next preparation step and the case details. Use **Save case details** after editing; unsaved edits survive changes between the four destinations. Leaving the case prompts before discarding edits, and a failed save keeps the draft available for retry.
+2. **Documents** accepts files through the chooser or drop area. Open a document to inspect its extracted text and preserved original. Folder/ZIP intake and document-use restrictions remain available here; uploading does not approve material for a simulation.
+3. **Simulation** contains preparation, review and the explicit start action. Advanced preparation controls remain available. Loading a case or changing a destination never starts model generation.
+4. **Results** shows the selected saved attempt. A completed attempt displays its recorded decisions, actual vote counts and named participants' reasons. Failed, stopped and incomplete attempts do not display a final decision. A split criminal panel is labelled **No unanimous decision** only when twelve distinct valid final ballots support that description.
+
+Select a source reference to open its inspector alongside the result on a wide screen. On a phone, it opens in a focused full-screen dialog; closing it returns focus to the source button. A missing exact passage is explicitly marked. Source content is an assertion in the record, not proof that the assertion is true. Download the preserved original or copy its citation from the inspector.
+
+**All cases** opens the case list and **Import saved case**. **Download case** exports the saved archive. The selected case, destination and attempt reopen without regeneration when browser storage is available; case content and decisions remain in the local database. Browser storage restrictions can prevent remembering the selected destination, but do not delete saved cases. No database migration is required for this interface.
+
+**Advanced tools** opens the existing Decision and TrialForge workspaces. Provider settings and existing approval, privacy and source-check requirements continue to apply.
+
 ## Run Locally
 
 ```powershell
