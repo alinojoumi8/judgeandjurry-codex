@@ -58,8 +58,27 @@ const check = (label: string) => { checks.push(label); console.log(`PASS ${label
 const { createApp } = await import('../server/app')
 const allowedOrigins: string[] = []
 const app = createApp({ trialForgeModelClient: new ArgumentModel(), security: { remote: false, token: null, allowedOrigins } })
-const api = app.listen(0, '127.0.0.1')
-await new Promise<void>((done) => api.once('listening', done))
+// Keep Windows test APIs below its dynamic-port range. Isolated fixed-API
+// probes resolved the local proxy failures; existing listeners are never taken.
+async function listenTestApi() {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const port = process.platform === 'win32' ? 20_000 + process.pid % 10_000 + attempt : 0
+    const server = app.listen(port, '127.0.0.1')
+    try {
+      await new Promise<void>((done, fail) => {
+        const clean = () => { server.off('listening', listening); server.off('error', failed) }
+        const listening = () => { clean(); done() }
+        const failed = (error: Error) => { clean(); fail(error) }
+        server.once('listening', listening); server.once('error', failed)
+      })
+      return server
+    } catch (error) {
+      if (process.platform !== 'win32' || !['EADDRINUSE', 'EACCES'].includes((error as NodeJS.ErrnoException).code ?? '')) throw error
+    }
+  }
+  throw new Error('No isolated loopback API port was available for the browser journey.')
+}
+const api = await listenTestApi()
 const address = api.address()
 assert(address && typeof address === 'object')
 const apiUrl = `http://127.0.0.1:${address.port}`
@@ -451,7 +470,15 @@ try {
   await navigate('Results', 'Decision')
   const originalAttempt = await page.getByLabel('Saved proceeding').locator('option').filter({ hasText: /^Attempt 1 / }).getAttribute('value')
   assert(originalAttempt)
-  await page.getByLabel('Saved proceeding').selectOption(originalAttempt)
+  // Verify the selected run has loaded before asserting its rendered decision.
+  // Archive restoration under coverage can outlast the default locator wait.
+  if (await page.getByLabel('Saved proceeding').inputValue() !== originalAttempt) {
+    const selectedRunResponse = page.waitForResponse(response => response.url().endsWith(`/api/trials/${originalAttempt}`) && response.request().method() === 'GET', { timeout: 60_000 })
+    await page.getByLabel('Saved proceeding').selectOption(originalAttempt)
+    const selectedRun = await selectedRunResponse
+    assert(selectedRun.ok())
+    assert.equal((await selectedRun.json()).run.id, originalAttempt)
+  }
   await page.getByText('No unanimous decision', { exact: true }).waitFor()
   check('downloaded case archive imports through the UI and reopens its saved jury result')
   assert.deepEqual(browserErrors, [])

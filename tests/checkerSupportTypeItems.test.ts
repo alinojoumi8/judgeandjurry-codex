@@ -14,7 +14,7 @@ const config = { provider: 'minimax' as const, apiKey: 'fixture', baseUrl: 'http
 const envelope = (value: unknown) => Response.json({ choices: [{ finish_reason: 'tool_calls', message: { tool_calls: [{ type: 'function', function: { name: 'record_grounding_review', arguments: JSON.stringify(value) } }] } }] })
 
 describe('literal supportTypes array items', () => {
-  it.each([{ analysis: '' }, { source: 'analysis' }, ['analysis'], null, true, 42, '', 'invented', 'coherence'])('rejects an invalid item unchanged: %j', value => {
+  it.each([{ analysis: '' }, { source: 'analysis' }, ['analysis'], null, true, 42, '', 'invented', 'coherence'].map(value => ({ value })))('rejects an invalid item unchanged: $value', ({ value }) => {
     const original = data(['source', value]), before = JSON.stringify(original)
     const converted = groundingCorrectionContent(before)
     expect(JSON.parse(converted).findings['content:1'].supportTypes).toEqual(original.findings[0].supportTypes)
