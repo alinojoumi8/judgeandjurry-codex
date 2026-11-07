@@ -163,9 +163,16 @@ function changedAccountError(prose: string, citations: GroundingCitation[], sour
       const correction = correctedAt >= 0 && sentences.slice(correctedAt + 1).some(sentence => /^(?:in (?:actual )?fact|actually),?\s+/.test(sentence) && topics.every(topic => sentence.includes(topic)))
       return { exhibitId: citation.exhibitId, own, correction }
     })
-    const documents = new Set(accounts.filter(account => account.own.length).map(account => account.exhibitId))
-    const wording = new Set(accounts.flatMap(account => account.own))
-    if (!accounts.some(account => account.correction) && !(documents.size >= 2 && wording.size >= 2)) {
+    const claims = accounts.flatMap(account => account.own.flatMap(sentence => {
+      const assertion = sentence.match(/\bi (?:(did not|didn't|did|do not|don't|never) )?([a-z]+) ([^.!?;]+)[.!?;]?$/)
+      if (!assertion) return []
+      const [, auxiliary, verb, object] = assertion
+      const verbs = new Set([verb, ...(verb.endsWith('ed') ? [verb.slice(0, -2), verb.slice(0, -1)] : [])])
+      return [{ exhibitId: account.exhibitId, negative: /not|n't|never/.test(auxiliary ?? ''), verbs, object: object.trim() }]
+    }))
+    const opposed = claims.some(earlier => claims.some(later => earlier.exhibitId !== later.exhibitId &&
+      earlier.negative !== later.negative && earlier.object === later.object && [...earlier.verbs].some(verb => later.verbs.has(verb))))
+    if (!accounts.some(account => account.correction) && !opposed) {
       return `The reported change in ${speaker}'s own account needs that speaker's selected earlier and later statements or an explicit correction by that speaker. A conflicting account or correction by another speaker does not establish this history.`
     }
   }

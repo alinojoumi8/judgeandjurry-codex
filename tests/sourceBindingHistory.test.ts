@@ -78,6 +78,15 @@ describe('source speaker identity for reported history changes', () => {
     const evidence = [source('E-001', 'Rowan Alder', 'I work in Alder.'), source('E-002', 'Rowan Alder', 'I live in Birch.')]
     expect(check(claim + ' (E-001, paragraph 2; E-002, paragraph 2).', evidence, selectors).status).toBe('failed')
   })
+  it.each(['I did sign the acknowledgement.', 'I signed the acknowledgement later.'])('does not equate changed wording with a changed position: %s', later => {
+    expect(check('Alder’s account of the acknowledgement changed (E-001, paragraph 2; E-002, paragraph 2).', [source('E-001', 'Rowan Alder', admission), source('E-002', 'Rowan Alder', later)], selectors).status).toBe('failed')
+  })
+  it.each(['I did not receive the acknowledgement.', 'I did not sign the acknowledgement before June.'])('preserves the action and timing when comparing polarity: %s', earlier => {
+    expect(check('Alder’s account of the acknowledgement changed (E-001, paragraph 2; E-002, paragraph 2).', [source('E-001', 'Rowan Alder', earlier), source('E-002', 'Rowan Alder', admission)], selectors).status).toBe('failed')
+  })
+  it('accepts an explicit first-person auxiliary with an opposed account', () => {
+    expect(check('Alder’s account of the acknowledgement changed (E-001, paragraph 2; E-002, paragraph 2).', [opposing[0], source('E-002', 'Rowan Alder', 'I did sign the acknowledgement.')], selectors).status).toBe('passed')
+  })
   it('preserves a hypothetical change rather than treating it as an assertion', () => {
     expect(check('If Alder’s account of the acknowledgement changed, further review would be needed (E-001, paragraph 2).', opposing, selectors, 'analysis').status).toBe('passed')
   })
