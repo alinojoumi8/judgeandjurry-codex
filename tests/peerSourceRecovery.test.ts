@@ -102,7 +102,7 @@ describe('complete checker rows before judgments', () => {
     expect(review.findings[1].supportTypes).toEqual(['source'])
     expect(review.verificationFailures?.[0].findings?.[1].supportTypes).toBeUndefined()
     const fields = Object.keys(bodies[1].tools[0].function.parameters.properties)
-    expect(fields).toEqual(['reviewJson'])
+    expect(fields).toEqual(['findings'])
     expect(bodies[0].messages[1].content.split('Draft units to check:\n')[1]).toBe(bodies[1].messages[1].content.split('Draft units to check:\n')[1])
   })
 })
