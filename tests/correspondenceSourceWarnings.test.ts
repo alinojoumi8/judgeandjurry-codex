@@ -24,14 +24,14 @@ describe('correspondence and image-only reference guidance', () => {
   })
   it.each([false, true])('shows non-selectable locators without dropping any source text (correction=%s)', correction => {
     const messages = groundingMessages(units, [source], 'Page 3 has sparse extraction; the original is preserved.', undefined, false, undefined, undefined, correction)
-    expect(messages[0].content).toContain('Non-selectable text locators: [{"exhibitId":"E-002","paragraph":3}]')
-    expect(messages[0].content).toContain('do not invent OCR or authenticate an image')
+    expect(messages[1].content).toContain('Non-selectable text locators: [{"exhibitId":"E-002","paragraph":3}]')
+    expect(messages[1].content).toContain('do not invent OCR or authenticate an image')
     for (const paragraph of sourceParagraphs(source)) expect(messages[1].content).toContain(`[E-002 paragraph ${paragraph.paragraph}] ${paragraph.text}`)
     expect(messages[0].content).not.toContain(quote)
   })
   it('does not mark a short but sufficient actual passage non-selectable', () => {
     const messages = groundingMessages(units, [{ ...source, text: 'A valid factual passage.' }], '')
-    expect(messages[0].content).not.toContain('Non-selectable text locators:')
+    expect(messages[1].content).not.toContain('Non-selectable text locators:')
   })
   it('guides the civil author to preserve counsel identity terms and extraction scope', async () => {
     let body: any
