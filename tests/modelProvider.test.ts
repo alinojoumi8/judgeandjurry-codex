@@ -69,6 +69,26 @@ describe('model provider reliability', () => {
     }
   })
 
+  it('uses the civil motion framework without a jury rule or general merits burden', async () => {
+    const bodies: Array<{ messages: Array<{ content: string }> }> = []
+    const client = new MiniMaxClient(
+      { provider: 'minimax', apiKey: 'fixture', baseUrl: 'https://example.invalid/v1', model: 'fixture', timeoutMs: 2000, maxRetries: 0 }, undefined,
+      async (_url, init) => {
+        bodies.push(JSON.parse(String(init?.body)))
+        return Response.json({ choices: [{ message: { content: JSON.stringify({ title: 'Motion ruling', content: 'The application remains reserved.', citations: [], jurors: [], verdict: { outcome: 'reserved', confidence: 50, keyFactors: [], unresolvedIssues: ['Fictional issue'], recommendedNextSteps: [], citationWarnings: [] } }) } }] })
+      },
+    )
+    const result = await client.generateStage({ stage: 'judge_ruling', packet: 'REVIEWED_MOTION_FRAMEWORK', evidence, previousTurns: '', civilMotionHearing: true, verdictOutcomes: ['maintain', 'vary', 'discharge', 'reserved'], legalTemplate: getLegalTemplate('civil_dispute') })
+    const prompt = bodies[0].messages.map(message => message.content).join('\n')
+    expect(prompt).toContain('REVIEWED_MOTION_FRAMEWORK')
+    expect(prompt).toContain('Civil documentary motion role')
+    expect(prompt).toContain('maintain')
+    expect(prompt).not.toContain('Panel decision rule:')
+    expect(prompt).not.toContain('Fresh session jury profiles:')
+    expect(prompt).not.toContain('Burden / standard:')
+    expect(result.verdict?.outcome).toBe('reserved')
+  })
+
   it('infers OpenAI-compatible provider configuration from env', () => {
     const previous = { ...process.env }
     process.env.MODEL_PROVIDER = 'openai-compatible'

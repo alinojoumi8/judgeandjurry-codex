@@ -29,6 +29,7 @@ jobs:
       - run: npm run test:sim
       - run: npm run test:arguments
       - run: npm run test:courtroom
+      - run: npm run test:mareva
       - run: npm run eval:courtroom
       - run: npm audit
 

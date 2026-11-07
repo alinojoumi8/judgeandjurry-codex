@@ -117,7 +117,24 @@ export interface DecisionTrace {
   ballots: Array<IssueBallot & { eventId?: string; sourceCheck: 'passed' | 'failed' | 'not_checked'; passages: TraceReference[] }>
 }
 
+export interface MarevaHearing {
+  kind: 'initial' | 'set_aside'
+  movingPartyId: string
+  respondingPartyId: string
+  recordAsOf: string
+  requestedRelief: string
+  orderSummary: string
+  existingOrderRefs: SourceSegmentRef[]
+  movingRecordRefs: SourceSegmentRef[]
+  responseRecordRefs: SourceSegmentRef[]
+  replyRecordRefs: SourceSegmentRef[]
+  legalAuthorityRefs: SourceSegmentRef[]
+  legalFramework: string
+  reviewedForRehearsal: boolean
+}
+
 export interface CaseModelV1 {
+  marevaHearing?: MarevaHearing
   legalPacket?: import('./courtroomTypes').ReviewedLegalPacket
   schemaVersion: 1
   id: string
@@ -322,6 +339,8 @@ export interface CheckpointPolicy {
 }
 
 export interface TrialRunConfig {
+  // Derived from the approved model by the server, never a client override.
+  civilHearing?: 'mareva'
   courtroomProtocol?: 'courtroom_v1'
   legalPacketHash?: string
   mode: 'screen' | 'full'

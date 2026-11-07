@@ -27,7 +27,8 @@
     "test:arguments": "tsx e2e/arguments.ts",
     "test:v2:live": "tsx scripts/validate-trial-engine-v2-live.ts",
     "check:authorities": "tsx scripts/check-authority-links.ts",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:mareva": "tsx e2e/mareva.ts"
   },
   "dependencies": {
     "@kenjiuno/msgreader": "^1.28.0",

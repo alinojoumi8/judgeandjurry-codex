@@ -23,6 +23,7 @@ export function areaForStep(step: number): CaseArea {
 export function resultState(trial: TrialRunView | null) {
   if (!trial) return { title: 'No simulation yet', detail: 'Review the case and start a simulation to see its recorded decision.', complete: false }
   const phase = trial.run.phase.replaceAll('_', ' ')
+  if (trial.run.config?.civilHearing === 'mareva' && trial.run.status === 'completed' && !trial.decisionSheet?.complete) return { title: 'No valid judicial ruling', detail: 'The hearing stopped without a complete source-checked ruling. Inspect the saved findings and source-check audit.', complete: false }
   if (trial.run.status === 'completed' && trial.decisionSheet?.decisions.length) {
     return { title: 'Simulation completed', detail: 'Read the decision for each issue and inspect the recorded reasons below.', complete: true }
   }

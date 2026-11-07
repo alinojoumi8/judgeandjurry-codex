@@ -24,6 +24,7 @@ import { admissionInputSchema, editableCaseModelSchema } from './workflowSchemas
 import { resolveEvidenceMatrix, sourceDocument } from './decisionTrace'
 import { legalPacketReadiness, packetContentHash } from './legalPacket'
 import { legalPacketSchema } from './legalPacketSchema'
+import { validateMarevaModel } from './mareva'
 
 export class CaseWorkflowService {
   private readonly store: CaseStore
@@ -43,7 +44,7 @@ export class CaseWorkflowService {
   draftCaseModel(
     matterId: string,
     procedureAdapter: ProcedureAdapterId,
-    input: Partial<Pick<CaseModelV1, 'title' | 'parties' | 'decisionIssues' | 'witnesses' | 'disputedFacts' | 'remedies' | 'juryNotice' | 'unresolved' | 'recordScope' | 'evidenceMatrix' | 'legalPacket'>> = {},
+    input: Partial<Pick<CaseModelV1, 'title' | 'parties' | 'decisionIssues' | 'witnesses' | 'disputedFacts' | 'remedies' | 'juryNotice' | 'unresolved' | 'recordScope' | 'evidenceMatrix' | 'legalPacket' | 'marevaHearing'>> = {},
   ): CaseModelV1 {
     input = editableCaseModelSchema.parse(input)
     const matter = this.store.getMatter(matterId)
@@ -54,6 +55,7 @@ export class CaseWorkflowService {
     return this.store.workflow.createCaseModel({
       schemaVersion: 1,
       legalPacket: input.legalPacket,
+      marevaHearing: input.marevaHearing,
       matterId,
       procedureAdapter,
       title: input.title?.trim() || matter.title,
@@ -78,6 +80,7 @@ export class CaseWorkflowService {
     if (new Set(classified).size !== classified.length || classified.some((id) => !evidenceIds.has(id))) {
       throw new Error('Record coverage must identify distinct sources in this matter.')
     }
+    validateMarevaModel(model, this.store.listEvidence(model.matterId))
     resolveEvidenceMatrix(model.evidenceMatrix, model.decisionIssues, this.store.listEvidence(model.matterId))
     return this.store.workflow.approveCaseModel(modelId)
   }
