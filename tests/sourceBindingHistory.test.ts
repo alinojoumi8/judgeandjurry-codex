@@ -74,6 +74,10 @@ describe('source speaker identity for reported history changes', () => {
     const correction = 'In fact, Rowan did sign the acknowledgement in my presence. I incorrectly stated that Rowan did not sign the acknowledgement.'
     expect(check('Vale’s account of the acknowledgement changed (E-002, paragraph 2).', [source('E-002', 'Cedar Vale', correction)], [{ exhibitId: 'E-002', paragraph: 2 }]).status).toBe('failed')
   })
+  it.each(['Alder’s account changed', 'Alder’s account of the changed'])('requires a stated topic rather than unrelated first-person sentences: %s', claim => {
+    const evidence = [source('E-001', 'Rowan Alder', 'I work in Alder.'), source('E-002', 'Rowan Alder', 'I live in Birch.')]
+    expect(check(claim + ' (E-001, paragraph 2; E-002, paragraph 2).', evidence, selectors).status).toBe('failed')
+  })
   it('preserves a hypothetical change rather than treating it as an assertion', () => {
     expect(check('If Alder’s account of the acknowledgement changed, further review would be needed (E-001, paragraph 2).', opposing, selectors, 'analysis').status).toBe('passed')
   })

@@ -147,7 +147,7 @@ function changedAccountError(prose: string, citations: GroundingCitation[], sour
     if (deniedOrConditional.test(prefix + match[1]) || /\b(?:false|untrue)\b/.test(prefix)) continue
     const speaker = match[1].split(/\b(?:that|because|although|while)\b/).at(-1)!.trim()
     const topics = normal(match[2] ?? '').replace(/acknowledgement/g, 'acknowledgment').split(' ').filter(word => word && !['the', 'a', 'an'].includes(word))
-    const selected = premiseCitations(prose, match.index!, match.index! + match[0].length, citations)
+    const selected = topics.length ? premiseCitations(prose, match.index!, match.index! + match[0].length, citations) : []
     const accounts = selected.filter(citation => sourceSpeakerMatches(speaker, citation, sources)).map(citation => {
       const source = normal(citation.quote).replace(/acknowledgement/g, 'acknowledgment')
       let offset = 0
