@@ -192,7 +192,7 @@ export class MiniMaxClient implements ModelClient {
             if (errors.length) {
               const error = new ModelProviderError('Source repair failed its edit boundary. See its factual-check audit.', { retryable: false })
               error.grounding = { status: 'failed', method: 'source-quotes-and-model-review', repairs: priorFailures.length, priorFailures: [...priorFailures], errors,
-                findings: groundingUnits(result).map(unit => ({ unitId: unit.id, text: unit.text, status: 'unsupported', explanation: 'This changed repair was withheld before a new source review because it altered protected text.', citations: [] })) }
+                findings: groundingUnits(result).map(unit => ({ unitId: unit.id, text: unit.text, status: 'unsupported', explanation: errors.join(' '), citations: [] })) }
               throw error
             }
           }

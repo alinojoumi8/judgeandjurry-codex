@@ -21,7 +21,9 @@ export function PreservedPdfViewer({ evidenceId, initialPage }: { evidenceId: st
       const data = new Uint8Array(await blob.arrayBuffer())
       if (cancelled) return
       pdf.GlobalWorkerOptions.workerSrc = workerUrl
-      task = pdf.getDocument({ data, isEvalSupported: false, enableXfa: false })
+      const assets = import.meta.env.BASE_URL + 'pdfjs/' + pdf.version + '/'
+      task = pdf.getDocument({ data, isEvalSupported: false, enableXfa: false, stopAtErrors: true,
+        wasmUrl: assets + 'wasm/', cMapUrl: assets + 'cmaps/', cMapPacked: true, standardFontDataUrl: assets + 'standard_fonts/' })
       const loaded = await task.promise
       if (cancelled) return
       const requested = initialPage ?? 1

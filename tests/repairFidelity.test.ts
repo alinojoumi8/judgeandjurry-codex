@@ -28,6 +28,8 @@ describe('nested source arguments', () => {
     ['wrong source identity', nested, argument, property, heading.replaceAll('Cedar Vale', 'River Flint')],
     ['changed quoted conclusion', nested.replace('restraint end', 'restraint expand'), argument, property, heading],
     ['changed inner assertion', nested.replace('nothing has been preserved', 'everything has been preserved'), argument, property, heading],
+    ['coordinated qualifier', nested, argument.replace('that the restraint end.', 'that the restraint end, and only after trial.'), property, heading],
+    ['qualified reported argument', nested, argument.replace('that the restraint end.', 'that the restraint end only after trial.'), property, heading],
     ['different rationale', nested.replace('is futile', 'is justified'), argument, property, heading],
     ['wrong cause speaker', nested.replace('because Vale', 'because Moss'), argument, property, heading],
     ['wrong jurisdiction', nested.replace('no Alder property', 'no Birch property'), argument, property, heading],
@@ -41,6 +43,8 @@ describe('nested source arguments', () => {
   ])('rejects %s', (_label, text, source, ownership, identity) => expect(check(text, source, ownership, identity).status).toBe('failed'))
   it.each([
     ['I argue that the balance remains unresolved.', 'passed'],
+    ['I argue that the balance remains unresolved, and only after trial.', 'failed'],
+    ['I argue that the balance remains unresolved only after trial.', 'failed'],
     ['It is false that I argue that the balance remains unresolved.', 'failed'],
     ['If I argue that the balance remains unresolved, the issue changes.', 'failed'],
     ['Moss says: "I argue that the balance remains unresolved."', 'failed'],

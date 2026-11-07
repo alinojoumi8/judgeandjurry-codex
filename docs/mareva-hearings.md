@@ -84,7 +84,7 @@ temporary directory outside hidden checkout directories for the acceptance
 database, source files, previews and uploads. Verify that the browser can
 open and download a preserved original from that store.
 
-No new environment variables, dependencies or database migration are required.
+No new environment variables or database migration are required. The PDF preview\nuses the direct pdfjs-dist dependency pinned in package-lock.json.
 Existing model records and proceedings retain their behavior. New hearing settings
 are versioned inside the existing case model; new runs receive a server-stamped
 civil-hearing identifier.
@@ -115,6 +115,6 @@ argument retain separate speaker and source checks.
 
 Original PDFs render locally with page navigation and zoom, including in
 browsers without an embedded PDF viewer. Download still returns the preserved
-original bytes. Loading and rendering failures have an explicit retry and
+original bytes. Version-matched image decoders, character maps and fonts are bundled locally,\nincluding JPEG 2000 scan support; no runtime CDN is needed. Loading and rendering\nfailures have an explicit retry and
 download fallback; the extracted-text view remains separate. PDF rendering does
 not authenticate signatures or convert OCR into a verified transcript.

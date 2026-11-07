@@ -89,8 +89,12 @@ function supportedNestedAttribution(prose: string, match: RegExpMatchArray, cita
     if (!sourceSpeakerMatches(speakers[1], citation, sources)) return false
     const selected = citations.filter(other => other.exhibitId === citation.exhibitId)
     const source = literal(citation.quote)
+    const endsClause = (sentence: string, claim: string) => {
+      const at = sentence.indexOf(claim)
+      return at >= 0 && /^\s*[.!?;]?$/.test(sentence.slice(at + claim.length))
+    }
     const reported = speakers[2] + "'s " + match[0].slice(0, match[0].indexOf(' that ')) + ' that ' + literal(parts[1]) + ' ' + literal(parts[2])
-    if (!source.split(/(?<=[.!?;])\s+/).some(sentence => sentence.includes(reported) &&
+    if (!source.split(/(?<=[.!?;])\s+/).some(sentence => endsClause(sentence, reported) &&
       !deniedOrConditional.test(sentence) && !/\b(?:false|untrue|incorrect|hypothetical)\b/.test(sentence))) return false
     const rationale = literal(parts[3])
     const unconditional = (sentence: string) => !deniedOrConditional.test(sentence) &&
@@ -105,7 +109,7 @@ function supportedNestedAttribution(prose: string, match: RegExpMatchArray, cita
         return !quoted && unconditional(sentence)
       })
     }
-    if (selected.some(other => assertions(other.quote).some(sentence => literal(sentence).includes('i argue that ' + rationale)))) return true
+    if (selected.some(other => assertions(other.quote).some(sentence => endsClause(literal(sentence), 'i argue that ' + rationale)))) return true
     // Bounded negative-property rationale: the author's selected account must
     // explicitly state both the causal lack of assets and the jurisdictional
     // property statement. A connection, another speaker or a different province

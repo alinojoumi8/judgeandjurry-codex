@@ -20,27 +20,8 @@ Object.assign(process.env, {
 })
 delete process.env.API_RATE_LIMIT_PER_MINUTE
 
-function fictionalPdf() {
-  const content = (label: string) => 'BT /F1 18 Tf 20 140 Td (' + label + ') Tj ET'
-  const first = content('FICTIONAL ORIGINAL - PAGE ONE'), second = content('FICTIONAL ORIGINAL - PAGE TWO')
-  const objects = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 200] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R >>',
-    '<< /Length ' + first.length + ' >>\nstream\n' + first + '\nendstream',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 200] /Resources << /Font << /F1 7 0 R >> >> /Contents 6 0 R >>',
-    '<< /Length ' + second.length + ' >>\nstream\n' + second + '\nendstream',
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-  ]
-  let pdf = '%PDF-1.4\n'
-  const offsets = [0]
-  for (const [index, object] of objects.entries()) { offsets.push(pdf.length); pdf += (index + 1) + ' 0 obj\n' + object + '\nendobj\n' }
-  const start = pdf.length
-  pdf += 'xref\n0 8\n0000000000 65535 f \n' + offsets.slice(1).map(offset => String(offset).padStart(10, '0') + ' 00000 n \n').join('')
-  pdf += 'trailer\n<< /Size 8 /Root 1 0 R >>\nstartxref\n' + start + '\n%%EOF'
-  return Buffer.from(pdf)
-}
-const originalPdf = fictionalPdf()
+// Wholly fictional pages; page two is JPEG 2000 to exercise the local decoder.
+const originalPdf = readFileSync(new URL('../samples/courtroom-realism/fictional-original.pdf', import.meta.url))
 
 let calls = 0
 const actor: ModelClient = { generateStage: async request => {
@@ -150,6 +131,15 @@ try {
   await dialog.getByRole('button', { name: 'Next page', exact: true }).click()
   await dialog.getByRole('img', { name: 'Preserved PDF page 2 of 2', exact: true }).waitFor({ state: 'visible' })
   assert(await dialog.getByRole('button', { name: 'Next page', exact: true }).isDisabled())
+  const imagePixels = await dialog.getByRole('img', { name: 'Preserved PDF page 2 of 2', exact: true }).evaluate(element => {
+    const canvas = element as HTMLCanvasElement
+    const pixels = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data
+    let dark = 0
+    for (let index = 0; index < pixels.length; index += 4) if (pixels[index + 3] && pixels[index] < 200) dark++
+    return dark
+  })
+  assert(imagePixels > 10000, 'JPEG 2000 original image must render, not silently disappear')
+
   await dialog.getByLabel('PDF zoom', { exact: true }).selectOption('2')
   await page.waitForFunction(() => document.querySelector<HTMLCanvasElement>('.preserved-pdf canvas')?.width === 800)
   await page.route(/\/api\/evidence\/[^/]+\/file$/, route => route.abort('failed'), { times: 1 })

@@ -64,6 +64,14 @@ describe('grounding repairs preserve accepted text', () => {
     expect(prompts[3]).toContain(good)
     expect(prompts[3]).toContain('The issue remains unresolved.')
   })
+  it('reports the actual unchanged legacy-repair cause without claiming a protected edit', async () => {
+    const { client, prompts } = harness(draft)
+    await expect(client.generateStage(request)).rejects.toMatchObject({ grounding: {
+      findings: expect.arrayContaining([expect.objectContaining({ explanation: expect.stringContaining('unchanged') })]),
+      errors: expect.arrayContaining([expect.stringContaining('unchanged')]),
+    } })
+    expect(prompts).toHaveLength(3)
+  })
   it('does not auto-accept a patched premise', async () => {
     const { client } = harness({ repairs: [{ unitId: 'content:2', replacement: bad }] })
     await expect(client.generateStage(request)).rejects.toMatchObject({ message: expect.stringContaining('unchanged'), grounding: { status: 'failed', priorFailures: expect.any(Array) } })
