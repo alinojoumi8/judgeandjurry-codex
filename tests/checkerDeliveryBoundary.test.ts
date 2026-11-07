@@ -66,6 +66,8 @@ describe('checker delivery boundary', () => {
     expect(schema.properties.findings.items.properties.unitId.enum).toEqual(ids)
     expect(schema.properties).not.toHaveProperty('reviewJson')
     expect(bodies[1].messages[0].content).toContain('Leave assistant message content empty')
+    expect(bodies[1].messages[0].content).toContain('\nOutput channel:')
+    expect(bodies[1].messages[0].content).not.toContain('\\nOutput channel:')
     expect(bodies[1].messages[0].content).toContain('Do not encode a review inside reviewJson')
     expect(bodies[0].messages[1].content.split('Draft units to check:\\n')[1]).toBe(bodies[1].messages[1].content.split('Draft units to check:\\n')[1])
     expect(result.verificationFailures?.[0].errors.join(' ')).toContain('invalid findings schema')
