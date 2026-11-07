@@ -11,9 +11,12 @@ const deniedOrConditional = /\b(?:if|whether|unless|not (?:say|state|report|conf
 // A citation attached to a different coordinated clause cannot establish this
 // clause's source contents, even when both locators occur in one finding.
 function premiseCitations(prose: string, start: number, end: number, citations: GroundingCitation[]) {
-  const clauseBoundary = /[;.!?]|,\s*(?:and|but|while|yet)\b/
-  const before = prose.slice(0, start).split(clauseBoundary).at(-1) ?? ''
-  const after = prose.slice(end).split(clauseBoundary)[0]
+  const masked = prose.replace(/\([^)]*\)|\[[^\]]*\]/g, group => ' '.repeat(group.length))
+  const boundaries = [...masked.matchAll(/[;.!?]|,\s*(?:and|but|while|yet)\b/g)]
+  const left = boundaries.filter(row => row.index! < start).at(-1)
+  const right = boundaries.find(row => row.index! >= end)
+  const before = prose.slice(left ? left.index! + left[0].length : 0, start)
+  const after = prose.slice(end, right?.index ?? prose.length)
   const preceding = [...before.matchAll(/\be-\d+\b/g)].at(-1)?.[0]
   const following = after.match(/\be-\d+\b/g) ?? []
   const allNamed = [...new Set(prose.match(/\be-\d+\b/g) ?? [])]
@@ -135,11 +138,46 @@ function sourceSpeakerMatches(speaker: string, citation: GroundingCitation, sour
   return identities.length === 1 && [identities[0], identities[0].split(' ').at(-1)].includes(speaker)
 }
 
+// A change in one person's account requires that person's own selected history.
+// Conflicting speakers do not supply a revision merely by disagreeing.
+function changedAccountError(prose: string, citations: GroundingCitation[], sources: { exhibitId: string; text: string }[]) {
+  const changes = /\b([\p{L} '-]+?)'s (?:account|position|story|evidence)(?: (?:of|on|about) ([\p{L} '-]+?))? (?:has |had )?(?:(?:materially|substantially|significantly) )?(?:changed|shifted|reversed)\b/gu
+  for (const match of prose.matchAll(changes)) {
+    const prefix = prose.slice(0, match.index).split(/[;.!?]/).at(-1) ?? ''
+    if (deniedOrConditional.test(prefix + match[1]) || /\b(?:false|untrue)\b/.test(prefix)) continue
+    const speaker = match[1].split(/\b(?:that|because|although|while)\b/).at(-1)!.trim()
+    const topics = normal(match[2] ?? '').replace(/acknowledgement/g, 'acknowledgment').split(' ').filter(word => word && !['the', 'a', 'an'].includes(word))
+    const selected = premiseCitations(prose, match.index!, match.index! + match[0].length, citations)
+    const accounts = selected.filter(citation => sourceSpeakerMatches(speaker, citation, sources)).map(citation => {
+      const source = normal(citation.quote).replace(/acknowledgement/g, 'acknowledgment')
+      let offset = 0
+      const sentences = source.split(/(?<=[.!?;])\s+/).filter(sentence => {
+        const start = source.indexOf(sentence, offset), preceding = source.slice(0, start)
+        offset = start + sentence.length
+        const quoted = (preceding.match(/"/g)?.length ?? 0) % 2 !== 0 || preceding.lastIndexOf('“') > preceding.lastIndexOf('”')
+        return !quoted && !/["“”]/.test(sentence) && !deniedOrConditional.test(sentence) &&
+          !/\b(?:false|untrue|hypothetical)\b/.test(sentence)
+      })
+      const own = sentences.filter(sentence => /\bi [a-z]+ /.test(sentence) && topics.every(topic => sentence.includes(topic)))
+      const correctedAt = sentences.findIndex(sentence => own.includes(sentence) && /\bi (?:incorrectly|mistakenly) (?:stated|said|reported|asserted) that\b/.test(sentence))
+      const correction = correctedAt >= 0 && sentences.slice(correctedAt + 1).some(sentence => /^(?:in (?:actual )?fact|actually),?\s+/.test(sentence) && topics.every(topic => sentence.includes(topic)))
+      return { exhibitId: citation.exhibitId, own, correction }
+    })
+    const documents = new Set(accounts.filter(account => account.own.length).map(account => account.exhibitId))
+    const wording = new Set(accounts.flatMap(account => account.own))
+    if (!accounts.some(account => account.correction) && !(documents.size >= 2 && wording.size >= 2)) {
+      return `The reported change in ${speaker}'s own account needs that speaker's selected earlier and later statements or an explicit correction by that speaker. A conflicting account or correction by another speaker does not establish this history.`
+    }
+  }
+}
+
 // These constructions assert a source's contents even when the remainder only
 // discusses their significance. Bind the reported clause to selected passages,
 // never a nearby quotation from another document or an uncited paragraph.
 export function factualPremiseError(text: string, citations: GroundingCitation[], records: NonNullable<GroundingFinding['recordCitations']> = [], sources: { exhibitId: string; text: string }[] = []): string | undefined {
   const prose = normal(text)
+  const historyError = changedAccountError(prose, citations, sources)
+  if (historyError) return historyError
   // Reporting reliance adds a causal premise beyond the existence of a named
   // connection. It must be present in this clause's selected source, not a
   // different document quoted elsewhere in the finding.
@@ -192,6 +230,8 @@ export function factualPremiseError(text: string, citations: GroundingCitation[]
       // the selected account in the source. Do not transfer a peer's words.
       const sameSpeaker = owner && new RegExp(`^${owner} (?:states?|says?|reports?):`).test(premiseWording(citation.quote))
       const comparable = sameSpeaker && /^they\b/.test(premise) ? sentence.replace(/\bi\b/g, 'they') : sentence
+      const reportedOwner = sentence.match(new RegExp(`\\b([\\p{L}]+)'s (?:statement|report|assertion|confirmation) that ["“]?${pattern}`, 'u'))?.[1]
+      if (owner && reportedOwner && owner !== reportedOwner) return false
       return new RegExp(`(?:^|[\\s:"“])${pattern}(?=$|[\\s,.;:!?"”')])`).test(comparable) &&
         !deniedOrConditional.test(sentence) && !/\b(?:incorrectly|mistakenly) (?:stated|said|reported|asserted) that\b/.test(sentence) && !/\b(?:is|was|were) (?:false|untrue|incorrect|not accurate)\b/.test(sentence)
     }))

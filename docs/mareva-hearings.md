@@ -146,3 +146,18 @@ tool schemas require literal string items. The response is still rejected; an
 object key is never converted into a domain and no absent value is supplied.
 The existing same-draft correction cap, source checks and complete finding
 inventory remain in force. A failed checker-only smoke gates the full live case.
+
+
+### Local quotation references and speaker history
+
+A semicolon inside a parenthesized source-reference group separates locators,
+not prose clauses. All references in that local group remain available, while
+an explicit source introduction still controls and later clauses cannot rescue
+an unsupported quotation. The checker retains its supplied passage identifiers;
+printed affidavit paragraph numbers and PDF page labels are separate locators.
+Repairs must use the actual supplied identifiers without silently remapping them.
+
+A reported change in one person's account needs that person's own selected
+history or explicit correction. Another person's conflicting account or correction
+does not establish it. Selected earlier and later accounts still need independent
+semantic review; matching an author does not itself prove a contradiction or truth.
