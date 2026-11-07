@@ -1,6 +1,6 @@
 import { validateJuryBallotContract } from './juryBallotContract'
 import { applyGroundingPatch, groundingPatchInstructions, groundingPatchTargets, groundingRepairDrift } from './groundingRepair'
-import { checkerCorrectionFeedback, checkerSchemaFailure, groundingCorrectionContent, groundingSerializedTool, groundingSerializedContent, groundingRepairTool, groundingRepairToolName, groundingSingleContent, groundingTool, groundingToolContent, groundingToolName } from './groundingFormat'
+import { checkerCorrectionFeedback, checkerSchemaFailure, groundingCorrectionContent, groundingCorrectionTool, groundingSingleTool, groundingSerializedContent, groundingRepairTool, groundingRepairToolName, groundingSingleContent, groundingTool, groundingToolContent, groundingToolName } from './groundingFormat'
 import { negativeComparisonPolarityErrors } from './checkerPolarity'
 import { profileBandValidationUnits } from './checkerProfileConsistency'
 import { unsupportedCorrectionPremiseUnits } from './checkerSourcePremises'
@@ -584,6 +584,9 @@ export class MiniMaxClient implements ModelClient {
       if ((request.verificationUnits || request.groundingRepair) && message) {
       try {
         content = groundingToolContent(message, request.verificationUnits ? groundingToolName : groundingRepairToolName) ?? content
+        if (request.verificationUnits && message.tool_calls !== undefined && message.content?.trim()) {
+          stageLogger.warn('model.checker.neutral_acknowledgement', { characters: message.content.length })
+        }
         if (arrayVerification && content) {
           content = groundingSerializedContent(cleanModelJsonText(content))
           // Historical text-array responses retain their existing parser contract.
@@ -869,10 +872,13 @@ export class MiniMaxClient implements ModelClient {
       const packet = peers.length ? `${request.packet}\nNamed-peer reference candidates by unit (locators only, not support judgments): ${JSON.stringify(peers)}. Match each claim to the actual visible contribution before selecting a record. These candidates establish no source fact and do not excuse an unsupported peer premise. A missing named peer has no substitute; other jurors cannot supply that attribution.` : request.packet
       const messages = groundingMessages(request.verificationUnits, request.evidence, packet, request.verificationFeedback, request.verificationOpening, request.courtroomProtocol ? request.courtroomActor : undefined, request.verificationAuthenticationKnowledge, arrayVerification, singleFinding)
       body.messages = messages
-      if (arrayVerification && this.config.provider === 'minimax') messages[0].content += '\nTransport contract: return only tool arguments {"reviewJson":"<JSON-encoded complete review>"}. The response contracts above describe the JSON INSIDE this string. Do not put findings or row fields directly in tool arguments. Encode the entire independently assessed review, preserving every exact ID and every required field.'
+      if (this.config.provider === 'minimax') messages[0].content += '\\nOutput channel: call record_grounding_review exactly once and return all review fields directly in its arguments. Leave assistant message content empty; do not add an acknowledgement, preamble, prose review or competing JSON. Do not encode a review inside reviewJson or another JSON string. Follow the complete finding shape above and the supplied tool schema. Copy each exact ID and explicitly assess every required field; never supply defaults or infer omitted values.'
       body.temperature = 0
       if (this.config.provider === 'minimax') {
-        body.tools = [arrayVerification ? groundingSerializedTool(request.verificationUnits) : groundingTool(request.verificationUnits, { records: records.map(record => record.reference), exhibits: request.evidence.map(item => item.exhibitId), peerRecords })]
+        const references = { records: records.map(record => record.reference), exhibits: request.evidence.map(item => item.exhibitId), peerRecords }
+        body.tools = [arrayVerification
+          ? singleFinding ? groundingSingleTool(request.verificationUnits, references) : groundingCorrectionTool(request.verificationUnits, references)
+          : groundingTool(request.verificationUnits, references)]
         body.tool_choice = 'required'
       }
     }

@@ -165,11 +165,22 @@ export function groundingRepairTool(unitIds: string[]) {
   } }
 }
 
+// These acknowledgements contain no assessment, selector or source premise.
+// Unknown prose and competing review JSON remain invalid output channels.
+const neutralCheckerAcknowledgements = new Set([
+  "i'll audit each unit against the supplied sources.",
+  'i will audit each unit against the supplied sources.',
+  'here is the source review:',
+  'here is the independent source review:',
+])
+
 export function groundingToolContent(message: { content?: string | null; tool_calls?: unknown }, expectedName = groundingToolName): string | undefined {
   if (message.tool_calls === undefined) return undefined // Legacy compatible text responses still undergo full validation.
   if (!Array.isArray(message.tool_calls) || message.tool_calls.length !== 1) throw new Error(`Expected exactly one ${expectedName} tool response.`)
   const call = message.tool_calls[0]
-  if (call?.type !== 'function' || call.function?.name !== expectedName || typeof call.function.arguments !== 'string' || message.content?.trim()) {
+  const preamble = message.content?.trim().replaceAll('’', "'").toLowerCase()
+  const neutral = expectedName === groundingToolName && Boolean(preamble && neutralCheckerAcknowledgements.has(preamble))
+  if (call?.type !== 'function' || call.function?.name !== expectedName || typeof call.function.arguments !== 'string' || preamble && !neutral) {
     throw new Error(`Expected only the named ${expectedName} tool arguments, without competing message content.`)
   }
   return call.function.arguments

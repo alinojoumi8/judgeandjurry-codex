@@ -45,7 +45,11 @@ public submissions and permitted sources. No juror or oral-witness stage runs.
 For MiniMax-M3, the hearing requests direct answers for submissions, the ruling,
 source checks and repairs. This keeps the existing output allowance available
 for the response. It does not change the model, token limit or validation rules.
-A truncated response is still withheld.
+A truncated response is still withheld. Checker corrections return explicit
+structured findings rather than a review encoded inside a second JSON string.
+Every ID, assessment field and selector must still be supplied and validated.
+A narrowly recognized neutral delivery acknowledgement supplies no review values;
+competing assessment text, missing fields and malformed JSON remain withheld.
 
 The preflight shows a 240,000-character source allocation plus a separate, fixed
 32,000-character allowance for the complete hearing history (272,000 total).
