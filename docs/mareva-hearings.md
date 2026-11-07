@@ -138,3 +138,11 @@ OCR or treat a numeric image-page label as source words. Application extraction
 warnings describe supplied coverage, not affidavit contents or authenticity.
 Quoted counsel terms such as "our client" and "him" remain quoted unless the
 selected passage explicitly establishes the corresponding identities.
+
+
+For malformed `supportTypes` array items, correction feedback identifies the exact
+unit, item index and received JSON kind. Initial, array-correction and single-row
+tool schemas require literal string items. The response is still rejected; an
+object key is never converted into a domain and no absent value is supplied.
+The existing same-draft correction cap, source checks and complete finding
+inventory remain in force. A failed checker-only smoke gates the full live case.
