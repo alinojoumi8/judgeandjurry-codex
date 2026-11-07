@@ -2890,7 +2890,7 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         status = historyScopeFailure.status
         explanation = historyScopeFailure.explanation
       }
-      const premiseError = ['analysis', 'supported'].includes(status) ? factualPremiseError(unit.text, citations, recordCitations) : undefined
+      const premiseError = ['analysis', 'supported'].includes(status) ? factualPremiseError(unit.text, citations, recordCitations, evidence) : undefined
       if (premiseError) { status = 'unsupported'; explanation = premiseError }
       const absenceError = ['analysis', 'supported'].includes(status) ? sourceAbsenceScopeError(sourceClauses.join('; '), citations, evidence, approvedContext) : undefined
       if (absenceError) { status = 'unsupported'; explanation = absenceError }

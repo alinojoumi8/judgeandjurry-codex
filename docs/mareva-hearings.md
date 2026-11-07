@@ -88,3 +88,17 @@ No new environment variables, dependencies or database migration are required.
 Existing model records and proceedings retain their behavior. New hearing settings
 are versioned inside the existing case model; new runs receive a server-stamped
 civil-hearing identifier.
+
+## Attributed correction history
+
+A source may record an earlier negative statement and then expressly correct it
+in the next sentence. The source checker can recognize a report of that history
+when both accounts occur in order in the same selected passage and the named
+speaker matches the source introduction. The introduction establishes identity
+only; it cannot supply missing factual support from another paragraph.
+
+This bounded comparison preserves the corrected document, date, actor and
+qualifications. It does not establish that the corrected allegation is true.
+Wrong speakers, quoted third-party accounts, hypothetical corrections, reversed
+history and missing selected passages remain unsupported. A checker rejection
+still requires an independent review; this rule does not override it.

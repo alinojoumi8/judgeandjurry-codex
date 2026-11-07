@@ -21,10 +21,70 @@ function premiseCitations(prose: string, start: number, end: number, citations: 
   return citations.filter(citation => !named.length || named.includes(citation.exhibitId.toLowerCase()))
 }
 
+// Recognize only an explicitly attributed negative account followed by its
+// correction. Identity may use the source introduction; both accounts must
+// still occur in order inside ONE selected passage, not elsewhere in the file.
+function supportedCorrectionHistory(prose: string, match: RegExpMatchArray, citations: GroundingCitation[], sources: { exhibitId: string; text: string }[]) {
+  const prefix = prose.slice(0, match.index).split(/[;.!?:]/).at(-1)?.trim() ?? ''
+  const attribution = prefix.match(/^([\p{L} '-]+) corrected (his|her|their) earlier$/u)
+  const accounts = match[1].match(/^(.+?) and now (?:says|states|reports)(?: that)? (.+)$/)
+  if (!attribution || !accounts) return false
+  const wording = (value: string) => premiseWording(value).replace(/acknowledgement/g, 'acknowledgment')
+  const datePattern = /\b(?:january|february|march|april|may|june|july|august|september|october|november|december) \d{1,2}(?:,? \d{4})?\b/g
+  return citations.some(citation => {
+    const fullSource = sources.find(source => source.exhibitId === citation.exhibitId)
+    if (!fullSource) return false
+    const introduction = normal(fullSource.text.slice(0, Math.min(citation.startOffset, 3000)))
+    const identities = [...introduction.matchAll(/\bi,\s*([\p{L} '-]+),[^.!?]{0,180}\bmake oath and say:/gu)].map(row => row[1].trim())
+    const named = introduction.match(/^(?:fictional )?([\p{L} '-]+) (?:states|says|reports):/u)?.[1]
+    if (named) identities.push(named)
+    if (identities.length !== 1 || ![identities[0], identities[0].split(' ').at(-1)].includes(attribution[1])) return false
+    const source = wording(citation.quote)
+    const corrections = /\bi (?:incorrectly|mistakenly) (?:stated|said|reported|asserted) that ([^.!?;]+)[.!?]\s*(?:in (?:actual )?fact|actually),?\s*([^.!?;]+)/g
+    return [...source.matchAll(corrections)].some(correction => {
+      const lead = source.slice(0, correction.index).split(/[.!?;]/).at(-1) ?? ''
+      // A quotation or another person's reported words do not become the
+      // deponent's own correction merely because the affidavit has a heading.
+      const preceding = source.slice(0, correction.index)
+      const insideQuotation = (preceding.match(/"/g)?.length ?? 0) % 2 !== 0 ||
+        preceding.lastIndexOf('“') > preceding.lastIndexOf('”')
+      if (insideQuotation || deniedOrConditional.test(lead) || /[:"“”]|\b(?:says?|said|reports?|stated)\b/.test(lead)) return false
+      const localContext = source.slice(Math.max(0, correction.index! - 250), correction.index)
+      const dates = [...wording(accounts[1]).matchAll(datePattern)].map(row => row[0])
+      const sourceObject = wording(correction[1]).match(/ did not [a-z]+ the ([\p{L} '-]+)$/u)?.[1]
+      const sourceDates = [...localContext.matchAll(datePattern)].filter(row => sourceObject &&
+        (localContext.slice(0, row.index).endsWith(sourceObject + ' dated ') ||
+          localContext.slice(row.index! + row[0].length).startsWith(' ' + sourceObject))).map(row => row[0])
+      if (dates.some(date => { const actual = sourceDates.at(-1); return !actual || !(actual === date || actual.startsWith(date + ', ') || actual.startsWith(date + ' ')) })) return false
+      const comparable = (value: string) => {
+        let result = wording(value)
+        for (const date of dates) result = result.replace('the ' + date + ' ', 'the ')
+        return result
+      }
+      const earlier = comparable(accounts[1])
+      if (earlier !== comparable(correction[1])) return false
+      const event = earlier.match(/^([\p{L} '-]+) did not ([a-z]+) (the [\p{L} '-]+)$/u)
+      if (!event) return false
+      const [, subject, verb, object] = event
+      const past = verb + (verb.endsWith('e') ? 'd' : 'ed')
+      const current = (value: string, reported: boolean) => {
+        let result = comparable(value)
+        if (reported) result = result.replace('in ' + attribution[2] + ' presence', 'in my presence')
+        result = result.replace(subject + ' did ' + verb + ' ', subject + ' ' + past + ' ')
+        return result.replace(subject + ' ' + past + ' it ', subject + ' ' + past + ' ' + object + ' ')
+      }
+      const stated = current(accounts[2], true), actual = current(correction[2], false)
+      if (deniedOrConditional.test(actual) || /\b(?:false|untrue|incorrect|unconfirmed|apparently|allegedly)\b/.test(actual)) return false
+      return actual === stated || stated.endsWith(' in my presence') &&
+        actual === stated + ' and in the presence of various witnesses'
+    })
+  })
+}
+
 // These constructions assert a source's contents even when the remainder only
 // discusses their significance. Bind the reported clause to selected passages,
 // never a nearby quotation from another document or an uncited paragraph.
-export function factualPremiseError(text: string, citations: GroundingCitation[], records: NonNullable<GroundingFinding['recordCitations']> = []): string | undefined {
+export function factualPremiseError(text: string, citations: GroundingCitation[], records: NonNullable<GroundingFinding['recordCitations']> = [], sources: { exhibitId: string; text: string }[] = []): string | undefined {
   const prose = normal(text)
   // Reporting reliance adds a causal premise beyond the existence of a named
   // connection. It must be present in this clause's selected source, not a
@@ -64,6 +124,7 @@ export function factualPremiseError(text: string, citations: GroundingCitation[]
     if (peer && quoted && /^(?:the |this )?(?:report|account|statement|record|e-\d+) (?:does not|doesn't|cannot|can't) (?:resolve|settle|remove|answer) (?:my|our) (?:reasonable )?doubts?(?: about [\p{L}\d '-]+)?[.!?]?$/u.test(quoted) &&
       records.some(record => Number(record.actorId?.match(/^juror[- ]?0?(\d+)$/i)?.[1]) === Number(peer) && normal(record.quote).includes(quoted))) continue
     const selected = premiseCitations(prose, match.index!, match.index! + match[0].length, citations)
+    if (supportedCorrectionHistory(prose, match, selected, sources)) continue
     // Sentence boundaries may cut a quoted premise before its closing mark.
     // Quote delimiters are not spoken words; the separate quotation validator
     // still checks the complete quotation and its document attribution.
@@ -78,7 +139,7 @@ export function factualPremiseError(text: string, citations: GroundingCitation[]
       const sameSpeaker = owner && new RegExp(`^${owner} (?:states?|says?|reports?):`).test(premiseWording(citation.quote))
       const comparable = sameSpeaker && /^they\b/.test(premise) ? sentence.replace(/\bi\b/g, 'they') : sentence
       return new RegExp(`(?:^|[\\s:"“])${pattern}(?=$|[\\s,.;:!?"”')])`).test(comparable) &&
-        !deniedOrConditional.test(sentence) && !/\b(?:is|was|were) (?:false|untrue|incorrect|not accurate)\b/.test(sentence)
+        !deniedOrConditional.test(sentence) && !/\b(?:incorrectly|mistakenly) (?:stated|said|reported|asserted) that\b/.test(sentence) && !/\b(?:is|was|were) (?:false|untrue|incorrect|not accurate)\b/.test(sentence)
     }))
     if (!supported) return `The reported factual premise "${match[1].trim()}" is not established by the selected passage of its cited source. Analytical significance does not supply source contents. Quote the actual statement, preserve its qualifications, or remove the unsupported premise.`
   }
