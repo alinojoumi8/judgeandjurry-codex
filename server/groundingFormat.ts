@@ -179,7 +179,8 @@ export function groundingToolContent(message: { content?: string | null; tool_ca
   if (!Array.isArray(message.tool_calls) || message.tool_calls.length !== 1) throw new Error(`Expected exactly one ${expectedName} tool response.`)
   const call = message.tool_calls[0]
   const preamble = message.content?.trim().replaceAll('’', "'").toLowerCase()
-  const neutral = expectedName === groundingToolName && Boolean(preamble && neutralCheckerAcknowledgements.has(preamble))
+  const neutral = expectedName === groundingToolName && Boolean(preamble && (neutralCheckerAcknowledgements.has(preamble) ||
+    /^i(?:'ll| will) audit each (?:supplied )?unit(?: now| against the (?:supplied|permitted|actual) (?:sources|record))\.$/.test(preamble)))
   if (call?.type !== 'function' || call.function?.name !== expectedName || typeof call.function.arguments !== 'string' || preamble && !neutral) {
     throw new Error(`Expected only the named ${expectedName} tool arguments, without competing message content.`)
   }

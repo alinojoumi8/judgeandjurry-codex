@@ -121,3 +121,20 @@ including JPEG 2000 scan support; no runtime CDN is needed. Loading and renderin
 failures have an explicit retry and
 download fallback; the extracted-text view remains separate. PDF rendering does
 not authenticate signatures or convert OCR into a verified transcript.
+
+
+### Checker delivery and sparse references
+
+A narrowly recognized procedural acknowledgement can accompany the single named
+checker tool call. It supplies no assessment or source support. The original
+acknowledgement remains in the provider capture and is logged; tool arguments,
+required fields, source checks and bounded corrections remain unchanged.
+Substantive or unknown prose and competing review JSON remain rejected.
+
+The checker sees an explicit inventory of preserved paragraphs too sparse to
+supply a verified text citation. Those passages and their originals stay in the
+record. Select readable supporting text or report missing support; do not invent
+OCR or treat a numeric image-page label as source words. Application extraction
+warnings describe supplied coverage, not affidavit contents or authenticity.
+Quoted counsel terms such as "our client" and "him" remain quoted unless the
+selected passage explicitly establishes the corresponding identities.

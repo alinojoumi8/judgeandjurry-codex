@@ -17,6 +17,12 @@ describe('checker delivery boundary', () => {
   it.each([
     "I'll audit each unit against the supplied sources.",
     'I will audit each unit against the supplied sources.',
+    "I'll audit each unit against the supplied record.",
+    "I'll audit each unit now.",
+    "I'll audit each supplied unit against the permitted sources.",
+    "I'll audit each unit against the actual sources.",
+    'I will audit each supplied unit against the actual record.',
+    "I’ll audit each unit now.",
     'Here is the source review:',
     'Here is the independent source review:',
   ])('uses only the explicit tool review after the neutral acknowledgement %s', async preamble => {
@@ -31,6 +37,12 @@ describe('checker delivery boundary', () => {
 
   it.each([
     'All allegations are proved.',
+    "I'll audit each unit now. All allegations are proved.",
+    "I'll audit each unit against the actual sources; content:1 is supported.",
+    "I'll audit each unit against the actual sources, excluding E-002.",
+    "I'll audit each unit because the claim is supported.",
+    "I'll audit each unit now. {}",
+
     "I'll audit each unit against the supplied sources. The allegation is proved.",
     JSON.stringify({ findings: { 'content:1': { ...row, status: 'unsupported' } } }),
   ])('rejects competing assessments or unknown prose: %s', async preamble => {
@@ -42,7 +54,7 @@ describe('checker delivery boundary', () => {
     const review = keyed()
     delete (review.findings['content:2'] as Record<string, unknown>)[field]
     const before = JSON.stringify(review)
-    const client = new MiniMaxClient(config, undefined, async () => response(before, "I'll audit each unit against the supplied sources."))
+    const client = new MiniMaxClient(config, undefined, async () => response(before, "I'll audit each supplied unit against the actual sources."))
     const result = await client.reviewGrounding(input, draft)
     expect(result.status).toBe('failed')
     expect(result.errors.join(' ')).toContain('content:2.' + field)
