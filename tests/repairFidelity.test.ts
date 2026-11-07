@@ -48,6 +48,10 @@ describe('nested source arguments', () => {
   ])('checks an explicit argument without adopting quoted or qualified words: %s', (second, expected) => {
     expect(check(nested.replace('the restraint is futile because Vale owns no Alder property', 'the balance remains unresolved'), argument, second).status).toBe(expected)
   })
+  it('checks a hyphenated subject without treating it as malformed checker JSON', () => {
+    expect(check(nested.replaceAll('the restraint is', 'the short-term restraint is'), argument.replace('the temporary restraint is', 'the short-term restraint is')).status).toBe('passed')
+    expect(check(nested.replaceAll('the restraint is', 'the short-term restraint is'), argument.replace('the temporary restraint is', 'the long-term restraint is')).status).toBe('failed')
+  })
   it('requires both selected paragraphs rather than borrowing the body', () => expect(check(nested, argument, property, heading, [2]).status).toBe('failed'))
   it('keeps other unsupported premises in the same finding rejected', () => expect(check(nested + ' Its confirmation that all records were burned supports the argument (E-002).').status).toBe('failed'))
 })

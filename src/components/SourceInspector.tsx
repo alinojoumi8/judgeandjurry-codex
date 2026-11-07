@@ -108,8 +108,8 @@ export function SourceInspector({ matterId, source, onClose }: { matterId: strin
         {source.use?.status === 'redacted' && <p>You are inspecting the preserved original, before the saved run’s redactions.</p>}
       </section>
       <div className="source-actions">
-        <button type="button" disabled={!record.sourceAvailable} onClick={() => void downloadEvidenceSource(record.evidenceId, record.name).catch(caught => setOriginalError(caught instanceof Error ? caught.message : 'Download failed.'))}><Download size={16} /> Download preserved original</button>
-        <button type="button" disabled={!citation} onClick={() => void navigator.clipboard.writeText(citation).then(() => setCopied(true)).catch(() => setOriginalError('Could not copy the citation. Select and copy the citation text above.'))}><Copy size={16} /> {copied ? 'Copied citation' : 'Copy citation'}</button>
+        <button type="button" disabled={!record.sourceAvailable} onClick={() => { setOriginalError(''); void downloadEvidenceSource(record.evidenceId, record.name).catch(caught => setOriginalError(caught instanceof Error ? caught.message : 'Download failed.')) }}><Download size={16} /> Download preserved original</button>
+        <button type="button" disabled={!citation} onClick={() => { setOriginalError(''); setCopied(false); void navigator.clipboard.writeText(citation).then(() => setCopied(true)).catch(() => setOriginalError('Could not copy the citation. Select and copy the citation text above.')) }}><Copy size={16} /> {copied ? 'Copied citation' : 'Copy citation'}</button>
       </div>
       {originalError && tab !== 'original' && <p role="alert">{originalError}</p>}
       <details className="source-provenance"><summary>Source details</summary><p>Extraction: {record.ingestionStatus}</p><p className="source-hash">Original SHA-256: {record.sha256 ?? 'No preserved hash recorded'}</p></details>

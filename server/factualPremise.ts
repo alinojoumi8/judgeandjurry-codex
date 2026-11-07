@@ -84,7 +84,7 @@ function supportedNestedAttribution(prose: string, match: RegExpMatchArray, cita
   const parts = match[1].match(/^(.+?) ["“]([^"”]+)["”] and argues that (.+)$/)
   if (!speakers || !parts) return false
   const literal = (text: string) => normal(text).replace(/["“”]/g, '')
-  const escape = (text: string) => text.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+  const escape = (text: string) => text.replace(/[/\\^$*+?.()|[\]{}]/g, '\\$&')
   return citations.some(citation => {
     if (!sourceSpeakerMatches(speakers[1], citation, sources)) return false
     const selected = citations.filter(other => other.exhibitId === citation.exhibitId)
