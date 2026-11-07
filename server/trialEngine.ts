@@ -33,7 +33,7 @@ import { buildRecordCoverage, recordScopePrompt } from './recordCoverage'
 import { buildDecisionTrace } from './decisionTrace'
 import { usablePeerContribution } from './groundingRecords'
 import { compareScenario } from './scenarioComparison'
-import { actorContextCharacterBudget, actorContextCharacters, assembleActorContext } from './actorContext'
+import { actorContextCharacterBudget, actorContextCharacters, assembleActorContext, marevaHistoryCharacterBudget } from './actorContext'
 import { authorisedRecord, contextHash } from './actorMemory'
 import { permittedReference } from './evidenceRestrictions'
 import { courtroomState, commitCourtroomCommand } from './courtroom'
@@ -136,10 +136,12 @@ export class TrialEngineService {
       }
     }
     const largest = projections.reduce((a, b) => b.characters > a.characters ? b : a, { actorId: '', characters: 2, evidence: [] as EvidenceItem[] })
+    const historyReserve = model.marevaHearing ? marevaHistoryCharacterBudget : 0
     const fits = largest.characters <= actorContextCharacterBudget
-    return { fits, characterBudget: actorContextCharacterBudget, characters: largest.characters, actorId: largest.actorId,
+    return { fits, characterBudget: actorContextCharacterBudget + historyReserve, characters: largest.characters + historyReserve, actorId: largest.actorId,
+      ...(historyReserve ? { sourceCharacters: largest.characters, sourceCharacterBudget: actorContextCharacterBudget, historyReserve } : {}),
       sources: largest.evidence.map(e => ({ exhibitId: e.exhibitId, characters: JSON.stringify(e).length })).sort((a, b) => b.characters - a.characters),
-      message: fits ? 'Selected sources fit. Arguments and testimony add context as the proceeding develops.'
+      message: fits ? historyReserve ? `Selected sources use ${largest.characters.toLocaleString('en-US')} / ${actorContextCharacterBudget.toLocaleString('en-US')} characters. Another ${historyReserve.toLocaleString('en-US')} characters are reserved for hearing history; all permitted sources are retained. Oversized history stops explicitly without truncation.` : 'Selected sources fit. Arguments and testimony add context as the proceeding develops.'
         : `Selected sources need ${largest.characters.toLocaleString('en-US')} characters; the limit is ${actorContextCharacterBudget.toLocaleString('en-US')}. Select documents or permitted paragraphs in Admitted Record and save a new version before starting. Nothing has been omitted.`,
     }
   }
@@ -394,7 +396,7 @@ export class TrialEngineService {
       throughSequence: events.at(-1)?.sequence ?? 0, evidence: this.store.listEvidence(run.matterId), uses,
       protocol: run.config.courtroomProtocol === 'courtroom_v1',
       approvedStatementRefs: model.witnesses.find(w => w.id === actorId)?.approvedStatementRefs ?? [],
-    })
+    }, actorContextCharacterBudget, model.marevaHearing ? marevaHistoryCharacterBudget : 0)
     return {
       ...context,
         theories: roles.some(r => ['juror', 'foreperson', 'witness'].includes(r)) ? [] : party

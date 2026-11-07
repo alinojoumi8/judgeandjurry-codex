@@ -47,6 +47,15 @@ source checks and repairs. This keeps the existing output allowance available
 for the response. It does not change the model, token limit or validation rules.
 A truncated response is still withheld.
 
+The preflight shows a 240,000-character source allocation plus a separate, fixed
+32,000-character allowance for the complete hearing history (272,000 total).
+Source selection, original bytes, permitted paragraphs and earlier submissions
+are retained. History cannot borrow unused source capacity, and sources cannot
+borrow history capacity. If either allocation is exceeded, the app stops with an
+explicit error instead of truncating. This additional history capacity applies
+only to Mareva hearings; it does not increase the provider's request, time or
+output-token limits. Other proceedings keep their existing context limit.
+
 An initial application permits `grant`, `refuse` or `reserved`. A set-aside hearing
 permits `maintain`, `vary`, `discharge` or `reserved`. An invalid or missing disposition
 is recorded as no valid judicial ruling; it is never inferred from a party leaning.

@@ -17,11 +17,11 @@ import type { TrialRunView } from '../src/trialEngineTypes'
 const stores: CaseStore[] = []
 afterEach(() => { stores.splice(0).forEach(store => store.close()) })
 
-function fixture(kind: MarevaHearing['kind'] = 'set_aside', outcome = 'maintain') {
+function fixture(kind: MarevaHearing['kind'] = 'set_aside', outcome = 'maintain', sourcePadding = 0) {
   const store = new CaseStore(':memory:'); stores.push(store)
   const matter = store.createMatter({ title: 'Northbank v. Cedar: fictional injunction', narrative: 'A disputed asset-freeze application. This is a fictional software fixture.' })
   const add = (name: string, text: string) => store.addEvidence(matter.id, { name, type: 'text', mimeType: 'text/plain', size: text.length, text, summary: text, tags: [], ingestionStatus: 'stored' })
-  const sources = [add('order.txt', 'The fictional order preserves the Cedar account until the hearing.'), add('moving.txt', 'Cedar says the retained balance will remain available.'), add('response.txt', 'Northbank says the transfer instruction creates a preservation concern.'), add('law.txt', 'Fictional legal instructions: decide only whether the preservation order remains justified on this record.')]
+  const sources = [add('order.txt', 'The fictional order preserves the Cedar account until the hearing.' + (sourcePadding ? '\n\nFIRST_RETAINED ' + 'x'.repeat(sourcePadding) + ' LAST_RETAINED' : '')), add('moving.txt', 'Cedar says the retained balance will remain available.'), add('response.txt', 'Northbank says the transfer instruction creates a preservation concern.'), add('law.txt', 'Fictional legal instructions: decide only whether the preservation order remains justified on this record.')]
   const refs = sources.map(source => ({ evidenceId: source.id, exhibitId: source.exhibitId, attribution: 'source' as const }))
   const hearing: MarevaHearing = { kind, movingPartyId: kind === 'initial' ? 'northbank' : 'cedar', respondingPartyId: kind === 'initial' ? 'cedar' : 'northbank', recordAsOf: '2026-01-12', requestedRelief: 'Determine only the asset-preservation order.', orderSummary: 'Fictional account freeze pending the hearing.', existingOrderRefs: kind === 'initial' ? [] : [refs[0]], movingRecordRefs: [refs[kind === 'initial' ? 2 : 1]], responseRecordRefs: [refs[kind === 'initial' ? 1 : 2]], replyRecordRefs: [], legalAuthorityRefs: [refs[3]], legalFramework: 'Apply the supplied fictional preservation condition, including the contrary account. Do not determine liability.', reviewedForRehearsal: true }
   const workflow = new CaseWorkflowService(store)
@@ -39,6 +39,42 @@ function fixture(kind: MarevaHearing['kind'] = 'set_aside', outcome = 'maintain'
 }
 
 describe('Mareva civil judge-alone hearing', () => {
+  it('preserves a near-capacity source and all three submissions through the ruling', async () => {
+    const f = fixture('set_aside', 'maintain', 115000)
+    const model = f.workflow.approveCaseModel(f.draft().id)
+    const sourceTexts = f.sources.map(source => source.text)
+    const base = f.client.generateStage
+    const client: ModelClient = { generateStage: async input => ({ ...await base(input), content: 'Submitted argument. '.repeat(310) }) }
+    const engine = new TrialEngineService(f.store, client)
+    const input = { matterId: f.matter.id, caseModelId: model.id, config: f.config }
+    const preview = engine.preflightRun(input)
+    expect(preview).toMatchObject({ fits: true, characterBudget: 272000, sourceCharacterBudget: 240000, historyReserve: 32000 })
+    expect(preview.sourceCharacters).toBeGreaterThan(230000)
+    expect(preview.characters).toBe(preview.sourceCharacters! + preview.historyReserve!)
+    const { run } = engine.createRun(input)
+    const result = await engine.runAutonomous(run.id)
+    expect(result.run.status).toBe('completed')
+    expect(result.decisionSheet?.decisions[0].outcome).toBe('maintain')
+    expect(f.calls).toHaveLength(4)
+    expect(f.calls[3].previousTurns.length).toBeGreaterThan(18000)
+    for (const call of f.calls) expect(call.evidence.map(source => source.text)).toEqual(sourceTexts)
+    expect(f.calls[3].courtroomEvents?.filter(event => event.type === 'public_submission')).toHaveLength(3)
+    const context = engine.actorContext(run.id, 'judge-1')
+    expect(context.manifest).toMatchObject({ characterBudget: 272000, sourceCharacterBudget: 240000, historyCharacterBudget: 32000, omittedEventIds: [] })
+    expect(f.store.listEvidence(f.matter.id).map(source => source.text)).toEqual(sourceTexts)
+  })
+
+  it('does not allow a source to borrow the hearing history allocation', () => {
+    const f = fixture('set_aside', 'maintain', 125000)
+    const model = f.workflow.approveCaseModel(f.draft().id)
+    const engine = new TrialEngineService(f.store, f.client)
+    const input = { matterId: f.matter.id, caseModelId: model.id, config: f.config }
+    expect(engine.preflightRun(input)).toMatchObject({ fits: false, sourceCharacterBudget: 240000 })
+    expect(() => engine.createRun(input)).toThrow(/240,000/)
+    expect(f.store.workflow.listTrialRuns(f.matter.id)).toHaveLength(0)
+    expect(f.calls).toHaveLength(0)
+  })
+
   it.each((['initial', 'set_aside'] as const).flatMap(kind => marevaOutcomes(kind).map(outcome => ({ kind, outcome }))))('records the exact $kind disposition $outcome with both sides, reply and source trace', async ({ kind, outcome }) => {
     const f = fixture(kind, outcome)
     const model = f.workflow.approveCaseModel(f.draft().id)
