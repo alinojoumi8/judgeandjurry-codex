@@ -42,6 +42,11 @@ ruling. Each generated stage uses the existing source checks and repair limits.
 The moving advocate sees only its own private preparation; the judge receives the
 public submissions and permitted sources. No juror or oral-witness stage runs.
 
+For MiniMax-M3, the hearing requests direct answers for submissions, the ruling,
+source checks and repairs. This keeps the existing output allowance available
+for the response. It does not change the model, token limit or validation rules.
+A truncated response is still withheld.
+
 An initial application permits `grant`, `refuse` or `reserved`. A set-aside hearing
 permits `maintain`, `vary`, `discharge` or `reserved`. An invalid or missing disposition
 is recorded as no valid judicial ruling; it is never inferred from a party leaning.
@@ -61,7 +66,10 @@ contract, exact outcomes, restrictions, privacy, recovery and provider instructi
 configuration, ruling, source inspection, reload and archive import. It uses a
 scripted actor and is not evidence of live legal accuracy. The journey is included
 in aggregate browser coverage and CI. Real-provider acceptance requires a separate
-bounded run with disclosed material and saved failure evidence.
+bounded run with disclosed material and saved failure evidence. Use a fresh
+temporary directory outside hidden checkout directories for the acceptance
+database, source files, previews and uploads. Verify that the browser can
+open and download a preserved original from that store.
 
 No new environment variables, dependencies or database migration are required.
 Existing model records and proceedings retain their behavior. New hearing settings

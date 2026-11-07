@@ -11,11 +11,11 @@ const request: StageRequest = { stage: 'crown_opening', packet: 'Fictional sourc
 const good = 'E-001 records a blue token at the desk.'
 const bad = 'The report independently proves guilt.'
 const draft = { title: 'Source review', content: `${good} ${bad}`, citations: ['E-001'], jurors: [] }
-function harness(repaired: unknown, toolOutput?: 'valid' | 'wrong-name' | 'duplicate' | 'competing' | 'malformed-json') {
+function harness(repaired: unknown, toolOutput?: 'valid' | 'wrong-name' | 'duplicate' | 'competing' | 'malformed-json', model = 'fixture') {
   const prompts: string[] = []
   const bodies: any[] = []
   let authors = 0
-  const client = new MiniMaxClient({ provider: toolOutput ? 'minimax' : 'openai-compatible', apiKey: 'fixture', baseUrl: 'http://127.0.0.1:11434/v1', model: 'fixture', timeoutMs: 1000, maxRetries: 1 }, undefined, async (_url, init) => {
+  const client = new MiniMaxClient({ provider: toolOutput ? 'minimax' : 'openai-compatible', apiKey: 'fixture', baseUrl: 'http://127.0.0.1:11434/v1', model, timeoutMs: 1000, maxRetries: 1 }, undefined, async (_url, init) => {
     const body = JSON.parse(String(init?.body)); bodies.push(body)
     const prompt = body.messages[1].content as string; prompts.push(prompt)
     const audit = prompt.includes('Draft units to check:\n')
@@ -32,8 +32,10 @@ function harness(repaired: unknown, toolOutput?: 'valid' | 'wrong-name' | 'dupli
 }
 describe('grounding repairs preserve accepted text', () => {
   it('uses one MiniMax repair schema and rechecks its applied text without rewriting accepted units', async () => {
-    const { client, prompts, bodies } = harness({ repairs: [{ unitId: 'content:2', replacement: 'The issue remains unresolved.' }] }, 'valid')
-    const result = await client.generateStage(request)
+    const { client, prompts, bodies } = harness({ repairs: [{ unitId: 'content:2', replacement: 'The issue remains unresolved.' }] }, 'valid', 'MiniMax-M3')
+    const result = await client.generateStage({ ...request, civilMotionHearing: true })
+    expect(bodies).toHaveLength(4)
+    expect(bodies.map(body => body.thinking)).toEqual(Array.from({ length: 4 }, () => ({ type: 'disabled' })))
     expect(result.content).toBe(`${good} The issue remains unresolved.`)
     expect(result.grounding?.status).toBe('passed')
     expect(bodies[2].tool_choice).toBe('required')

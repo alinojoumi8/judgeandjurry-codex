@@ -567,9 +567,18 @@ export class MiniMaxClient implements ModelClient {
 
       const data = (await response.json()) as {
         choices?: Array<{ finish_reason?: string; message?: { content?: string; tool_calls?: unknown } }>
+        usage?: { completion_tokens?: unknown; completion_tokens_details?: { reasoning_tokens?: unknown } }
       }
       const finishReason = data.choices?.[0]?.finish_reason
-      if (finishReason === 'length' || finishReason === 'max_tokens') throw new ModelProviderError(`Model output was not valid JSON for publication: the response was truncated (finish_reason=${finishReason}). Return a shorter complete response within the existing token limit.`, { retryable: true })
+      if (finishReason === 'length' || finishReason === 'max_tokens') {
+        const completion = data.usage?.completion_tokens
+        const reasoning = data.usage?.completion_tokens_details?.reasoning_tokens
+        const usage = typeof completion === 'number' && Number.isSafeInteger(completion) && completion >= 0
+          && typeof reasoning === 'number' && Number.isSafeInteger(reasoning) && reasoning >= 0 && reasoning <= completion
+          ? ` The provider reported ${reasoning} reasoning tokens out of ${completion} completion tokens.`
+          : ''
+        throw new ModelProviderError(`Model output was not valid JSON for publication: the response was truncated (finish_reason=${finishReason}).${usage} Return a shorter complete response within the existing token limit.`, { retryable: true })
+      }
       const message = data.choices?.[0]?.message
       let content = message?.content
       if ((request.verificationUnits || request.groundingRepair) && message) {
@@ -878,9 +887,15 @@ export class MiniMaxClient implements ModelClient {
       : configuredBudget
     if (this.config.provider === 'minimax') {
       body.max_completion_tokens = maxOutputTokens
+      if (request.civilMotionHearing && this.config.model === 'MiniMax-M3') {
+        // M3 counts thinking against the same output cap as the final JSON.
+        // Apply the direct-answer policy to the author, checker and their repairs.
+        body.thinking = { type: 'disabled' }
+      } else {
         const effort = request.verificationOpening ? 'high' : process.env.MINIMAX_REASONING_EFFORT
-      if (effort && ['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) {
-        body.reasoning_effort = effort
+        if (effort && ['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) {
+          body.reasoning_effort = effort
+        }
       }
     } else {
       body.max_tokens = maxOutputTokens
