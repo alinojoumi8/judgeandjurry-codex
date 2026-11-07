@@ -93,7 +93,19 @@ function supportedNestedAttribution(prose: string, match: RegExpMatchArray, cita
     if (!source.split(/(?<=[.!?;])\s+/).some(sentence => sentence.includes(reported) &&
       !deniedOrConditional.test(sentence) && !/\b(?:false|untrue|incorrect|hypothetical)\b/.test(sentence))) return false
     const rationale = literal(parts[3])
-    if (selected.some(other => literal(other.quote).includes('i argue that ' + rationale))) return true
+    const unconditional = (sentence: string) => !deniedOrConditional.test(sentence) &&
+      !/[:"“”]|\b(?:false|untrue|incorrect|unconfirmed)\b/.test(sentence)
+    const assertions = (quote: string) => {
+      const text = normal(quote)
+      let offset = 0
+      return text.split(/(?<=[.!?;])\s+/).filter(sentence => {
+        const start = text.indexOf(sentence, offset), preceding = text.slice(0, start)
+        offset = start + sentence.length
+        const quoted = (preceding.match(/"/g)?.length ?? 0) % 2 !== 0 || preceding.lastIndexOf('“') > preceding.lastIndexOf('”')
+        return !quoted && unconditional(sentence)
+      })
+    }
+    if (selected.some(other => assertions(other.quote).some(sentence => literal(sentence).includes('i argue that ' + rationale)))) return true
     // Bounded negative-property rationale: the author's selected account must
     // explicitly state both the causal lack of assets and the jurisdictional
     // property statement. A connection, another speaker or a different province
@@ -102,12 +114,10 @@ function supportedNestedAttribution(prose: string, match: RegExpMatchArray, cita
     if (!property || !['he', 'she', speakers[1]].includes(property[3])) return false
     const [, subject, predicate, , jurisdiction] = property
     const causal = new RegExp('\\bsince i do not have any such assets, continuing with the (?:[\\p{L}-]+ )?' + escape(subject) + ' is ' + escape(predicate) + '\\b', 'u')
-    const unconditional = (sentence: string) => !deniedOrConditional.test(sentence) &&
-      !/[:"“”]|\b(?:false|untrue|incorrect|unconfirmed)\b/.test(sentence)
-    const causalAccount = normal(citation.quote).split(/(?<=[.!?;])\s+/).some(sentence => causal.test(sentence) && unconditional(sentence))
+    const causalAccount = assertions(citation.quote).some(sentence => causal.test(sentence))
     const ownership = new RegExp('\\bi do not own any property in ' + escape(jurisdiction) + '(?=$|[.;]|, and i\\b)')
     return causalAccount && new RegExp('\\b' + escape(jurisdiction) + '\\b').test(source) &&
-      selected.some(other => normal(other.quote).split(/(?<=[.!?;])\s+/).some(sentence => ownership.test(sentence) && unconditional(sentence)))
+      selected.some(other => assertions(other.quote).some(sentence => ownership.test(sentence)))
   })
 }
 

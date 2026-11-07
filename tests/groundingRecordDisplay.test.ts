@@ -4,10 +4,10 @@ import { describe, expect, it } from 'vitest'
 import { GroundingAudit } from '../src/components/GroundingAudit'
 import type { TrialRunView } from '../src/trialEngineTypes'
 
-function render(type = 'juror_deliberation_turn', includeRecord = true, invalid = false) {
+function render(type = 'juror_deliberation_turn', includeRecord = true, invalid = false, status = 'analysis') {
   const trial = { events: [
     { id: 'original-record-id', sequence: 3, type, actorId: 'juror-04', phase: 'instructions', payload: { text: 'Do not substitute this current payload for the saved audit quotation.' } },
-    { id: 'audit-event', sequence: 5, type: 'juror_deliberation_turn', actorId: 'juror-01', phase: 'deliberation_review', payload: {}, modelAudit: { grounding: { status: 'passed', repairs: 0, errors: [], validationErrors: invalid ? ['content:1: amount absent from selected passage.'] : [], findings: [{ unitId: 'content:1', status: 'analysis', text: 'I assess the supplied discussion.', explanation: 'Accurate attribution.', citations: [], ...(includeRecord ? { recordCitations: [{ eventId: 'original-record-id', actorId: 'juror-04', quote: 'Preserved quoted words <from the record>.' }] } : {}) }] } } },
+    { id: 'audit-event', sequence: 5, type: 'juror_deliberation_turn', actorId: 'juror-01', phase: 'deliberation_review', payload: {}, modelAudit: { grounding: { status: 'passed', repairs: 0, errors: [], validationErrors: invalid ? ['content:1: amount absent from selected passage.'] : [], findings: [{ unitId: 'content:1', status, text: 'I assess the supplied discussion.', explanation: 'Accurate attribution.', citations: [], ...(includeRecord ? { recordCitations: [{ eventId: 'original-record-id', actorId: 'juror-04', quote: 'Preserved quoted words <from the record>.' }] } : {}) }] } } },
   ] } as unknown as TrialRunView
   return renderToStaticMarkup(createElement(GroundingAudit, { trial, matterId: 'fictional-matter' }))
 }
@@ -28,6 +28,12 @@ describe('saved record citations in the grounding audit', () => {
     expect(html).toContain('failed validation')
     expect(html).toContain('amount absent from selected passage.')
     expect(html).not.toContain('<strong>analysis</strong>')
+  })
+  it('preserves a rejected checker judgment alongside validation errors', () => {
+    const html = render('juror_deliberation_turn', true, true, 'contradicted')
+    expect(html).toContain('<strong>contradicted</strong>')
+    expect(html).toContain('Accurate attribution.')
+    expect(html).toContain('amount absent from selected passage.')
   })
   it('keeps legacy audits with no record citations readable', () => {
     const html = render('juror_deliberation_turn', false)

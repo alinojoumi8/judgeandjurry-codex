@@ -143,7 +143,7 @@ describe('quotation repair fidelity', () => {
       const output = calls === 1 ? { title: '', content: draft, citations: ['E-001'], jurors: [] } : calls === 3 ? { repairs: [{ unitId: 'content:1', replacement: draft }] } : { findings: { 'content:1': finding } }
       return Response.json({ choices: [{ message: { content: JSON.stringify(output) } }] })
     })
-    await expect(client.generateStage({ stage: 'crown_opening', packet: '', previousTurns: '', evidence: [transcript], groundingRequired: true })).rejects.toThrow(/Source verification rejected/)
-    expect(calls).toBe(4)
+    await expect(client.generateStage({ stage: 'crown_opening', packet: '', previousTurns: '', evidence: [transcript], groundingRequired: true })).rejects.toMatchObject({ message: expect.stringContaining('unchanged'), grounding: { errors: expect.arrayContaining([expect.stringContaining('quotation')]) } })
+    expect(calls).toBe(3)
   })
 })

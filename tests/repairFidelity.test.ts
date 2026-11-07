@@ -39,6 +39,15 @@ describe('nested source arguments', () => {
     ['no causal support', nested, argument.replace('since I do not have any such assets', 'although I have assets'), property, heading],
     ['discredited quoted premise', nested, argument.replace('Second,', 'This false assertion is:'), property, heading],
   ])('rejects %s', (_label, text, source, ownership, identity) => expect(check(text, source, ownership, identity).status).toBe('failed'))
+  it.each([
+    ['I argue that the balance remains unresolved.', 'passed'],
+    ['It is false that I argue that the balance remains unresolved.', 'failed'],
+    ['If I argue that the balance remains unresolved, the issue changes.', 'failed'],
+    ['Moss says: "I argue that the balance remains unresolved."', 'failed'],
+    ['Moss says: "An earlier account. I argue that the balance remains unresolved. Another sentence."', 'failed'],
+  ])('checks an explicit argument without adopting quoted or qualified words: %s', (second, expected) => {
+    expect(check(nested.replace('the restraint is futile because Vale owns no Alder property', 'the balance remains unresolved'), argument, second).status).toBe(expected)
+  })
   it('requires both selected paragraphs rather than borrowing the body', () => expect(check(nested, argument, property, heading, [2]).status).toBe('failed'))
   it('keeps other unsupported premises in the same finding rejected', () => expect(check(nested + ' Its confirmation that all records were burned supports the argument (E-002).').status).toBe('failed'))
 })
