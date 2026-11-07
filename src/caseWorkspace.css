@@ -257,3 +257,8 @@
   .guided-workflow[data-area="Results"] .case-tools { float: none; margin: 0 0 12px; }
   .guided-workflow[data-area="Results"] .saved-proceeding { max-width: 100%; }
 }
+.preserved-pdf-controls { display: flex; align-items: center; flex-wrap: wrap; gap: .65rem; margin-block: .75rem; }
+.preserved-pdf-controls label { display: flex; align-items: center; gap: .4rem; }
+.preserved-pdf-page { max-width: 100%; overflow: auto; background: #eee; }
+.preserved-pdf-page canvas { display: block; max-width: none; background: white; }
+.preserved-pdf-page canvas[hidden] { display: none; }

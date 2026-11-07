@@ -17,13 +17,13 @@ export function GroundingAudit({ trial, matterId }: { trial: TrialRunView | null
         {(review?.verificationRetries ?? 0) > 0 && <p>The checker made {review?.verificationRetries} additional attempt(s). {review?.status === 'passed' ? 'The final check passed.' : 'The output remains withheld; see the errors below.'}</p>}
         {review?.citationCorrections?.map((correction, index) => <p key={index}>Located the unique verbatim quotation in {correction.exhibitId}, paragraph {correction.toParagraph}; corrected the checker’s paragraph {correction.fromParagraph ?? 'unknown'}.</p>)}
         {review?.priorFailures?.map((failure, index) => <div className="notice-card" key={index}><strong>Earlier draft rejected</strong>{failure.errors.map((error, i) => <p key={i}>{error}</p>)}</div>)}
-        {review?.findings.map((finding) => <article key={finding.unitId}><strong>{finding.status}</strong><p>{finding.text}</p><small>{finding.explanation}</small>{finding.citations.map((citation, index) => <blockquote key={index}><SourceReferenceButton matterId={matterId} source={{ evidenceId: trial?.recordCoverage?.sources.find((source) => source.exhibitId === citation.exhibitId)?.id, exhibitId: citation.exhibitId, attribution: 'source', status: 'located', quote: citation.quote, locator: { paragraph: citation.paragraph } }} /><p>{citation.quote}</p></blockquote>)}
+        {review?.findings.map((finding) => { const validationFailure = review.validationErrors?.find(error => error.startsWith(finding.unitId + ':')); return <article key={finding.unitId}><strong>{validationFailure ? 'failed validation' : finding.status}</strong><p>{finding.text}</p><small>{validationFailure ?? finding.explanation}</small>{finding.citations.map((citation, index) => <blockquote key={index}><SourceReferenceButton matterId={matterId} source={{ evidenceId: trial?.recordCoverage?.sources.find((source) => source.exhibitId === citation.exhibitId)?.id, exhibitId: citation.exhibitId, attribution: 'source', status: 'located', quote: citation.quote, locator: { paragraph: citation.paragraph } }} /><p>{citation.quote}</p></blockquote>)}
           {finding.recordCitations?.map((citation, index) => {
             const reference = trial?.events.find(candidate => candidate.id === citation.eventId)
             const label = reference && ['judicial_instruction', 'limiting_instruction'].includes(reference.type) ? 'Instruction' : 'Recorded contribution'
             return <blockquote key={`record-${index}`}><strong>{label}{reference ? ` #${reference.sequence}` : ''} · {citation.actorId ?? 'Recorded actor'}</strong><p>{citation.quote}</p><small>{citation.eventId} · Attribution or instruction, not independent factual evidence.</small></blockquote>
           })}
-        </article>)}
+        </article> })}
         {review?.errors.map((error, index) => <p role="status" key={index}>{error}</p>)}
       </details>
     })}</details>

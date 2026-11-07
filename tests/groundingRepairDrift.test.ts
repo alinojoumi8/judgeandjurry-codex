@@ -66,7 +66,7 @@ describe('grounding repairs preserve accepted text', () => {
   })
   it('does not auto-accept a patched premise', async () => {
     const { client } = harness({ repairs: [{ unitId: 'content:2', replacement: bad }] })
-    await expect(client.generateStage(request)).rejects.toMatchObject({ grounding: { status: 'failed', appliedRepairs: [{ unitId: 'content:2', before: bad, replacement: bad }] } })
+    await expect(client.generateStage(request)).rejects.toMatchObject({ message: expect.stringContaining('unchanged'), grounding: { status: 'failed', priorFailures: expect.any(Array) } })
   })
   it.each([
     { repairs: [{ unitId: 'content:1', replacement: 'Altered accepted premise.' }] },

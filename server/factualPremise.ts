@@ -32,13 +32,7 @@ function supportedCorrectionHistory(prose: string, match: RegExpMatchArray, cita
   const wording = (value: string) => premiseWording(value).replace(/acknowledgement/g, 'acknowledgment')
   const datePattern = /\b(?:january|february|march|april|may|june|july|august|september|october|november|december) \d{1,2}(?:,? \d{4})?\b/g
   return citations.some(citation => {
-    const fullSource = sources.find(source => source.exhibitId === citation.exhibitId)
-    if (!fullSource) return false
-    const introduction = normal(fullSource.text.slice(0, Math.min(citation.startOffset, 3000)))
-    const identities = [...introduction.matchAll(/\bi,\s*([\p{L} '-]+),[^.!?]{0,180}\bmake oath and say:/gu)].map(row => row[1].trim())
-    const named = introduction.match(/^(?:fictional )?([\p{L} '-]+) (?:states|says|reports):/u)?.[1]
-    if (named) identities.push(named)
-    if (identities.length !== 1 || ![identities[0], identities[0].split(' ').at(-1)].includes(attribution[1])) return false
+    if (!sourceSpeakerMatches(attribution[1], citation, sources)) return false
     const source = wording(citation.quote)
     const corrections = /\bi (?:incorrectly|mistakenly) (?:stated|said|reported|asserted) that ([^.!?;]+)[.!?]\s*(?:in (?:actual )?fact|actually),?\s*([^.!?;]+)/g
     return [...source.matchAll(corrections)].some(correction => {
@@ -79,6 +73,52 @@ function supportedCorrectionHistory(prose: string, match: RegExpMatchArray, cita
         actual === stated + ' and in the presence of various witnesses'
     })
   })
+}
+
+
+// A nested quotation reports the inner speaker's words and the outer author's
+// argument separately. Neither part can borrow another document's passages.
+function supportedNestedAttribution(prose: string, match: RegExpMatchArray, citations: GroundingCitation[], sources: { exhibitId: string; text: string }[]) {
+  const prefix = prose.slice(0, match.index).split(/[;.!?:]/).at(-1)?.trim() ?? ''
+  const speakers = prefix.match(/^([\p{L} '-]+) (?:asserts|states|reports) that ([\p{L} '-]+)'s$/u)
+  const parts = match[1].match(/^(.+?) ["“]([^"”]+)["”] and argues that (.+)$/)
+  if (!speakers || !parts) return false
+  const literal = (text: string) => normal(text).replace(/["“”]/g, '')
+  const escape = (text: string) => text.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+  return citations.some(citation => {
+    if (!sourceSpeakerMatches(speakers[1], citation, sources)) return false
+    const selected = citations.filter(other => other.exhibitId === citation.exhibitId)
+    const source = literal(citation.quote)
+    const reported = speakers[2] + "'s " + match[0].slice(0, match[0].indexOf(' that ')) + ' that ' + literal(parts[1]) + ' ' + literal(parts[2])
+    if (!source.split(/(?<=[.!?;])\s+/).some(sentence => sentence.includes(reported) &&
+      !deniedOrConditional.test(sentence) && !/\b(?:false|untrue|incorrect|hypothetical)\b/.test(sentence))) return false
+    const rationale = literal(parts[3])
+    if (selected.some(other => literal(other.quote).includes('i argue that ' + rationale))) return true
+    // Bounded negative-property rationale: the author's selected account must
+    // explicitly state both the causal lack of assets and the jurisdictional
+    // property statement. A connection, another speaker or a different province
+    // cannot supply that causal argument.
+    const property = rationale.match(/^the ([\p{L} -]+) is ([a-z]+) because (he|she|[\p{L} '-]+) (?:owns|has) no ([\p{L} -]+) property$/u)
+    if (!property || !['he', 'she', speakers[1]].includes(property[3])) return false
+    const [, subject, predicate, , jurisdiction] = property
+    const causal = new RegExp('\\bsince i do not have any such assets, continuing with the (?:[\\p{L}-]+ )?' + escape(subject) + ' is ' + escape(predicate) + '\\b', 'u')
+    const unconditional = (sentence: string) => !deniedOrConditional.test(sentence) &&
+      !/[:"“”]|\b(?:false|untrue|incorrect|unconfirmed)\b/.test(sentence)
+    const causalAccount = normal(citation.quote).split(/(?<=[.!?;])\s+/).some(sentence => causal.test(sentence) && unconditional(sentence))
+    const ownership = new RegExp('\\bi do not own any property in ' + escape(jurisdiction) + '(?=$|[.;]|, and i\\b)')
+    return causalAccount && new RegExp('\\b' + escape(jurisdiction) + '\\b').test(source) &&
+      selected.some(other => normal(other.quote).split(/(?<=[.!?;])\s+/).some(sentence => ownership.test(sentence) && unconditional(sentence)))
+  })
+}
+
+function sourceSpeakerMatches(speaker: string, citation: GroundingCitation, sources: { exhibitId: string; text: string }[]) {
+  const source = sources.find(item => item.exhibitId === citation.exhibitId)
+  if (!source) return false
+  const introduction = normal(source.text.slice(0, Math.min(citation.startOffset, 3000)))
+  const identities = [...introduction.matchAll(/\bi,\s*([\p{L} '-]+),.{0,600}?\bmake oath and say:/gu)].map(row => row[1].trim())
+  const named = introduction.match(/^(?:fictional )?([\p{L} '-]+) (?:states|says|reports):/u)?.[1]
+  if (named) identities.push(named)
+  return identities.length === 1 && [identities[0], identities[0].split(' ').at(-1)].includes(speaker)
 }
 
 // These constructions assert a source's contents even when the remainder only
@@ -124,7 +164,7 @@ export function factualPremiseError(text: string, citations: GroundingCitation[]
     if (peer && quoted && /^(?:the |this )?(?:report|account|statement|record|e-\d+) (?:does not|doesn't|cannot|can't) (?:resolve|settle|remove|answer) (?:my|our) (?:reasonable )?doubts?(?: about [\p{L}\d '-]+)?[.!?]?$/u.test(quoted) &&
       records.some(record => Number(record.actorId?.match(/^juror[- ]?0?(\d+)$/i)?.[1]) === Number(peer) && normal(record.quote).includes(quoted))) continue
     const selected = premiseCitations(prose, match.index!, match.index! + match[0].length, citations)
-    if (supportedCorrectionHistory(prose, match, selected, sources)) continue
+    if (supportedCorrectionHistory(prose, match, selected, sources) || supportedNestedAttribution(prose, match, selected, sources)) continue
     // Sentence boundaries may cut a quoted premise before its closing mark.
     // Quote delimiters are not spoken words; the separate quotation validator
     // still checks the complete quotation and its document attribution.

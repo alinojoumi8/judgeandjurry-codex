@@ -37,7 +37,7 @@ export function groundingPatchTargets(before: StageResult, review: GroundingRevi
 }
 
 export function groundingPatchInstructions(before: StageResult, review: GroundingReview) {
-  return `OUTPUT CONTRACT FOR THIS REPAIR: Return only {"repairs":[{"unitId":"exact rejected unit ID","replacement":"corrected text or empty string to remove it"}]}. Do not return a complete StageResult. Every repair must select one of these editable units, each at most once: ${JSON.stringify(groundingPatchTargets(before, review))}. sourceText is input only; write corrected text in replacement. Omitted units stay unchanged. Preserve accepted units verbatim: the server keeps their original bytes. Only a listed ballot-choice-N:1 target permits a structured leaning correction, using exactly crown, defence or mixed. Reconcile the intended current assessment under the supplied outcomes: a no-verdict choice is mixed, distinct from not-guilty/defence. You may correct the inconsistent words or the choice; never change an outcome merely to satisfy the checker. Identity, confidence and other metadata stay unchanged. All replacements will undergo a fresh source and whole-ballot check as part of the complete result.`
+  return `OUTPUT CONTRACT FOR THIS REPAIR: Return only {"repairs":[{"unitId":"exact rejected unit ID","replacement":"corrected text or empty string to remove it"}]}. Do not return a complete StageResult. Every repair must select one of these editable units, each at most once: ${JSON.stringify(groundingPatchTargets(before, review))}. sourceText is input only; write corrected text in replacement. An identical or whitespace-only replacement is not a repair and will be rejected before another checker call. If the selected passage cannot support the rejected claim, remove it with an empty replacement instead of repeating it. Omitted units stay unchanged. Preserve accepted units verbatim: the server keeps their original bytes. Only a listed ballot-choice-N:1 target permits a structured leaning correction, using exactly crown, defence or mixed. Reconcile the intended current assessment under the supplied outcomes: a no-verdict choice is mixed, distinct from not-guilty/defence. You may correct the inconsistent words or the choice; never change an outcome merely to satisfy the checker. Identity, confidence and other metadata stay unchanged. All replacements will undergo a fresh source and whole-ballot check as part of the complete result.`
 }
 
 // Paths are derived solely from our own field inventory, never model input.
@@ -75,6 +75,7 @@ export function applyGroundingPatch(before: StageResult, review: GroundingReview
     const span = spans.find(span => span.id === row.unitId)
     if (!span || ids.has(row.unitId)) throw new Error(`Repair selects an accepted, unknown or duplicate unit: ${row.unitId}.`)
     if (span.field.startsWith('ballot-choice-') && !['crown', 'defence', 'mixed'].includes(row.replacement)) throw new Error('Ballot choice repair requires exactly crown, defence or mixed.')
+    if (row.replacement.replace(/\s+/g, ' ').trim() === span.text.replace(/\s+/g, ' ').trim()) throw new Error('Repair leaves rejected unit unchanged: ' + row.unitId + '. Correct it using permitted support or remove it with an empty replacement.')
     ids.add(row.unitId)
     return { ...span, replacement: row.replacement }
   })
@@ -104,6 +105,12 @@ export function groundingRepairDrift(before: StageResult, after: StageResult, re
   const rejected = rejectedUnitIds(before, review)
   const errors: string[] = []
   const previous = new Map(groundingTextFields(before)), next = new Map(groundingTextFields(after))
+  const sameText = previous.size === next.size && [...previous].every(([field, value]) =>
+    value.replace(/\s+/g, ' ').trim() === next.get(field)?.replace(/\s+/g, ' ').trim())
+  const sameChoices = (before.jurors ?? []).length === (after.jurors ?? []).length &&
+    (before.jurors ?? []).every((juror, index) => juror.leaning === after.jurors?.[index]?.leaning)
+  if (sameText && sameChoices) errors.push('Repair fidelity: rejected draft is unchanged. Correct the failed units using permitted support or remove unsupported text.')
+
   for (const [index, juror] of (before.jurors ?? []).entries()) {
     if (juror.confidence !== after.jurors?.[index]?.confidence || juror.juror !== after.jurors?.[index]?.juror ||
         ![...rejected].some(id => id.startsWith(`ballot-consistency-${index}:`)) && juror.leaning !== after.jurors?.[index]?.leaning) {

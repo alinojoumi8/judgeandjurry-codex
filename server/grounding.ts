@@ -1991,6 +1991,7 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         }
       }
       if (status === 'supported' && !citations.length && !recordAttribution && !ownStateOnly && !instructionStateBound) invalid(`${unit.id}: factual support needs a verified source quotation.`)
+      let amountSupportFailure: string | undefined
       const sourceClauses = recordAttribution ? unit.text.split(/;\s*|(?<=[.!?])\s+/).filter(clause =>
         !(priorJuryClaim(clause) || priorPartyClaims(clause, proceduralSetup?.actorRoles).length) || adoptsReportedClaim(clause)) : unit.text.split(/(?<=[.!?])\s+/)
     if (['supported', 'analysis'].includes(status)) {
@@ -2006,7 +2007,7 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
       // against the actual selected structured instruction above.
       const amounts = instructionRequirement ? [] : dollarAmounts(recordAttribution ? unit.text : thresholds.factualText)
         const quotedAmounts = (recordAttribution ? recordCitations : citations).flatMap((citation) => dollarAmounts(citation.quote))
-      if (amounts.some((amount) => !quotedAmounts.includes(amount))) invalid(`${unit.id}: a stated dollar amount is not present in its supporting quotations; verify the amount and quote its source or mark the claim unsupported.`)
+      if (amounts.some((amount) => !quotedAmounts.includes(amount))) { amountSupportFailure = 'A stated dollar amount is absent from this unit’s selected source quotations. Remove the unsupported amount or select actual permitted support; another document or an analysis label cannot supply it.'; invalid(`${unit.id}: a stated dollar amount is not present in its supporting quotations; verify the amount and quote its source or mark the claim unsupported.`) }
     }
       if (status === 'analysis' && !recordAttribution && /\$[\d,]+/.test(unit.text) && /\b(received|transferred|accepted|paid|deposited|withdrew)\b/i.test(unit.text)) errors.push(`${unit.id}: a payment assertion requires factual source support, not an analysis label.`)
       const passages = recordAttribution && !sourceClauses.length ? recordCitations.map(c => c.quote) : citations.length ? citations.map(c => c.quote) : evidence.flatMap(item => sourceParagraphs(item).map(p => p.text))
@@ -2890,13 +2891,14 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         status = historyScopeFailure.status
         explanation = historyScopeFailure.explanation
       }
+      if (amountSupportFailure && (recordAttribution ? recordCitations.length : citations.length) && !['unsupported', 'contradicted'].includes(status)) { status = 'unsupported'; explanation = amountSupportFailure }
       const premiseError = ['analysis', 'supported'].includes(status) ? factualPremiseError(unit.text, citations, recordCitations, evidence) : undefined
       if (premiseError) { status = 'unsupported'; explanation = premiseError }
       const absenceError = ['analysis', 'supported'].includes(status) ? sourceAbsenceScopeError(sourceClauses.join('; '), citations, evidence, approvedContext) : undefined
       if (absenceError) { status = 'unsupported'; explanation = absenceError }
       const explanationReferences = checkerParagraphReferenceErrors(explanation, citations)
       if (explanationReferences.length) invalid(`${unit.id}: checker explanation paragraph reference is not a selected, verified locator: ${explanationReferences.join(', ')}. Select the actual supporting paragraph or omit the unchecked prose pointer; preserve the factual judgment and disputed speaker attribution.`)
-      if (status === 'unsupported' || status === 'contradicted') errors.push(`${unit.id}: ${status} — ${explanation || 'No valid source review was supplied.'}`)
+      if ((status === 'unsupported' || status === 'contradicted') && !(amountSupportFailure && explanation === amountSupportFailure)) errors.push(`${unit.id}: ${status} — ${explanation || 'No valid source review was supplied.'}`)
     findings.push({ unitId: unit.id, text: unit.text, status, explanation, ...(Array.isArray(row?.supportTypes) ? { supportTypes: row.supportTypes } : {}), citations, ...(recordCitations.length ? { recordCitations } : {}) })
   }
   // Scope rules can request a fresh checker judgment, but cannot replace an
@@ -2925,7 +2927,7 @@ export function groundingRepairInstructions(review: GroundingReview): string {
     'Do not insert a slash to represent a transcript line break. Remove printed line labels only as layout, preserve spoken words and punctuation, and never join across a question or speaker change without an explicit ellipsis. Do not introduce a new quotation merely to repair an unrelated amount or attribution; correct the rejected premise with the smallest supported edit, or use an explicitly unquoted faithful paraphrase.',
     'For a correspondence attribution mismatch, distinguish the report author’s summary from actual reproduced correspondence. Attribute a report summary to the report, preserving the actual quote and its limits; do not claim the correspondent wrote those words unless an explicitly attributed quotation or reproduced body supports it.',
     'For an unsupported pronoun or honorific, repeat the exact supplied name in the rejected clause. For a peer quotation, copy only from that named peer’s visible contribution words below; an exhibit cannot supply words to a peer. Keep a separate source quotation explicitly attributed to its own document. A quoted numeric label must also preserve its actual punctuation and words.',
-    ...review.findings.filter((finding) => finding.status === 'contradicted' || finding.status === 'unsupported').map((finding) => `Rejected unit ${finding.unitId}: ${finding.text}\nProblem: ${finding.explanation}\nSource passages: ${JSON.stringify(finding.citations)}\nVisible contribution words (attribution only): ${JSON.stringify(finding.recordCitations ?? [])}`),
+    ...review.findings.filter((finding) => finding.status === 'contradicted' || finding.status === 'unsupported' || review.errors.some(error => error.startsWith(finding.unitId + ':'))).map((finding) => `Rejected unit ${finding.unitId}: ${finding.text}\nProblem: ${finding.explanation}\nSource passages: ${JSON.stringify(finding.citations)}\nVisible contribution words (attribution only): ${JSON.stringify(finding.recordCitations ?? [])}`),
     ...review.errors,
   ].join('\n')
 }

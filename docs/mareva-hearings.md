@@ -102,3 +102,19 @@ qualifications. It does not establish that the corrected allegation is true.
 Wrong speakers, quoted third-party accounts, hypothetical corrections, reversed
 history and missing selected passages remain unsupported. A checker rejection
 still requires an independent review; this rule does not override it.
+
+## Repairs and original-page review
+
+A source repair must change or remove a rejected claim. Identical replacements,
+including whitespace-only changes, are withheld before another source review.
+Amount failures remain unsupported even when the model calls them supported;
+repair feedback includes their selected passages. Unsupported pronouns should
+be replaced with supplied names, and missing property or income support requires
+an actual permitted passage. Nested reported words and the source author's
+argument retain separate speaker and source checks.
+
+Original PDFs render locally with page navigation and zoom, including in
+browsers without an embedded PDF viewer. Download still returns the preserved
+original bytes. Loading and rendering failures have an explicit retry and
+download fallback; the extracted-text view remains separate. PDF rendering does
+not authenticate signatures or convert OCR into a verified transcript.

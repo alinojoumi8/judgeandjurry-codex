@@ -190,7 +190,7 @@ export class MiniMaxClient implements ModelClient {
           if (rejectedDraft) {
             const errors = groundingRepairDrift(rejectedDraft.result, result, rejectedDraft.review)
             if (errors.length) {
-              const error = new ModelProviderError('Source repair changed accepted text. See its factual-check audit.', { retryable: false })
+              const error = new ModelProviderError('Source repair failed its edit boundary. See its factual-check audit.', { retryable: false })
               error.grounding = { status: 'failed', method: 'source-quotes-and-model-review', repairs: priorFailures.length, priorFailures: [...priorFailures], errors,
                 findings: groundingUnits(result).map(unit => ({ unitId: unit.id, text: unit.text, status: 'unsupported', explanation: 'This changed repair was withheld before a new source review because it altered protected text.', citations: [] })) }
               throw error
@@ -667,7 +667,7 @@ export class MiniMaxClient implements ModelClient {
     const engineDirected = Boolean(request.verdictOutcomes?.length)
     const verdictVocabulary = engineDirected ? request.verdictOutcomes : template?.outcomeLabels
     const roleInstruction = request.civilMotionHearing
-      ? 'Civil documentary motion role. Act only for the supplied participant and hearing stage. Follow the approved motion framework and issue-specific burdens. Use the actual visible submissions of the other side; do not invent an opposing argument. The judge gives a reasoned injunction disposition, with no jury voting rule or final determination of civil liability.'
+      ? 'Civil documentary motion role. Act only for the supplied participant and hearing stage. Follow the approved motion framework and issue-specific burdens. Use the actual visible submissions of the other side; do not invent an opposing argument. The judge gives a reasoned injunction disposition, with no jury voting rule or final determination of civil liability. Source wording: in unquoted paraphrases repeat the supplied person’s name instead of adding he, she, his or her to first-person testimony. Cite the exact passage for each property, income or asset claim. An amount described in omitted pages or another document does not belong to the cited extract; omit it unless its actual permitted supporting passage is selected. Separate a reported quotation from the source author’s argument with individually cited sentences; preserve both speakers and every qualification.'
       : courtroomOpening
       ? 'Crown opening role. Present a source-supported roadmap of the supplied case, distinguishing supplied party positions from evidence and proof gaps. Do not invent pleaded allegations, chronology, transaction participation, corroboration, or promised later evidence.'
         : isScopeRuling

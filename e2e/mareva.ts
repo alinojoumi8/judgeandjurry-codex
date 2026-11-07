@@ -1,6 +1,6 @@
 // Fictional application plumbing only. No external model or real case material.
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { chromium } from 'playwright'
@@ -19,6 +19,29 @@ Object.assign(process.env, {
   CORPUS_STORAGE_DIR: join(root, 'blobs'), CORPUS_PREVIEW_DIR: join(root, 'previews'), UPLOAD_TMP_DIR: join(root, 'uploads'), LOG_ENABLED: '0', HOST: '127.0.0.1',
 })
 delete process.env.API_RATE_LIMIT_PER_MINUTE
+
+function fictionalPdf() {
+  const content = (label: string) => 'BT /F1 18 Tf 20 140 Td (' + label + ') Tj ET'
+  const first = content('FICTIONAL ORIGINAL - PAGE ONE'), second = content('FICTIONAL ORIGINAL - PAGE TWO')
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 200] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R >>',
+    '<< /Length ' + first.length + ' >>\nstream\n' + first + '\nendstream',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 200] /Resources << /Font << /F1 7 0 R >> >> /Contents 6 0 R >>',
+    '<< /Length ' + second.length + ' >>\nstream\n' + second + '\nendstream',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ]
+  let pdf = '%PDF-1.4\n'
+  const offsets = [0]
+  for (const [index, object] of objects.entries()) { offsets.push(pdf.length); pdf += (index + 1) + ' 0 obj\n' + object + '\nendobj\n' }
+  const start = pdf.length
+  pdf += 'xref\n0 8\n0000000000 65535 f \n' + offsets.slice(1).map(offset => String(offset).padStart(10, '0') + ' 00000 n \n').join('')
+  pdf += 'trailer\n<< /Size 8 /Root 1 0 R >>\nstartxref\n' + start + '\n%%EOF'
+  return Buffer.from(pdf)
+}
+const originalPdf = fictionalPdf()
+
 let calls = 0
 const actor: ModelClient = { generateStage: async request => {
   calls++
@@ -61,7 +84,7 @@ try {
   await page.getByLabel('Upload case documents').setInputFiles([
     ['01-order.txt', 'The fictional order preserves the Cedar account.'], ['02-moving.txt', 'Cedar requests a limited living-expense exception.'],
     ['03-response.txt', 'Northbank opposes unlimited withdrawals.'], ['04-law.txt', 'FICTIONAL LEGAL TEST: preserve the account while permitting a supported narrow exception.'],
-  ].map(([name, text]) => ({ name, mimeType: 'text/plain', buffer: Buffer.from(text) })))
+  ].map(([name, text]) => ({ name, mimeType: 'text/plain', buffer: Buffer.from(text) })).concat([{ name: '05-original.pdf', mimeType: 'application/pdf', buffer: originalPdf }]))
   await page.getByText('01-order.txt', { exact: true }).first().waitFor()
   await page.getByRole('button', { name: /Review case/ }).click()
   await page.getByLabel('Procedure adapter').selectOption('ontario_civil_v1')
@@ -109,6 +132,33 @@ try {
   await dialog.getByText('The fictional order preserves the Cedar account.', { exact: true }).last().waitFor()
   await page.keyboard.press('Escape')
   check('the ruling opens the exact preserved source passage')
+
+  await navigate('Documents', 'Documents')
+  await page.getByRole('button', { name: 'View E-005', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Original document', exact: true }).click()
+  const pdfCanvas = dialog.getByRole('img', { name: 'Preserved PDF page 1 of 2', exact: true })
+  await pdfCanvas.waitFor({ state: 'visible' })
+  const darkPixels = await pdfCanvas.evaluate(element => {
+    const canvas = element as HTMLCanvasElement
+    const pixels = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data
+    let dark = 0
+    for (let index = 0; index < pixels.length; index += 4) if (pixels[index + 3] && pixels[index] < 200) dark++
+    return dark
+  })
+  assert(darkPixels > 20, 'Original PDF must render actual visible page pixels')
+  assert(await dialog.getByRole('button', { name: 'Previous page', exact: true }).isDisabled())
+  await dialog.getByRole('button', { name: 'Next page', exact: true }).click()
+  await dialog.getByRole('img', { name: 'Preserved PDF page 2 of 2', exact: true }).waitFor({ state: 'visible' })
+  assert(await dialog.getByRole('button', { name: 'Next page', exact: true }).isDisabled())
+  await dialog.getByLabel('PDF zoom', { exact: true }).selectOption('2')
+  await page.waitForFunction(() => document.querySelector<HTMLCanvasElement>('.preserved-pdf canvas')?.width === 800)
+  const originalDownload = page.waitForEvent('download')
+  await dialog.getByRole('button', { name: 'Download preserved original', exact: true }).click()
+  const downloadedPdf = await (await originalDownload).path(); assert(downloadedPdf)
+  assert.deepEqual(readFileSync(downloadedPdf), originalPdf)
+  await page.keyboard.press('Escape')
+  check('local PDF canvas renders original bytes with page navigation, zoom and exact original download')
+
   await page.reload()
   await navigate('Results', 'Decision')
   await page.getByRole('heading', { name: 'Injunction varied', exact: true }).waitFor()
