@@ -7,7 +7,10 @@ describe('MiniMax quota classification without credential or network access',()=
   [403,JSON.stringify({base_resp:{status_code:'2056'}})],
   [402,JSON.stringify({error:{message:'Insufficient account funds'}})],
   [429,'Monthly usage quota exhausted'],
+  [402,JSON.stringify({type:'error',error:{type:'insufficient_balance_error',message:'The Token Plan usage limit has been reached. To avoid interruption, please upgrade your plan or buy credits and turn on auto consumption. (2067)',http_code:'402'}})],
+  [402,JSON.stringify({error:{type:'insufficient_balance_error',message:'The account has no remaining credits.'}})],
   [429,'Weekly quota exceeded'],
+  [402,'The Token Plan usage limit has been reached. (2067)'],
  ])('recognizes a real quota stop (%s,%s)',(status,raw)=>expect(isMiniMaxQuotaExhaustion(status as number,raw as string)).toBe(true))
  it.each([
   [429,JSON.stringify({error:{type:'rate_limit_error',message:'Requests per minute limit exceeded'}})],
@@ -15,6 +18,7 @@ describe('MiniMax quota classification without credential or network access',()=
   [429,'Rate limit, retry in 10 seconds'],
   [429,'Quota exceeded; try again shortly'],
   [401,'Token Plan usage limit reached'],
+  [401,JSON.stringify({error:{type:'insufficient_balance_error',message:'Authentication required.'}})],
   [500,'Token Plan usage limit reached'],
   [200,JSON.stringify({error:{code:2056}})],
   [429,JSON.stringify({error:{message:123,request_id:'2056'}})],

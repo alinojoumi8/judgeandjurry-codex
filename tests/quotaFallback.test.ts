@@ -23,6 +23,13 @@ describe('quota-only OpenCode fallback',()=>{
   try{await client.generateStage(request);throw new Error('Unexpected success')}catch(error){expect(error).toBeInstanceOf(ModelProviderError);const e=error as ModelProviderError;expect(e.message).toContain('OpenCode');expect(e.providerCalls?.map(c=>[c.provider,c.status])).toEqual([['minimax',429],['opencode',status]])}
  })
 
+ it('falls back on the captured HTTP 402 Token Plan 2067 exhaustion',async()=>{
+  const routes:string[]=[]
+  const client=new MiniMaxClient(cfg(),undefined,async url=>{routes.push(String(url));return routes.length===1?Response.json({type:'error',error:{type:'insufficient_balance_error',message:'The Token Plan usage limit has been reached. (2067)',http_code:'402'}},{status:402}):ok()})
+  const result=await client.generateStage(request)
+  expect(routes).toHaveLength(2);expect(routes[1]).toContain('opencode.ai/inference/go/')
+  expect(result.providerCalls?.map(c=>[c.provider,c.status])).toEqual([['minimax',402],['opencode',200]])
+ })
  it('uses the same payload, timeout, output cap and budget fetcher with distinct credentials',async()=>{
   vi.stubEnv('MODEL_MAX_OUTPUT_TOKENS','200');const calls:Array<{url:string;init:RequestInit;body:any}>=[]
   const logger=noopLogger(),logs:unknown[]=[];vi.spyOn(logger,'info').mockImplementation((...args)=>{logs.push(args)});vi.spyOn(logger,'warn').mockImplementation((...args)=>{logs.push(args)})
