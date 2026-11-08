@@ -91,8 +91,8 @@ describe('complete checker rows before judgments', () => {
     const rejected = { status: 'unsupported', explanation: 'No selected source records this receipt.', citations: [], recordCitations: [] }
     const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fixture', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 1000, maxRetries: 1 }, undefined, async (_url, init) => {
       bodies.push(JSON.parse(String(init?.body)))
-      const findings = bodies.length === 1 ? { 'content:1': supported, 'content:2': rejected } : [{ unitId: 'content:1', ...supported }, { unitId: 'content:2', ...rejected, supportTypes: ['source'] }]
-      return Response.json({ choices: [{ message: { content: JSON.stringify({ findings }) } }] })
+      const data = bodies.length === 1 ? { findings: { 'content:1': supported, 'content:2': rejected } } : { unitId: 'content:2', ...rejected, supportTypes: ['source'] }
+      return Response.json({ choices: [{ message: { content: JSON.stringify(data) } }] })
     })
     const review = await client.reviewGrounding({ ...request, courtroomEvents: [] }, { title: '', content: 'E-001 labels contributors as “Reviewed Contributors” (E-001). Arin received a payment.', citations: ['E-001'], jurors: [] })
     expect(bodies).toHaveLength(2)
@@ -102,8 +102,10 @@ describe('complete checker rows before judgments', () => {
     expect(review.findings[1].supportTypes).toEqual(['source'])
     expect(review.verificationFailures?.[0].findings?.[1].supportTypes).toBeUndefined()
     const fields = Object.keys(bodies[1].tools[0].function.parameters.properties)
-    expect(fields).toEqual(['findings'])
-    expect(bodies[0].messages[1].content.split('Draft units to check:\n')[1]).toBe(bodies[1].messages[1].content.split('Draft units to check:\n')[1])
+    expect(fields).toEqual(['unitId', 'recordCitations', 'citations', 'supportTypes', 'status', 'explanation'])
+    expect(JSON.parse(bodies[1].messages[1].content.split('Draft units to check:\n')[1]).map((unit: any) => unit.id)).toEqual(['content:2'])
+    expect(bodies[1].messages[1].content).toContain('Complete unchanged draft for context only')
+    expect(review.findings[0].explanation).toBe(supported.explanation)
   })
 })
 
