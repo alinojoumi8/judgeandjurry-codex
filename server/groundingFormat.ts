@@ -9,14 +9,14 @@ export const groundingSourceUseContract = 'Application coverage and omitted-file
 
 export function checkerCorrectionFeedback(units: GroundingUnit[], review: GroundingReview, arrayFindings = false, singleFinding = false): string {
   const rows = units.map(unit => ({ unitId: unit.id, recordCitations: [], citations: [], supportTypes: [unit.kind ? 'coherence' : 'analysis'], status: 'unsupported', explanation: 'Replace with one short independent assessment.' }))
-  const skeleton = singleFinding ? { unitId: rows[0].unitId, recordCitations: rows[0].recordCitations, citations: rows[0].citations, supportTypes: rows[0].supportTypes, status: rows[0].status, explanation: rows[0].explanation } : { findings: arrayFindings ? rows : Object.fromEntries(rows.map(({ unitId, ...row }) => [unitId, row])) }
+  const skeleton = singleFinding ? { unitId: rows[0].unitId, recordCitations: JSON.stringify(rows[0].recordCitations), citations: rows[0].citations, supportTypes: rows[0].supportTypes, status: rows[0].status, explanation: rows[0].explanation } : { findings: arrayFindings ? rows : Object.fromEntries(rows.map(({ unitId, ...row }) => [unitId, row])) }
   const selected = Object.fromEntries(review.findings.map(f => [f.unitId, f.citations.map(c => ({ exhibitId: c.exhibitId, paragraph: c.paragraph }))]))
   const itemErrors = review.findings.flatMap(finding => Array.isArray(finding.supportTypes) ? finding.supportTypes.flatMap((value, index) => {
     if (typeof value === 'string') return []
     const kind = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value
     return [`${finding.unitId}.supportTypes[${index}] must be a literal allowed JSON string; received ${kind}. Independently reassess the support domains for the SAME draft. Do not convert an object key into a domain, remove an item to hide its failure, or supply a default.`]
   }) : [])
-  return `Your previous verification failed deterministic validation. Re-check the SAME draft units against the actual sources; prior judgments are not evidence. Preserve every substantive rejection. ${groundingSupportTypesContract} ${groundingSourceUseContract}${itemErrors.length ? `\nInvalid supportTypes array items:\n${itemErrors.join('\n')}` : ''}\n${review.errors.join('\n')}\nRequired finding slots as a complete JSON skeleton (replace statuses, support domains and explanations independently): ${JSON.stringify(skeleton)}\n${singleFinding ? 'Return one complete finding object in this order: unitId, recordCitations, citations, supportTypes, status and explanation, without a findings wrapper or array. Independently select record references first and explicitly return [] when none apply. An omitted recordCitations field is not an empty selection; never copy a skeleton value without checking the supplied record.' : arrayFindings ? 'Use a flat findings array. Each row has unitId and exactly the five finding fields; no duplicate IDs, root-level rows, omitted rows, continuation fragments or prose.' : 'Use exactly the five row fields inside findings; no root-level rows, inner unitId, omitted rows, continuation fragments or prose.'} Keep each explanation to one short sentence. Do not put paragraph numbers in explanation; structured citations already carry the exact paragraph. Do not copy erroneous paragraph numbers from feedback. Previously resolved selectors (not a judgment or new evidence): ${JSON.stringify(selected)}. Select actual supporting passages independently; never invent or remap a paragraph. Locator shape examples only: {"citations":[{"exhibitId":"COPY actual exhibit","paragraph":1}],"recordCitations":[{"eventId":"COPY actual visible reference"}]}. The example values are not selectors; use only actual supplied references, and [] if none apply. Each locator entry must be an object, never a string. Use analysis for valid non-source domains, not supported. JSON or paragraph correction must not reverse a factual rejection just to pass.`
+  return `Your previous verification failed deterministic validation. Re-check the SAME draft units against the actual sources; prior judgments are not evidence. Preserve every substantive rejection. ${groundingSupportTypesContract} ${groundingSourceUseContract}${itemErrors.length ? `\nInvalid supportTypes array items:\n${itemErrors.join('\n')}` : ''}\n${review.errors.join('\n')}\nRequired finding slots as a complete JSON skeleton (replace statuses, support domains and explanations independently): ${JSON.stringify(skeleton)}\n${singleFinding ? 'Return one complete finding object in this order: unitId, recordCitations, citations, supportTypes, status and explanation, without a findings wrapper or array. Independently select record references first and return recordCitations as a JSON-encoded array string, including the literal string "[]" when none apply; other array fields remain arrays. An omitted recordCitations field is not an empty selection; never copy a skeleton value without checking the supplied record.' : arrayFindings ? 'Use a flat findings array. Each row has unitId and exactly the five finding fields; no duplicate IDs, root-level rows, omitted rows, continuation fragments or prose.' : 'Use exactly the five row fields inside findings; no root-level rows, inner unitId, omitted rows, continuation fragments or prose.'} Keep each explanation to one short sentence. Do not put paragraph numbers in explanation; structured citations already carry the exact paragraph. Do not copy erroneous paragraph numbers from feedback. Previously resolved selectors (not a judgment or new evidence): ${JSON.stringify(selected)}. Select actual supporting passages independently; never invent or remap a paragraph. Locator shape examples only: {"citations":[{"exhibitId":"COPY actual exhibit","paragraph":1}],"recordCitations":[{"eventId":"COPY actual visible reference"}]}. The example values are not selectors; use only actual supplied references, and [] if none apply. Each locator entry must be an object, never a string. Use analysis for valid non-source domains, not supported. JSON or paragraph correction must not reverse a factual rejection just to pass.`
 }
 
 export function checkerSchemaFailure(review: GroundingReview): boolean {
@@ -176,16 +176,14 @@ export function groundingSingleTool(units: GroundingUnit[], references: { record
   // are still model output, never defaults inferred from the reference inventory.
   const properties = {
     unitId: row.properties.unitId,
-    recordCitations: { ...row.properties.recordCitations, description: 'Required even when empty. ' + (references.records.length
-      ? 'Select only actual supporting visible references; explicitly return [] if none support this claim.'
-      : 'No visible record references are available; explicitly return [].') + ' An omitted field is not an empty selection. Never use null or a string.' },
+    recordCitations: { type: 'string', description: 'Required JSON-encoded array of independently selected record locator objects. Return the literal string "[]" when no visible record supports this claim. For a selection encode [{"eventId":"actual supplied reference"}]. Never omit the field or use an empty string, null, a default, or an invented reference. Allowed references: ' + JSON.stringify(references.records) },
     citations: row.properties.citations,
     supportTypes: row.properties.supportTypes,
     status: row.properties.status,
     explanation: row.properties.explanation,
   }
   return { ...tool, function: { ...tool.function,
-    description: 'Return one complete finding object as tool arguments in this order: unitId, recordCitations, citations, supportTypes, status and explanation. Independently select record references first, explicitly including [] when none apply. Do not wrap it in findings or omit fields.',
+    description: 'Return one complete finding object as tool arguments in this order: unitId, recordCitations, citations, supportTypes, status and explanation. Independently select record references first, encoding the array as a JSON string, explicitly including the string "[]" when none apply. Other array fields remain arrays. Do not wrap it in findings or omit fields.',
     parameters: { ...row, required: Object.keys(properties), properties },
   } }
 }
@@ -194,6 +192,13 @@ export function groundingSingleContent(content: string): string {
   const data = JSON.parse(content)
   if (data && typeof data === 'object' && !Array.isArray(data) && !Object.hasOwn(data, 'findings') && typeof data.unitId === 'string') {
     const { unitId, ...finding } = data
+    // Decode only an explicit model selection. Missing fields remain missing;
+    // the full review parser validates every locator and permitted reference.
+    if (typeof finding.recordCitations === 'string') {
+      const selected = JSON.parse(finding.recordCitations)
+      if (!Array.isArray(selected)) throw new Error('recordCitations must encode a JSON array of record locators.')
+      finding.recordCitations = selected
+    }
     return JSON.stringify({ findings: { [unitId]: finding } })
   }
   // Complete historical representations still undergo the same strict keyed

@@ -186,3 +186,5 @@ review tool. They convey no judgment. Tool arguments remain unchanged and still
 need every required field; substantive prose and competing JSON remain rejected.
 
 Checker corrections can target known missing fields in an exact finding inventory. Other raw rows remain unchanged and the combined review is fully revalidated; missing values are never inferred. Procedural acknowledgements accept bounded source/record wording, while substantive prose and competing output remain rejected.
+
+Single-finding checker corrections transport `recordCitations` as an explicit JSON-encoded array string (including `"[]"` when the model selects no record). The decoder never supplies an omitted selection. Full locator authorization and source checks still run on the decoded array; saved reviews and historical record arrays remain unchanged.
