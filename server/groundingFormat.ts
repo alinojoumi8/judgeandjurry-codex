@@ -68,7 +68,21 @@ export function groundingTool(units: GroundingUnit[], references?: { records: st
 export function groundingCorrectionUnits(units: GroundingUnit[], review: GroundingReview, content: string): GroundingUnit[] {
   try {
     const data = JSON.parse(content)
-    if (!completeKeyedFindings(data, units) || !review.errors.length ||
+    if (!completeKeyedFindings(data, units) || !review.errors.length) return units
+    // A complete inventory with missing fields in accepted rows can be corrected
+    // without asking the model to regenerate every other raw assessment.
+    const missing = units.filter(unit => review.errors.some(error =>
+      ['status', 'supportTypes', 'explanation', 'citations', 'recordCitations'].some(field =>
+        error === `${unit.id}.${field} is required; return an independently assessed value.`)))
+    if (missing.length && missing.every(unit => {
+      const row = data.findings[unit.id] as Record<string, unknown> | null
+      return row && (row.status === 'analysis' || row.status === 'supported')
+    }) && review.errors.every(error =>
+      error === 'The checker returned an invalid keyed findings schema. Preserve each required key and all five finding fields.' ||
+      error === `Malformed finding rows: ${JSON.stringify(missing.map(unit => unit.id))}. Include exactly status, supportTypes, explanation, citations and recordCitations, with nonempty explanation and valid selectors.` ||
+      missing.some(unit => ['status', 'supportTypes', 'explanation', 'citations', 'recordCitations'].some(field =>
+        error === `${unit.id}.${field} is required; return an independently assessed value.`)))) return missing
+    if (
       review.errors.some(error => !units.some(unit => error.startsWith(unit.id + ':')))) return units
     const failed = units.filter(unit => review.errors.some(error => error.startsWith(unit.id + ':')))
     return failed.length ? failed : units
@@ -219,7 +233,7 @@ export function groundingToolContent(message: { content?: string | null; tool_ca
   const call = message.tool_calls[0]
   const preamble = message.content?.trim().replaceAll('’', "'").toLowerCase()
   const neutral = expectedName === groundingToolName && Boolean(preamble && (neutralCheckerAcknowledgements.has(preamble) ||
-    /^i(?:'ll| will) audit each (?:supplied )?unit(?: now| against the (?:supplied|permitted|actual) (?:sources|record))\.$/.test(preamble)))
+    /^i(?:'ll| will) audit each (?:supplied )?unit(?: now| against the (?:(?:actual )?supplied|permitted|actual) (?:sources|source record|record))\.$/.test(preamble)))
   if (call?.type !== 'function' || call.function?.name !== expectedName || typeof call.function.arguments !== 'string' || preamble && !neutral) {
     throw new Error(`Expected only the named ${expectedName} tool arguments, without competing message content.`)
   }

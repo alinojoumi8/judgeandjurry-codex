@@ -184,3 +184,5 @@ The two captured procedural acknowledgements about auditing permitted sources
 and record, or auditing before recording findings, may accompany the single named
 review tool. They convey no judgment. Tool arguments remain unchanged and still
 need every required field; substantive prose and competing JSON remain rejected.
+
+Checker corrections can target known missing fields in an exact finding inventory. Other raw rows remain unchanged and the combined review is fully revalidated; missing values are never inferred. Procedural acknowledgements accept bounded source/record wording, while substantive prose and competing output remain rejected.
