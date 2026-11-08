@@ -144,12 +144,14 @@ export function groundingCorrectionContent(content: string): string {
 // A scalar transport avoids provider XML-to-tool conversion splitting nested
 // arrays/objects into $text/item fragments. Decode only explicit model output;
 // do not rebuild fragmented rows, infer IDs, or fill absent selections.
-export function groundingSerializedTool(units: GroundingUnit[]) {
+export const groundingSerializedContract = 'Output channel: call record_grounding_review exactly once and supply only reviewJson, a JSON-encoded string containing the complete independently assessed review. The finding contract above applies INSIDE that string. Leave assistant message content empty. Do not place findings, IDs, assessment fields or locator fragments beside reviewJson. Include every required inner field explicitly; never fill defaults or infer omitted values.'
+
+export function groundingSerializedTool(units: GroundingUnit[], references?: { records: string[]; exhibits: string[]; peerRecords?: Record<string, string[]> }) {
   return { type: 'function', function: {
     name: groundingToolName,
-    description: 'Deliver the complete independent review as a JSON-encoded string in reviewJson. Do not expose nested finding objects as tool parameters.',
+    description: groundingSerializedContract,
     parameters: { type: 'object', additionalProperties: false, required: ['reviewJson'], properties: {
-      reviewJson: { type: 'string', description: `A complete JSON object obeying the inner response contract for these exact IDs: ${JSON.stringify(units.map(unit => unit.id))}. Include every field and locator object explicitly. Encode the whole object as a string; no prose or fragments.` },
+      reviewJson: { type: 'string', description: `A complete JSON object obeying the inner response contract for these exact IDs: ${JSON.stringify(units.map(unit => unit.id))}. Include every field and locator object explicitly. Encode the whole object as a string; no prose or fragments. Allowed selector inventories (locators only, not support judgments): ${JSON.stringify(references ?? null)}.` },
     } },
   } }
 }

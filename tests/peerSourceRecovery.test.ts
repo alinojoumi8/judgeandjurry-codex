@@ -55,8 +55,9 @@ describe('source/peer attribution recovery', () => {
     const review = await client.reviewGrounding(request, { title: '', content: text, citations: ['E-001'], jurors: [] })
     expect(bodies).toHaveLength(2)
     expect(review.status).toBe('passed')
-    const properties = bodies[0].tools[0].function.parameters.properties.findings.properties['content:1'].properties
-    expect(properties.recordCitations.items.properties.eventId.enum).toEqual(['record:1', 'record:3'])
+    const schema = bodies[0].tools[0].function.parameters
+    expect(schema.required).toEqual(['reviewJson'])
+    expect(schema.properties.reviewJson.description).toContain('"peerRecords":{"content:1":["record:1","record:3"]}')
     for (const body of bodies) {
       expect(body.messages[1].content).toContain('Named-peer reference candidates by unit')
       expect(body.messages[1].content).toContain('"reference":"record:3","actorId":"juror-08"')
@@ -102,7 +103,7 @@ describe('complete checker rows before judgments', () => {
     expect(review.findings[1].supportTypes).toEqual(['source'])
     expect(review.verificationFailures?.[0].findings?.[1].supportTypes).toBeUndefined()
     const fields = Object.keys(bodies[1].tools[0].function.parameters.properties)
-    expect(fields).toEqual(['unitId', 'recordCitations', 'citations', 'supportTypes', 'status', 'explanation'])
+    expect(fields).toEqual(['reviewJson'])
     expect(JSON.parse(bodies[1].messages[1].content.split('Draft units to check:\n')[1]).map((unit: any) => unit.id)).toEqual(['content:2'])
     expect(bodies[1].messages[1].content).toContain('Complete unchanged draft for context only')
     expect(review.findings[0].explanation).toBe(supported.explanation)

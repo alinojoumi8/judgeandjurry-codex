@@ -25,8 +25,8 @@ describe('scoped checker correction after a semantic recheck', () => {
       expect(bodies).toHaveLength(2)
       expect(review.status).toBe(mode === 'complete' ? 'passed' : 'failed')
       const schema = bodies[1].tools[0].function.parameters
-      expect(schema.required).toEqual(['unitId', 'recordCitations', 'citations', 'supportTypes', 'status', 'explanation'])
-      expect(schema.properties.unitId.enum).toEqual(['content:1'])
+      expect(schema.required).toEqual(['reviewJson'])
+      expect(schema.properties.reviewJson.description).toContain('["content:1"]')
       expect(bodies[1].messages[1].content).toContain('Return one complete finding object')
       expect(bodies[1].messages[1].content).not.toContain('findings is an object keyed')
       expect(JSON.parse(bodies[1].messages[1].content.split('Draft units to check:\n')[1]).map((unit: any) => unit.id)).toEqual(['content:1'])

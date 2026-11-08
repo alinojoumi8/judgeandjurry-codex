@@ -28,7 +28,7 @@ describe('bounded correction of one classification among a complete review', () 
     const { client, bodies } = clientWith(body => {
       const selected = JSON.parse(body.messages[1].content.split('Draft units to check:\n')[1])
       expect(selected.map((unit: any) => unit.id)).toEqual([targetId])
-      expect(body.tools[0].function.parameters.required).toEqual(['unitId', 'recordCitations', 'citations', 'supportTypes', 'status', 'explanation'])
+      expect(body.tools[0].function.parameters.required).toEqual(['reviewJson'])
       expect(body.messages[1].content).toContain('Complete unchanged draft for context only')
       expect(body.messages[1].content).toContain(units.at(-1)!.id)
       expect(body.messages[1].content).toContain(coverage)
@@ -124,7 +124,7 @@ describe('raw finding retention and correction inventory', () => {
     const client = new MiniMaxClient(config, undefined, async (_url, init) => {
       const body = JSON.parse(String(init?.body)); bodies.push(body)
       if (bodies.length === 1) return response(data)
-      expect(body.tools[0].function.parameters.properties.findings.minItems).toBe(2)
+      expect(body.tools[0].function.parameters.properties.reviewJson.description).toContain(JSON.stringify(['content:1', targetId]))
       const requested = JSON.parse(body.messages[1].content.split('Draft units to check:\n')[1])
       expect(requested.map((unit: any) => unit.id)).toEqual(['content:1', targetId])
       return response({ findings: requested.map((unit: any) => ({ unitId: unit.id, ...(unit.id === targetId ? sourceUse : assessment) })) })

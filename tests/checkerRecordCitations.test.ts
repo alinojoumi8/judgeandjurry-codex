@@ -40,7 +40,7 @@ describe('explicit record-selection step in a single-unit correction', () => {
     const review = await client.reviewGrounding({ stage: 'crown_opening', packet: '', previousTurns: '', evidence: [] }, { title: '', content: units[0].text, citations: [], jurors: [] })
     expect(bodies).toHaveLength(2)
     expect(review.status).toBe(['explicit-empty', 'string'].includes(outcome) ? 'passed' : 'failed')
-    expect(bodies[1].tools[0].function.parameters.required).toEqual(['unitId', 'recordCitations', 'citations', 'supportTypes', 'status', 'explanation'])
+    expect(bodies[1].tools[0].function.parameters.required).toEqual(['reviewJson'])
     expect(bodies[0].messages[1].content.split('Draft units to check:\n')[1]).toBe(bodies[1].messages[1].content.split('Draft units to check:\n')[1])
     if (outcome === 'missing') expect(JSON.parse(groundingSingleContent(JSON.stringify(correction))).findings['content:1']).not.toHaveProperty('recordCitations')
   })

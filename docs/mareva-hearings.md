@@ -190,6 +190,16 @@ Checker corrections can target known missing fields in an exact finding inventor
 Single-finding checker corrections transport `recordCitations` as an explicit JSON-encoded array string (including `"[]"` when the model selects no record). The decoder never supplies an omitted selection. Full locator authorization and source checks still run on the decoded array; saved reviews and historical record arrays remain unchanged.
 
 
+### Checker JSON delivery
+
+MiniMax checker requests carry the complete independently produced review in one
+`reviewJson` string, including same-draft corrections. The inner review still
+requires the exact requested IDs and all finding fields. The app decodes it
+before applying the same source and record checks; malformed fragments, missing
+fields and unauthorized references remain rejected. Complete historical tool
+responses remain readable. Review storage, source context, provider routing,
+output caps and retry limits are unchanged.
+
 ### MiniMax quota fallback
 
 Set `OPENCODE_QUOTA_FALLBACK=true` to permit OpenCode Go / `deepseek-v4.1-flash` after recognized MiniMax quota exhaustion (including error 2056). Supply `OPENCODE_CREDENTIALS_PATH` for an existing Windows CurrentUser-encrypted OpenCode settings file, or `OPENCODE_API_KEY`. Saved encrypted keys take precedence; corrupt saved keys fail closed. No key is copied into the evidence store or exposed through provider status. Restart the API after changing this configuration.

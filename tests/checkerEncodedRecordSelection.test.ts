@@ -29,7 +29,7 @@ describe('explicit encoded record selections',()=>{
   expect(units).toHaveLength(30);let calls=0
   const client=new MiniMaxClient({provider:'minimax',model:'fixture',apiKey:'fixture',baseUrl:'https://fixture.invalid/v1',timeoutMs:1000,maxRetries:1},undefined,async(_url,init)=>{
    const body=JSON.parse(String(init?.body));calls++
-   if(calls===2){expect(body.tools[0].function.parameters.properties.recordCitations.type).toBe('string');expect(body.messages[1].content).toContain('JSON array string')}
+   if(calls===2){expect(body.tools[0].function.parameters.required).toEqual(['reviewJson']);expect(body.messages[1].content).toContain('JSON array string')}
    const data=calls===1?{findings:Object.fromEntries(units.map((u,i)=>[u.id,{...row,...(!i?{recordCitations:undefined}:{})}]))}:{unitId:units[0].id,...row,recordCitations:'[]'}
    return Response.json({choices:[{message:{content:null,tool_calls:[{type:'function',function:{name:'record_grounding_review',arguments:JSON.stringify(data)}}]}}]})
   })

@@ -14,16 +14,18 @@ describe('checker JSON integrity', () => {
   })
   it('uses a MiniMax tool schema and checks its arguments as the original complete review', async () => {
     let body: any
+    const complete = { findings: [{ unitId: 'content:1', status: 'analysis', supportTypes: ['analysis'], explanation: 'An unresolved assessment.', citations: [], recordCitations: [] }] }
     const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fixture', baseUrl: 'http://127.0.0.1:9999/v1', model: 'fixture', timeoutMs: 1000, maxRetries: 0 }, undefined, async (_url, init) => {
       body = JSON.parse(String(init?.body))
-      return Response.json({ choices: [{ finish_reason: 'tool_calls', message: { content: null, tool_calls: [{ type: 'function', function: { name: 'record_grounding_review', arguments: valid } }] } }] })
+      return Response.json({ choices: [{ finish_reason: 'tool_calls', message: { content: null, tool_calls: [{ type: 'function', function: { name: 'record_grounding_review', arguments: JSON.stringify({ reviewJson: JSON.stringify(complete) }) } }] } }] })
     })
     expect((await client.reviewGrounding(request, draft)).status).toBe('passed')
     expect(body.tool_choice).toBe('required')
-    const findings = body.tools[0].function.parameters.properties.findings
-    expect(findings.required).toEqual(['content:1'])
-    expect(findings.properties['content:1'].required).toContain('status')
-    expect(findings.additionalProperties).toBe(false)
+    const schema = body.tools[0].function.parameters
+    expect(schema.required).toEqual(['reviewJson'])
+    expect(schema.properties.reviewJson.description).toContain('["content:1"]')
+    expect(schema.additionalProperties).toBe(false)
+    expect(body.messages[1].content).toContain('Every value must include status, supportTypes, explanation, citations and recordCitations')
     expect(body.response_format).toBeUndefined()
   })
   it.each(['other_tool', 'duplicate', 'competing', 'trailing', 'wrong_status'])('withholds malformed tool output: %s', mode => {

@@ -1,7 +1,7 @@
 import { QuotaFallbackTransport, FallbackSetupError, type QuotaFallbackOptions, type ProviderCall } from './quotaFallback'
 import { validateJuryBallotContract } from './juryBallotContract'
 import { applyGroundingPatch, groundingPatchInstructions, groundingPatchTargets, groundingRepairDrift } from './groundingRepair'
-import { checkerCorrectionFeedback, checkerSchemaFailure, groundingCorrectionUnits, mergeGroundingCorrection, groundingCorrectionContent, groundingCorrectionTool, groundingSingleTool, groundingSerializedContent, groundingRepairTool, groundingRepairToolName, groundingSingleContent, groundingTool, groundingToolContent, groundingToolName } from './groundingFormat'
+import { checkerCorrectionFeedback, checkerSchemaFailure, groundingCorrectionUnits, mergeGroundingCorrection, groundingCorrectionContent, groundingSerializedTool, groundingSerializedContract, groundingSerializedContent, groundingRepairTool, groundingRepairToolName, groundingSingleContent, groundingToolContent, groundingToolName } from './groundingFormat'
 import { negativeComparisonPolarityErrors } from './checkerPolarity'
 import { profileBandValidationUnits } from './checkerProfileConsistency'
 import { unsupportedCorrectionPremiseUnits } from './checkerSourcePremises'
@@ -610,12 +610,16 @@ export class MiniMaxClient implements ModelClient {
         if (request.verificationUnits && message.tool_calls !== undefined && message.content?.trim()) {
           stageLogger.warn('model.checker.neutral_acknowledgement', { characters: message.content.length })
         }
-        if (arrayVerification && content) {
-          content = groundingSerializedContent(cleanModelJsonText(content))
-          // Historical text-array responses retain their existing parser contract.
-          // Tool arguments still require every explicit ID and finding field.
-          const legacyArray = message.tool_calls === undefined && Array.isArray(JSON.parse(cleanModelJsonText(content))?.findings)
-          if (!legacyArray) content = request.verificationUnits?.length === 1 ? groundingSingleContent(content) : groundingCorrectionContent(content)
+        if (request.verificationUnits && content && this.config.provider === 'minimax') {
+          const delivered = cleanModelJsonText(content)
+          content = groundingSerializedContent(delivered)
+          const serialized = content !== delivered
+          if (serialized || arrayVerification || message.tool_calls !== undefined) {
+            // Require explicit IDs and fields for both scalar and direct tool
+            // delivery. Keep the historical unwrapped text-array path.
+            const legacyArray = !serialized && message.tool_calls === undefined && Array.isArray(JSON.parse(cleanModelJsonText(content))?.findings)
+            if (!legacyArray) content = arrayVerification && request.verificationUnits.length === 1 ? groundingSingleContent(content) : groundingCorrectionContent(content)
+          }
         }
       }
         catch (error) { throw new ModelProviderError(`Model output ${request.verificationUnits && !(error instanceof SyntaxError) ? 'violated checker schema' : 'was not valid JSON'} for ${request.verificationUnits ? 'source verification' : 'source repair'}: ${(error as Error).message}`, { retryable: true }) }
@@ -895,13 +899,14 @@ export class MiniMaxClient implements ModelClient {
       const packet = peers.length ? `${request.packet}\nNamed-peer reference candidates by unit (locators only, not support judgments): ${JSON.stringify(peers)}. Match each claim to the actual visible contribution before selecting a record. These candidates establish no source fact and do not excuse an unsupported peer premise. A missing named peer has no substitute; other jurors cannot supply that attribution.` : request.packet
       const messages = groundingMessages(request.verificationUnits, request.evidence, packet, request.verificationFeedback, request.verificationOpening, request.courtroomProtocol ? request.courtroomActor : undefined, request.verificationAuthenticationKnowledge, arrayVerification, singleFinding)
       body.messages = messages
-      if (this.config.provider === 'minimax') messages[0].content += '\nOutput channel: call record_grounding_review exactly once and return all review fields directly in its arguments. Leave assistant message content empty; do not add an acknowledgement, preamble, prose review or competing JSON. Do not encode a review inside reviewJson or another JSON string. Follow the complete finding shape above and the supplied tool schema. Copy each exact ID and explicitly assess every required field; never supply defaults or infer omitted values.'
+      if (this.config.provider === 'minimax') {
+        messages[0].content += '\n' + groundingSerializedContract
+        messages[1].content = groundingSerializedContract + '\n' + messages[1].content
+      }
       body.temperature = 0
       if (this.config.provider === 'minimax') {
         const references = { records: records.map(record => record.reference), exhibits: request.evidence.map(item => item.exhibitId), peerRecords }
-        body.tools = [arrayVerification
-          ? singleFinding ? groundingSingleTool(request.verificationUnits, references) : groundingCorrectionTool(request.verificationUnits, references)
-          : groundingTool(request.verificationUnits, references)]
+        body.tools = [groundingSerializedTool(request.verificationUnits, references)]
         body.tool_choice = 'required'
       }
     }
