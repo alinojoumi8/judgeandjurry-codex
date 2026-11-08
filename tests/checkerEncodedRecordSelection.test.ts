@@ -1,11 +1,19 @@
 import {describe,it,expect} from 'vitest'
 import {MiniMaxClient} from '../server/minimax'
-import {groundingUnits} from '../server/grounding'
-import {groundingSingleContent} from '../server/groundingFormat'
+import {groundingUnits,parseGroundingReview} from '../server/grounding'
+import {groundingSingleContent,checkerCorrectionFeedback} from '../server/groundingFormat'
 const draft={title:'Scope',content:Array.from({length:29},(_,i)=>`I retain doubt about issue ${i+1}.`).join('\n\n'),citations:[],jurors:[]}
 const units=groundingUnits(draft)
 const row={status:'analysis',supportTypes:['analysis'],explanation:'A current assessment.',citations:[],recordCitations:[]}
 describe('explicit encoded record selections',()=>{
+ it('keeps locator and empty-selection examples aligned with the transport',()=>{
+  const feedback=checkerCorrectionFeedback([units[0]],parseGroundingReview('{}',[units[0]],[]),true,true)
+  const example=JSON.parse(feedback.split('Locator shape examples only: ')[1].split('. The example')[0])
+  expect(typeof example.recordCitations).toBe('string')
+  expect(JSON.parse(example.recordCitations)).toEqual([{eventId:'COPY actual visible reference'}])
+  expect(example.citations).toEqual([{exhibitId:'COPY actual exhibit',paragraph:1}])
+  expect(feedback).toContain('the encoded string "[]" for recordCitations')
+ })
  it('completes the known missing row and retains thirty actual findings',async()=>{
   expect(units).toHaveLength(30);let calls=0
   const client=new MiniMaxClient({provider:'minimax',model:'fixture',apiKey:'fixture',baseUrl:'https://fixture.invalid/v1',timeoutMs:1000,maxRetries:1},undefined,async(_url,init)=>{
