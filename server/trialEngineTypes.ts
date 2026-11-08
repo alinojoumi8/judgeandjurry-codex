@@ -357,6 +357,7 @@ export interface TrialRunConfig {
 }
 
 export interface ModelAudit {
+  providerCalls?: import('./providerCallTypes').ProviderCall[]
   importProvenance?: { executionHashesPreserved: boolean; originalRunId: string; remappedReferences: boolean }
   contextManifest?: import('./courtroomTypes').ActorContextManifest
   provider: string

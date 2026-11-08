@@ -34,6 +34,7 @@ export interface GroundingFinding {
   recordCitations?: Array<{ eventId: string; actorId?: string; quote: string }>
 }
 export interface GroundingReview {
+  providerCalls?: import('./providerCallTypes').ProviderCall[]
   status: 'passed' | 'failed'
   method: 'source-quotes-and-model-review'
   findings: GroundingFinding[]

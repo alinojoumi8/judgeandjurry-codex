@@ -13,6 +13,7 @@ export function GroundingAudit({ trial, matterId }: { trial: TrialRunView | null
     <details><summary>Review output audits ({events.length})</summary>{events.map((event) => {
       const review = event.modelAudit?.grounding
       return <details className="grounding-review" key={event.id}><summary>#{event.sequence} {event.actorId} · {event.phase.replaceAll('_', ' ')} — {review?.status === 'passed' ? review.repairs ? 'Checked after repair' : 'Source check passed' : review?.status === 'failed' ? 'Rejected; withheld from the proceeding' : 'Not source-checked'}</summary>
+        {Boolean(event.modelAudit?.providerCalls?.length) && <p>Model request attempts: {[...new Set(event.modelAudit!.providerCalls!.map(call => `${call.provider} · ${call.model}`))].join(' → ')}</p>}
         {event.modelAudit?.error && <p role="status">{event.modelAudit.error}</p>}
         {(review?.verificationRetries ?? 0) > 0 && <p>The checker made {review?.verificationRetries} additional attempt(s). {review?.status === 'passed' ? 'The final check passed.' : 'The output remains withheld; see the errors below.'}</p>}
         {review?.citationCorrections?.map((correction, index) => <p key={index}>Located the unique verbatim quotation in {correction.exhibitId}, paragraph {correction.toParagraph}; corrected the checker’s paragraph {correction.fromParagraph ?? 'unknown'}.</p>)}

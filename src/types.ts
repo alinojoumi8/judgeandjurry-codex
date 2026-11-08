@@ -283,6 +283,7 @@ export interface LegalTemplate {
 }
 
 export interface ProviderStatus {
+  quotaFallback?: { name: string; label: string; model: string }
   mode: ProviderMode
   name: string
   label: string

@@ -1,3 +1,4 @@
+import { QuotaFallbackTransport, FallbackSetupError, type QuotaFallbackOptions, type ProviderCall } from './quotaFallback'
 import { validateJuryBallotContract } from './juryBallotContract'
 import { applyGroundingPatch, groundingPatchInstructions, groundingPatchTargets, groundingRepairDrift } from './groundingRepair'
 import { checkerCorrectionFeedback, checkerSchemaFailure, groundingCorrectionUnits, mergeGroundingCorrection, groundingCorrectionContent, groundingCorrectionTool, groundingSingleTool, groundingSerializedContent, groundingRepairTool, groundingRepairToolName, groundingSingleContent, groundingTool, groundingToolContent, groundingToolName } from './groundingFormat'
@@ -43,6 +44,7 @@ import type {
 export type ModelProviderName = 'minimax' | 'openai-compatible'
 
 export interface ModelProviderConfig {
+  quotaFallback?: QuotaFallbackOptions
   provider: ModelProviderName
   apiKey?: string
   baseUrl: string
@@ -99,6 +101,7 @@ export class ModelProviderError extends Error {
   readonly retryable: boolean
   readonly status?: number
   grounding?: GroundingReview
+  providerCalls?: ProviderCall[]
 
   constructor(message: string, options: { retryable: boolean; status?: number }) {
     super(message)
@@ -111,6 +114,7 @@ export class ModelProviderError extends Error {
 export class MiniMaxClient implements ModelClient {
   private readonly config: ModelProviderConfig
   private readonly logger: AppLogger
+  private readonly transport: QuotaFallbackTransport
   private readonly fetcher: FetchLike
 
   constructor(
@@ -120,10 +124,15 @@ export class MiniMaxClient implements ModelClient {
   ) {
     this.config = config
     this.logger = logger
-    this.fetcher = fetcher
+    this.transport = new QuotaFallbackTransport(config, logger, fetcher)
+    this.fetcher = this.transport.fetch
   }
 
   async generateStage(request: StageRequest): Promise<StageResult> {
+    return this.transport.run(() => this.generateStageInternal(request), !request.runConfig || request.runConfig.externalDisclosureConfirmed)
+  }
+
+  private async generateStageInternal(request: StageRequest): Promise<StageResult> {
     const startedAt = performance.now()
     this.assertRequestedProviderMode(request.runConfig?.providerMode)
     this.assertConfigured()
@@ -267,6 +276,10 @@ export class MiniMaxClient implements ModelClient {
   }
 
   async reviewGrounding(request: StageRequest, result: StageResult, priorReview?: GroundingReview): Promise<GroundingReview> {
+    return this.transport.run(() => this.reviewGroundingInternal(request, result, priorReview), !request.runConfig || request.runConfig.externalDisclosureConfirmed)
+  }
+
+  private async reviewGroundingInternal(request: StageRequest, result: StageResult, priorReview?: GroundingReview): Promise<GroundingReview> {
     const units = [...groundingUnits(result), ...(request.stage === 'juror_ballot' && request.ballotContract ? ballotConsistencyUnits(result) : [])]
     const currentJurorProfile = ['juror_ballot', 'jury_deliberation'].includes(request.stage)
       ? request.jurorProfiles?.find(profile => profile.juror === request.courtroomActor?.id)
@@ -551,12 +564,12 @@ export class MiniMaxClient implements ModelClient {
         const errorText = await response.text()
         // A quota exhaustion is different from transient RPM throttling.
         if (status === 429 && /\b2056\b|quota|insufficient balance/i.test(errorText)) {
-          throw new ModelProviderError(`${providerLabel(this.config.provider)} request failed (${status}, ${errorText.length} chars).`, {retryable:false,status})
+          throw new ModelProviderError(`${this.transport.label(response)} request failed (${status}, ${errorText.length} chars).`, {retryable:false,status})
         }
         const header = response.headers.get('retry-after')
         const retryAfter = header ? (Number.isFinite(Number(header)) ? Number(header) * 1000 : Date.parse(header) - Date.now()) : 0
         const delay = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(30000, retryAfter) : Math.min(30000, 2000 * 2 ** retry)
-        if (delay >= deadline - Date.now()) throw new ModelProviderError(`${providerLabel(this.config.provider)} retry delay exceeds the remaining request timeout.`, { retryable: true, status })
+        if (delay >= deadline - Date.now()) throw new ModelProviderError(`${this.transport.label(response)} retry delay exceeds the remaining request timeout.`, { retryable: true, status })
         stageLogger.info('model.request.transport_retry', {attempt, retry:retry+1, status, delayMs:delay})
         if (interval) nextProviderRequest.set(paceKey, Math.max(nextProviderRequest.get(paceKey) ?? 0, Date.now() + delay))
         await waitForRetry(delay, controller.signal)
@@ -567,7 +580,7 @@ export class MiniMaxClient implements ModelClient {
       if (!response.ok) {
         const errorText = await response.text()
         throw new ModelProviderError(
-          `${providerLabel(this.config.provider)} request failed (${response.status}, ${errorText.length} chars).`,
+          `${this.transport.label(response)} request failed (${response.status}, ${errorText.length} chars).`,
           {
             retryable: isRetryableStatus(response.status),
             status: response.status,
@@ -610,7 +623,7 @@ export class MiniMaxClient implements ModelClient {
 
       if (!content) {
         throw new ModelProviderError(
-          `${providerLabel(this.config.provider)} returned no message content.`,
+          `${this.transport.label(response)} returned no message content.`,
           { retryable: true },
         )
       }
@@ -619,7 +632,7 @@ export class MiniMaxClient implements ModelClient {
     } catch (error) {
       if (isAbortError(error)) {
         throw new ModelProviderError(
-          `${providerLabel(this.config.provider)} request timed out.`,
+          `${this.transport.label()} request timed out.`,
           { retryable: true },
         )
       }
@@ -1007,6 +1020,7 @@ export function createMiniMaxConfig(): ModelProviderConfig {
     apiKey: process.env.MINIMAX_API_KEY || process.env.MINIMAX_TOKEN,
     baseUrl: process.env.MINIMAX_BASE_URL || 'https://api.minimax.io/v1',
     model: process.env.MINIMAX_MODEL || 'MiniMax-M3.1-Flash',
+    ...(process.env.OPENCODE_QUOTA_FALLBACK === 'true' ? { quotaFallback: { apiKey: process.env.OPENCODE_API_KEY, credentialPath: process.env.OPENCODE_CREDENTIALS_PATH } } : {}),
     timeoutMs: envNumber('MODEL_TIMEOUT_MS', 60_000),
     maxRetries: envNumber('MODEL_MAX_RETRIES', 2),
   }
@@ -1349,10 +1363,6 @@ function formatRetrievedChunks(chunks: EvidenceChunk[]): string {
     .join('\n\n')
 }
 
-function providerLabel(provider: ModelProviderName): string {
-  return provider === 'minimax' ? 'MiniMax' : 'OpenAI-compatible provider'
-}
-
 function envNumber(name: string, fallback: number): number {
   const value = Number(process.env[name])
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback
@@ -1367,6 +1377,7 @@ function isAbortError(error: unknown): boolean {
 }
 
 function normalizeProviderError(error: unknown): Error {
+  if (error instanceof FallbackSetupError) return new ModelProviderError(error.message, { retryable: false })
   if (error instanceof ModelProviderError) {
     return error
   }

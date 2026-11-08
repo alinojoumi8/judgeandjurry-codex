@@ -1,3 +1,4 @@
+import { providerCallAudit } from './providerCallTypes'
 import { createHash, randomUUID } from 'node:crypto'
 import { performance } from 'node:perf_hooks'
 
@@ -1333,7 +1334,7 @@ export class TrialEngineService {
         ...result,
         audit: {
           contextManifest: manifest,
-          provider: provider.provider, model: provider.model, promptHash: hashText(prompt),
+          ...providerCallAudit(result.providerCalls, provider, request.stage), promptHash: hashText(prompt),
           responseHash: hashText(JSON.stringify(result)), schemaVersion: 'trial-event-v1',
           retries: result.grounding?.repairs ?? 0, durationMs: Math.round(performance.now() - started), status: result.grounding?.repairs ? 'repaired' : 'ok', grounding: result.grounding,
         },
@@ -1344,12 +1345,12 @@ export class TrialEngineService {
           trialRunId: run.id, phase: run.phase, type: 'source_verification_failed', actorId,
           visibleTo: ['user', 'role:system'], sourceRefs: [],
           payload: { message: 'Generated text was withheld because its factual source check failed.' },
-          modelAudit: { contextManifest: manifest, provider: provider.provider, model: provider.model, promptHash: hashText(prompt), schemaVersion: 'trial-event-v1', retries: error.grounding.repairs, durationMs: Math.round(performance.now() - started), status: 'failed', error: errorMessage(error), grounding: error.grounding },
+          modelAudit: { contextManifest: manifest, ...providerCallAudit(error instanceof ModelProviderError ? error.providerCalls : undefined, provider), promptHash: hashText(prompt), schemaVersion: 'trial-event-v1', retries: error.grounding.repairs, durationMs: Math.round(performance.now() - started), status: 'failed', error: errorMessage(error), grounding: error.grounding },
         })
       }
       throw new TrialActorError(errorMessage(error), {
         contextManifest: manifest,
-        provider: provider.provider, model: provider.model, promptHash: hashText(prompt),
+        ...providerCallAudit(error instanceof ModelProviderError ? error.providerCalls : undefined, provider), promptHash: hashText(prompt),
         schemaVersion: 'trial-event-v1', retries: 0, durationMs: Math.round(performance.now() - started),
         status: 'failed', error: errorMessage(error), grounding: error instanceof ModelProviderError ? error.grounding : undefined,
       })

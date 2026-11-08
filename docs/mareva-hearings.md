@@ -188,3 +188,14 @@ need every required field; substantive prose and competing JSON remain rejected.
 Checker corrections can target known missing fields in an exact finding inventory. Other raw rows remain unchanged and the combined review is fully revalidated; missing values are never inferred. Procedural acknowledgements accept bounded source/record wording, while substantive prose and competing output remain rejected.
 
 Single-finding checker corrections transport `recordCitations` as an explicit JSON-encoded array string (including `"[]"` when the model selects no record). The decoder never supplies an omitted selection. Full locator authorization and source checks still run on the decoded array; saved reviews and historical record arrays remain unchanged.
+
+
+### MiniMax quota fallback
+
+Set `OPENCODE_QUOTA_FALLBACK=true` to permit OpenCode Go / `deepseek-v4.1-flash` after recognized MiniMax quota exhaustion (including error 2056). Supply `OPENCODE_CREDENTIALS_PATH` for an existing Windows CurrentUser-encrypted OpenCode settings file, or `OPENCODE_API_KEY`. Saved encrypted keys take precedence; corrupt saved keys fail closed. No key is copied into the evidence store or exposed through provider status. Restart the API after changing this configuration.
+
+The provider banner identifies the fallback recipient before external-disclosure confirmation. A local-only or unconfirmed run cannot switch externally. The fallback receives only the same actor-filtered request, with identical source/history restrictions. Invalid JSON, source-check failures, authentication errors and temporary RPM throttling do not activate it. Known quota exhaustion is cached for five minutes per provider configuration; the next request after that cooldown probes MiniMax again. This cooldown is not a provider reset-time claim.
+
+Every actual HTTP attempt, including the rejected MiniMax call and the OpenCode call, passes through the same caller transport and request/time limits. The original timeout is not restarted, the output cap is preserved, and no budget increase or provider purchase occurs. OpenCode requests identify TrialLens honestly and use an opaque session ID. All output, source and citation checks remain active. Saved audits record request attempts, actual providers/models and quota routing; the run's originally selected provider remains preserved separately. Historical records are not rewritten.
+
+OpenCode availability depends on its workspace settings and allowance. The current model/endpoint are documented in the [OpenCode Go guide](https://opencode.ai/docs/console/go/). A configured key or model catalog entry alone does not prove a case run will succeed.
