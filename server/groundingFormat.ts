@@ -172,11 +172,12 @@ export function groundingSingleTool(units: GroundingUnit[], references: { record
   if (units.length !== 1) throw new Error('A single-finding correction requires exactly one supplied unit.')
   const tool = groundingCorrectionTool(units, references)
   const row = tool.function.parameters.properties.findings.items
+  const recordReferences = units[0].kind === 'ballot_consistency' ? [] : references.peerRecords?.[units[0].id] ?? references.records
   // Ask for the explicit record selection before the assessment. Empty arrays
   // are still model output, never defaults inferred from the reference inventory.
   const properties = {
     unitId: row.properties.unitId,
-    recordCitations: { type: 'string', description: 'Required JSON-encoded array of independently selected record locator objects. Return the literal string "[]" when no visible record supports this claim. For a selection encode [{"eventId":"actual supplied reference"}]. Never omit the field or use an empty string, null, a default, or an invented reference. Allowed references: ' + JSON.stringify(references.records) },
+    recordCitations: { type: 'string', description: 'Required JSON-encoded array of independently selected record locator objects. Return the literal string "[]" when no visible record supports this claim. For a selection encode [{"eventId":"actual supplied reference"}]. Never omit the field or use an empty string, null, a default, or an invented reference. Allowed references: ' + JSON.stringify(recordReferences) },
     citations: row.properties.citations,
     supportTypes: row.properties.supportTypes,
     status: row.properties.status,

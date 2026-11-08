@@ -1,11 +1,22 @@
 import {describe,it,expect} from 'vitest'
 import {MiniMaxClient} from '../server/minimax'
 import {groundingUnits,parseGroundingReview} from '../server/grounding'
-import {groundingSingleContent,checkerCorrectionFeedback} from '../server/groundingFormat'
+import {groundingSingleContent,groundingSingleTool,checkerCorrectionFeedback} from '../server/groundingFormat'
 const draft={title:'Scope',content:Array.from({length:29},(_,i)=>`I retain doubt about issue ${i+1}.`).join('\n\n'),citations:[],jurors:[]}
 const units=groundingUnits(draft)
 const row={status:'analysis',supportTypes:['analysis'],explanation:'A current assessment.',citations:[],recordCitations:[]}
 describe('explicit encoded record selections',()=>{
+ it.each([undefined,[],['permitted']])('lists the exact unit record inventory %j',allowed=>{
+  const all=['permitted','other']
+  const tool=groundingSingleTool([units[0]],{records:all,exhibits:[],...(allowed?{peerRecords:{[units[0].id]:allowed}}:{})})
+  const description=tool.function.parameters.properties.recordCitations.description
+  expect(JSON.parse(description.split('Allowed references: ')[1])).toEqual(allowed??all)
+ })
+ it('does not offer record selectors to coherence findings',()=>{
+  const tool=groundingSingleTool([{id:'coherence:1',text:'{}',kind:'ballot_consistency'}],{records:['other'],exhibits:[]})
+  expect(JSON.parse(tool.function.parameters.properties.recordCitations.description.split('Allowed references: ')[1])).toEqual([])
+ })
+
  it('keeps locator and empty-selection examples aligned with the transport',()=>{
   const feedback=checkerCorrectionFeedback([units[0]],parseGroundingReview('{}',[units[0]],[]),true,true)
   const example=JSON.parse(feedback.split('Locator shape examples only: ')[1].split('. The example')[0])
