@@ -161,3 +161,26 @@ A reported change in one person's account needs that person's own selected
 history or explicit correction. Another person's conflicting account or correction
 does not establish it. Selected earlier and later accounts still need independent
 semantic review; matching an author does not itself prove a contradiction or truth.
+
+
+### Scoped checker correction
+
+Application coverage and omitted-file notes describe this run's input, rather
+than words of an affidavit. The independent checker must choose source-use and
+analysis domains when supported by that actual coverage. A source-supported
+classification still requires verified source citations. No status, selector or
+missing field is inferred or defaulted by this distinction.
+
+For a complete raw keyed review with failures attached to known units, MiniMax's
+existing same-draft correction requests only those failed units. Other explicit
+raw findings remain unchanged; the entire combined review then passes through
+the strict validators. The complete unchanged draft remains available as context,
+with all permitted sources, and requested/retained IDs are logged. Unknown global
+errors, incomplete inventories and malformed roots require the full correction.
+The existing request/retry limits remain unchanged. A missing or extra corrected
+row fails closed rather than reusing the invalid row or inferring its values.
+
+The two captured procedural acknowledgements about auditing permitted sources
+and record, or auditing before recording findings, may accompany the single named
+review tool. They convey no judgment. Tool arguments remain unchanged and still
+need every required field; substantive prose and competing JSON remain rejected.
