@@ -1020,7 +1020,7 @@ export function createMiniMaxConfig(): ModelProviderConfig {
     apiKey: process.env.MINIMAX_API_KEY || process.env.MINIMAX_TOKEN,
     baseUrl: process.env.MINIMAX_BASE_URL || 'https://api.minimax.io/v1',
     model: process.env.MINIMAX_MODEL || 'MiniMax-M3.1-Flash',
-    ...(process.env.OPENCODE_QUOTA_FALLBACK === 'true' ? { quotaFallback: { apiKey: process.env.OPENCODE_API_KEY, credentialPath: process.env.OPENCODE_CREDENTIALS_PATH } } : {}),
+    ...(process.env.OPENCODE_QUOTA_FALLBACK === 'true' ? { quotaFallback: { apiKey: process.env.OPENCODE_API_KEY || undefined, credentialPath: process.env.OPENCODE_CREDENTIALS_PATH || undefined } } : {}),
     timeoutMs: envNumber('MODEL_TIMEOUT_MS', 60_000),
     maxRetries: envNumber('MODEL_MAX_RETRIES', 2),
   }

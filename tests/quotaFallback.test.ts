@@ -109,6 +109,8 @@ it('requires the fallback flag and keeps local provider configuration local',()=
  expect(createMiniMaxConfig().quotaFallback).toBeUndefined()
  vi.stubEnv('OPENCODE_QUOTA_FALLBACK','true');vi.stubEnv('OPENCODE_CREDENTIALS_PATH','fixture.dpapi')
  expect(createMiniMaxConfig().quotaFallback?.credentialPath).toBe('fixture.dpapi')
+ vi.stubEnv('OPENCODE_CREDENTIALS_PATH','');vi.stubEnv('OPENCODE_API_KEY','')
+ expect(createMiniMaxConfig().quotaFallback).toEqual({credentialPath:undefined,apiKey:undefined})
  vi.stubEnv('MODEL_PROVIDER','openai-compatible')
  expect(createMiniMaxConfig().quotaFallback).toBeUndefined()
 })
