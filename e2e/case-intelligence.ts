@@ -402,6 +402,7 @@ try {
     assert.match(await conflict.innerText(), /different times/)
     await timeline.locator('#event-evt-001').getByRole('button', { name: /View E-010/ }).click()
     await page.getByRole('dialog').waitFor()
+    await page.getByRole('dialog').getByText(/left knee pain/).first().waitFor() // the source loads after the dialog opens
     assert.match(await page.getByRole('dialog').innerText(), /left knee pain/)
     await page.getByRole('dialog').getByRole('button', { name: 'Close source' }).click()
     // A reviewer edit is saved and marked; an impossible date is refused with a reason (one declared 400).
@@ -503,6 +504,7 @@ try {
     await index.getByRole('button', { name: 'Clear filters' }).click()
     await entries.locator('tr', { hasText: 'Time of the fall.' }).getByRole('button', { name: /View E-015/ }).click()
     await page.getByRole('dialog').waitFor()
+    await page.getByRole('dialog').getByText(/About 7:40/).first().waitFor() // the source loads after the dialog opens
     assert.match(await page.getByRole('dialog').innerText(), /About 7:40/)
     await page.getByRole('dialog').getByRole('button', { name: 'Close source' }).click()
     await index.getByRole('button', { name: 'Approve evidence index' }).click()
