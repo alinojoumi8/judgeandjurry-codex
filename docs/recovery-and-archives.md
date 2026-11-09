@@ -4,14 +4,22 @@ Judge & Jury stores operational state in SQLite and original corpus bytes in imm
 
 ## Supported formats
 
-- Database schema `PRAGMA user_version = 9` is current. Migration 6 adds courtroom state, command receipts, immutable actor inputs and ballot instruction references; migration 7 persists evidence scopes; migration 8 persists preview hashes independently of preserved source-blob hashes; migration 9 adds a private evidence note column. Notes remain outside evidence/model projections and are preserved in matter archives; older archives default to an empty note.
-- Matter archive format version 3 is used for `courtroom_v1` runs; legacy-only matters continue exporting version 2.
+- Database schema `PRAGMA user_version = 10` is current. Migration 10 adds `analysis_artifacts`, the versioned private store for analysis results (see Analysis artifacts below). Migration 6 adds courtroom state, command receipts, immutable actor inputs and ballot instruction references; migration 7 persists evidence scopes; migration 8 persists preview hashes independently of preserved source-blob hashes; migration 9 adds a private evidence note column. Notes remain outside evidence/model projections and are preserved in matter archives; older archives default to an empty note.
+- Matter archive format version 4 is written only when the matter has analysis artifacts. Otherwise version 3 is used for `courtroom_v1` runs and legacy-only matters continue exporting version 2, with no analysis key.
 - Archive version 1 remains importable. Its legacy matter, evidence, simulation, juror, and TrialForge records are preserved; new v2 workflow collections start empty.
 - Future database or archive versions fail closed rather than being partially interpreted.
 
-Versions 1, 2 and 3 have explicit import paths. Protocol runs require v3 courtroom collections; presenting them as v2 fails closed. Required fields and SHA-256 validation are not weakened.
+Versions 1, 2, 3 and 4 have explicit import paths. Protocol runs require the courtroom collections (v3 and v4); presenting them as v2 fails closed, and a v4 archive with a protocol run but without the courtroom collections is refused. Required fields and SHA-256 validation are not weakened.
 
 Version 3 includes courtroom state, command receipts and original serialized actor requests. Imported current references and derived memory hashes are remapped/rebuilt. Original execution input bytes and hashes are retained with import provenance rather than relabelled as newly executed requests. Owner audit access is separate from participant context; an audit may contain preparation that a juror is not allowed to receive. Recovery reconstructs authorized participant context from events and current restrictions instead of trusting cached snapshot text.
+
+## Analysis artifacts
+
+`analysis_artifacts` holds versioned analysis results, each pinned to an input manifest (evidence hashes, case-model version, ledger and run ids). Saved content, rejected items and manifest are never rewritten; only the status changes (draft, approved, superseded, failed). Each row records a SHA-256 over canonical JSON of its content, rejected items and manifest, and every read verifies it. A row whose content no longer matches its hash, or whose schema version is newer than this build supports, is refused with an error naming the artifact.
+
+Archive format 4 carries these rows as the last snapshot collection. Import validates each row (known kind, status, audience and schema version) and verifies its hash against the exported JSON before anything is written, so a tampered row is refused even when the envelope checksum was recomputed. References to evidence, case models, ledgers and runs inside the JSON are then remapped to the new ids, the hash is recomputed from the remapped JSON, and `import_provenance_json` records the original artifact id and hash. Approval state is preserved. Party ids in `subject_key` are not remapped. Ids must appear only as JSON values, never as object keys, because remapping walks values only.
+
+Whether an artifact is still current is shown from its manifest (out of date or not) and is never regenerated automatically. Artifacts are owner preparation material: they are not given to simulated jurors or witnesses.
 
 ## Back up
 

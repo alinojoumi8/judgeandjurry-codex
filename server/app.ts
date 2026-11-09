@@ -38,6 +38,8 @@ import { simulationStages } from './stages'
 import { createHardeningRouter } from './routes/hardening'
 import { createCorpusRouter } from './routes/corpus'
 import { createWorkflowRouter } from './routes/workflow'
+import { createAnalysisRouter } from './routes/analysis'
+import { AnalysisService } from './analysis/service'
 import {
   apiAuthentication,
   apiSecurityConfig,
@@ -183,6 +185,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     remote: security.remote,
   }))
   app.use('/api', createWorkflowRouter(caseWorkflow, trialEngine))
+  app.use('/api', createAnalysisRouter(new AnalysisService(store)))
 
   app.get(
     '/api/health',

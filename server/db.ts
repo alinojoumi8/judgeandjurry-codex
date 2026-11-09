@@ -16,6 +16,7 @@ import { defaultJurorProfiles } from './jurors'
 import { defaultRunConfig, normalizeRunConfig } from './runConfig'
 import { simulationStages } from './stages'
 import { WorkflowRepository } from './workflowRepository'
+import { AnalysisRepository } from './analysis/repository'
 import type {
   AgentRole,
   AgentTurn,
@@ -218,6 +219,7 @@ export class CaseStore {
   private readonly logger: AppLogger
   private readonly matterArchiveRepository: MatterArchiveRepository
   readonly workflow: WorkflowRepository
+  readonly analysis: AnalysisRepository
   private ftsAvailable = false
 
   constructor(dbPath = defaultDbPath(), logger: AppLogger = noopLogger()) {
@@ -229,6 +231,7 @@ export class CaseStore {
     this.db = new DatabaseSync(dbPath)
     this.matterArchiveRepository = new MatterArchiveRepository(this.db)
     this.workflow = new WorkflowRepository(this.db)
+    this.analysis = new AnalysisRepository(this.db)
     this.db.exec('PRAGMA foreign_keys = ON')
     this.migrate()
     this.backfillDurableRows()

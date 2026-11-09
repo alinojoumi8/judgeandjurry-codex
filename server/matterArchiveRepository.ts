@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
 import { contextHash } from './actorMemory'
+import { analysisContentHash } from './analysis/hash'
+import { analysisArtifactSchemaVersion, analysisAudiences, analysisKinds, analysisStatuses } from './analysis/types'
 
 export type ArchiveRow = Record<string, unknown>
 
@@ -35,6 +37,7 @@ export interface MatterDatabaseSnapshot {
   courtroomStates?: ArchiveRow[]
   courtroomCommandReceipts?: ArchiveRow[]
   actorContextInputs?: ArchiveRow[]
+  analysisArtifacts?: ArchiveRow[]
 }
 
 export class MatterArchiveRepository {
@@ -136,6 +139,10 @@ export class MatterArchiveRepository {
         `SELECT d.* FROM decision_sheets d JOIN trial_runs r ON r.id = d.trial_run_id WHERE r.matter_id = ?`,
         matterId,
       ),
+      analysisArtifacts: this.rows(
+        'SELECT * FROM analysis_artifacts WHERE matter_id = ? ORDER BY kind, subject_key, version',
+        matterId,
+      ),
     }
   }
 
@@ -159,11 +166,16 @@ export class MatterArchiveRepository {
     const trialEventIds = idMap(snapshot.trialEvents)
     const ballotIds = idMap(snapshot.issueBallots)
     const inputIds = idMap(snapshot.actorContextInputs ?? [])
+    const analysisIds = idMap(snapshot.analysisArtifacts ?? [])
     const allIds = new Map([
       ...evidenceIds, ...sessionIds, ...trialForgeIds, ...corpusJobIds, ...manifestIds,
       ...caseModelIds, ...theoryIds, ...findingIds, ...motionIds, ...ledgerIds,
-      ...trialRunIds, ...trialEventIds, ...ballotIds, ...inputIds, [String(snapshot.matter.id), newMatterId],
+      ...trialRunIds, ...trialEventIds, ...ballotIds, ...inputIds, ...analysisIds,
+      [String(snapshot.matter.id), newMatterId],
     ])
+    // Fail closed before anything is written: a tampered or unsupported row is
+    // refused even when the envelope checksum was recomputed to match.
+    for (const row of snapshot.analysisArtifacts ?? []) verifyArchivedAnalysisRow(row, caseModelIds)
 
     this.db.exec('BEGIN IMMEDIATE')
     try {
@@ -281,6 +293,27 @@ export class MatterArchiveRepository {
         // only the collection's owning run is remapped during import.
         this.insert('actor_context_inputs', { ...row, id: allIds.get(String(row.id)) ?? randomUUID(), trial_run_id: trialRunIds.get(String(row.trial_run_id)) })
       }
+      for (const row of snapshot.analysisArtifacts ?? []) {
+        const remapped = remapRow({
+          ...row,
+          id: analysisIds.get(String(row.id)),
+          matter_id: newMatterId,
+          case_model_id: row.case_model_id ? caseModelIds.get(String(row.case_model_id)) : null,
+        }, allIds)
+        // Party ids are not row ids, so the subject is kept exactly as exported.
+        remapped.subject_key = row.subject_key
+        // Remapping rewrote references inside the JSON, so the hash is recomputed
+        // from what is stored; the original id and hash are kept as provenance.
+        remapped.content_hash = analysisContentHash({
+          content: JSON.parse(String(remapped.content_json)),
+          rejected: JSON.parse(String(remapped.rejected_json)),
+          inputManifest: JSON.parse(String(remapped.input_manifest_json)),
+        })
+        remapped.import_provenance_json = JSON.stringify({
+          originalArtifactId: String(row.id), originalContentHash: String(row.content_hash), remappedReferences: true,
+        })
+        this.insert('analysis_artifacts', remapped)
+      }
       this.db.exec('COMMIT')
       return newMatterId
     } catch (error) {
@@ -327,6 +360,32 @@ export class MatterArchiveRepository {
       .prepare(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`)
       .run(...columns.map((column) => row[column] as never))
   }
+}
+
+function verifyArchivedAnalysisRow(row: ArchiveRow, caseModelIds: ReadonlyMap<string, string>): void {
+  const id = String(row.id)
+  const refuse = (problem: string): never => {
+    throw new Error(`Archived analysis artifact ${id} ${problem}.`)
+  }
+  if (!(analysisKinds as readonly unknown[]).includes(row.kind)) refuse('has an unknown kind')
+  if (!(analysisStatuses as readonly unknown[]).includes(row.status)) refuse('has an unknown status')
+  if (!(analysisAudiences as readonly unknown[]).includes(row.audience)) refuse('has an unsupported audience')
+  const schemaVersion = Number(row.schema_version)
+  if (!Number.isInteger(schemaVersion) || schemaVersion < 1 || schemaVersion > analysisArtifactSchemaVersion) {
+    refuse(`uses an unsupported schema version (${String(row.schema_version)}; this application supports up to ${analysisArtifactSchemaVersion})`)
+  }
+  if (row.case_model_id && !caseModelIds.has(String(row.case_model_id))) refuse('refers to a case model that is not in the archive')
+  let hash: string
+  try {
+    hash = analysisContentHash({
+      content: JSON.parse(String(row.content_json)),
+      rejected: JSON.parse(String(row.rejected_json)),
+      inputManifest: JSON.parse(String(row.input_manifest_json)),
+    })
+  } catch {
+    return refuse('failed its integrity check because its stored JSON cannot be read')
+  }
+  if (hash !== row.content_hash) refuse('failed its integrity check: its content does not match its recorded hash, so the archive may have been altered')
 }
 
 function idMap(rows: ArchiveRow[]): Map<string, string> {

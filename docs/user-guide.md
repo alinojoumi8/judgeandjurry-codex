@@ -233,13 +233,13 @@ The default upload limit is 250MB. Change it with `JUDGE_JURY_MAX_UPLOAD_BYTES` 
 
 ## Archives, Recovery, and Database Upgrades
 
-Matter archives use the versioned `judge-jury-matter` JSON format. Version 3 is used for matters containing `courtroom_v1` runs and includes courtroom state, command receipts and original serialized actor requests; legacy-only matters continue exporting version 2. Both preserve source blobs by SHA-256, corpus manifests, derived OCR/transcripts, approved case models, theories, disclosure findings, motions/rulings, admission ledgers, trial events, actor snapshots, ballots, decision sheets, and provider audit metadata. Import verifies the archive checksum and every blob hash, creates collision-safe IDs, and rewrites current internal references while retaining execution provenance. Version 1 imports remain supported and receive empty v2 workflow collections; unsupported future versions fail closed.
+Matter archives use the versioned `judge-jury-matter` JSON format. Version 4 is written only when a matter has saved analysis artifacts. Version 3 is used for matters containing `courtroom_v1` runs and includes courtroom state, command receipts and original serialized actor requests; legacy-only matters continue exporting version 2. All preserve source blobs by SHA-256, corpus manifests, derived OCR/transcripts, approved case models, theories, disclosure findings, motions/rulings, admission ledgers, trial events, actor snapshots, ballots, decision sheets, and provider audit metadata. Import verifies the archive checksum and every blob hash, creates collision-safe IDs, and rewrites current internal references while retaining execution provenance. Version 1 imports remain supported and receive empty v2 workflow collections; unsupported future versions fail closed.
 
 - `GET /api/matters/:matterId/archive` exports a matter archive.
 - `POST /api/matters/import` imports a matter archive.
 - `POST /api/system/backup` creates a consistent SQLite backup under `data/backups/` using SQLite's online backup API.
 
-Database changes are applied transactionally and tracked with SQLite `PRAGMA user_version`, currently 8 (v3 corpus, v4 case/motion/admission workflow, v5 event engine, v6 courtroom records, v7 evidence scopes, v8 preview hashes). Keep `data/judge-jury.sqlite`, `data/evidence/`, and `data/corpus/blobs/` together during manual recovery. See [Recovery and archive compatibility](recovery-and-archives.md).
+Database changes are applied transactionally and tracked with SQLite `PRAGMA user_version`, currently 10 (v3 corpus, v4 case/motion/admission workflow, v5 event engine, v6 courtroom records, v7 evidence scopes, v8 preview hashes, v9 private evidence notes, v10 analysis artifacts). Keep `data/judge-jury.sqlite`, `data/evidence/`, and `data/corpus/blobs/` together during manual recovery. See [Recovery and archive compatibility](recovery-and-archives.md).
 
 ## Local and Remote API Safety
 

@@ -52,7 +52,7 @@ export interface GroundingReview {
   priorFailures?: Array<{ findings: GroundingFinding[]; errors: string[]; verificationFailures?: Array<{ attempt: number; errors: string[]; findings?: GroundingFinding[] }> }>
 }
 
-const normalize = (text: string) => text.normalize('NFKC').replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/\s+/g, ' ').trim()
+export const normalize = (text: string) => text.normalize('NFKC').replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/\s+/g, ' ').trim()
 const proofMethodModifiers = String.raw`(?:,\s*|\s+)(?:(?:directly|explicitly|independently|itself|by itself|alone|on its own),?\s+)*`
 
 // A peer's contribution supports attribution of that argument, never its truth.

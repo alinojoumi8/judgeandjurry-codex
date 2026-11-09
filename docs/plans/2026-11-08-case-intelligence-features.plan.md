@@ -2,7 +2,7 @@
 
 Date: November 8, 2026 (America/Toronto)
 
-Status: M0 built and checked, not yet committed. D1, D2 and D7 were answered on November 8, 2026 ([recorded answers](#recorded-answers)). Still open: the cost cap (D6) and the reviewing lawyer's name (D7). M1 has not started, and no application code has changed.
+Status: M0 is done and pushed on `feature/case-intelligence-m0`. M1 is in progress on `feature/case-intelligence-m1-artifacts`. Its first slice is built: the versioned artifact store (section 5.1), archive format 4 (5.2) and the free source check (5.4, tier 1). Not yet built in M1: structured model calls (5.3), jobs and cost limits (5.6), case-model extensions and the jury framework (5.5), the analysis screens (5.7), and the new browser journey and evaluation scripts. D1, D2 and D7 were answered on November 8, 2026 ([recorded answers](#recorded-answers)). Still open: the cost cap (D6) and the reviewing lawyer's name (D7).
 
 Audited workspace: `D:/myprojects/judgeandjurry-codex`, branch `features`, created from `codex/trial-engine-v2` at `6e958f8`. The audit read the working tree, including its uncommitted changes. Line numbers refer to that tree on this date, so recheck them on the implementation base.
 
