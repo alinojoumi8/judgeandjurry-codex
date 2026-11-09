@@ -196,9 +196,10 @@ MiniMax checker requests carry the complete independently produced review in one
 `reviewJson` string, including same-draft corrections. The inner review still
 requires the exact requested IDs and all finding fields. The app decodes it
 before applying the same source and record checks; malformed fragments, missing
-fields and unauthorized references remain rejected. Complete historical tool
-responses remain readable. Review storage, source context, provider routing,
-output caps and retry limits are unchanged.
+fields and unauthorized references remain rejected. An initial review may carry
+the exact unit map directly; duplicate keys are rejected before validation.
+Complete historical tool responses remain readable. Review storage, source
+context, provider routing, output caps and retry limits are unchanged.
 
 ### MiniMax quota fallback
 

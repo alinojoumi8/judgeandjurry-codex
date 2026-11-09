@@ -68,6 +68,36 @@ describe('MiniMax scalar checker delivery', () => {
     expect(review.status).toBe('failed')
   })
 
+  it('reads a complete initial unit map directly from the scalar channel', async () => {
+    const direct = keyed().findings
+    const result = await client([{ reviewJson: JSON.stringify(direct) }]).reviewGrounding(request, draft)
+    expect(result.status).toBe('passed')
+    expect(result.findings.map(({ unitId, explanation }) => ({ unitId, explanation }))).toEqual(
+      units.map(({ id }) => ({ unitId: id, explanation: direct[id].explanation })),
+    )
+  })
+
+  it.each(['missing-id', 'unknown-id', 'extra-root', 'missing-field', 'duplicate-id', 'duplicate-field', 'unverified-source'])(
+    'withholds an incomplete or ambiguous direct map: %s', async mode => {
+      const direct: Record<string, any> = keyed().findings
+      if (mode === 'missing-id') delete direct['content:1']
+      if (mode === 'unknown-id') { direct['content:invented'] = direct['content:1']; delete direct['content:1'] }
+      if (mode === 'extra-root') direct.note = 'This text is not a finding.'
+      if (mode === 'missing-field') delete direct['content:1'].recordCitations
+      if (mode === 'unverified-source') {
+        direct['content:1'] = { ...row, status: 'supported', supportTypes: ['source'], citations: [{ exhibitId: 'E-999', paragraph: 1 }] }
+      }
+      let reviewJson = JSON.stringify(direct)
+      if (mode === 'duplicate-id') reviewJson = '{"\\u0074itle:1":' + JSON.stringify(row) + ',' + reviewJson.slice(1)
+      if (mode === 'duplicate-field') reviewJson = reviewJson.replace('"content:1":{', '"content:1":{"recordCitations":[],')
+      const result = await client([{ reviewJson }]).reviewGrounding(request, draft)
+      expect(result.status).toBe('failed')
+      if (mode === 'missing-field') expect(result.errors.join(' ')).toContain('recordCitations is required')
+      if (mode.startsWith('duplicate-')) expect(result.errors.join(' ')).toContain('duplicate JSON key')
+      if (mode === 'unverified-source') expect(result.errors.join(' ')).toContain('E-999')
+    },
+  )
+
   it('keeps a scoped single-unit correction explicit inside the scalar channel', async () => {
     const initial: any = keyed(); delete initial.findings['content:1'].recordCitations
     const bodies: any[] = []

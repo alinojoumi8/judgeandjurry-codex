@@ -612,7 +612,7 @@ export class MiniMaxClient implements ModelClient {
         }
         if (request.verificationUnits && content && this.config.provider === 'minimax') {
           const delivered = cleanModelJsonText(content)
-          content = groundingSerializedContent(delivered)
+          content = groundingSerializedContent(delivered, arrayVerification ? undefined : request.verificationUnits.map(unit => unit.id))
           const serialized = content !== delivered
           if (serialized || arrayVerification || message.tool_calls !== undefined) {
             // Require explicit IDs and fields for both scalar and direct tool

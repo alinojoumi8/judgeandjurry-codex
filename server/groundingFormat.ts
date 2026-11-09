@@ -156,13 +156,35 @@ export function groundingSerializedTool(units: GroundingUnit[], references?: { r
   } }
 }
 
-export function groundingSerializedContent(content: string): string {
+// Run only on JSON.parse-validated text. Match strings before braces so
+// quoted punctuation does not change the object scope or identify a key.
+function uniqueJsonObjectKeys(content: string): boolean {
+  const scopes: Array<Set<string>> = []
+  for (const [token, key, colon] of content.matchAll(/("(?:[^"\\]|\\.)*")(\s*:)?|[{}]/g)) {
+    if (token === '{') scopes.push(new Set())
+    else if (token === '}') scopes.pop()
+    else if (colon) {
+      const keys = scopes.at(-1)!
+      const name = JSON.parse(key) as string
+      if (keys.has(name)) return false
+      keys.add(name)
+    }
+  }
+  return true
+}
+
+export function groundingSerializedContent(content: string, initialUnitIds: readonly string[] = []): string {
   const data = JSON.parse(content)
   if (data && typeof data === 'object' && Object.hasOwn(data, 'reviewJson')) {
     if (Object.keys(data).length !== 1 || typeof data.reviewJson !== 'string') throw new Error('reviewJson must be the only tool field and contain the complete review as a JSON string.')
-    // Validate syntax here; all inventory, field, selector and semantic checks
-    // still run on the decoded content through the existing review parser.
-    JSON.parse(data.reviewJson)
+    const review = JSON.parse(data.reviewJson)
+    // An initial scalar may contain the exact unit map directly. Keep the
+    // supplied values unchanged and apply the same keyed review validator.
+    if (initialUnitIds.length && review && typeof review === 'object' && !Array.isArray(review) &&
+      Object.keys(review).length === initialUnitIds.length && initialUnitIds.every(id => Object.hasOwn(review, id))) {
+      if (!uniqueJsonObjectKeys(content) || !uniqueJsonObjectKeys(data.reviewJson)) throw new Error('The initial unit map contains a duplicate JSON key.')
+      return '{"findings":' + data.reviewJson + '}'
+    }
     return data.reviewJson
   }
   return content // Preserved older tool representations still face strict checks.
