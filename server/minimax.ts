@@ -901,7 +901,7 @@ export class MiniMaxClient implements ModelClient {
       body.messages = messages
       if (this.config.provider === 'minimax') {
         messages[0].content += '\n' + groundingSerializedContract
-        messages[1].content = groundingSerializedContract + '\n' + messages[1].content
+        messages[1].content = messages[1].content.replace('Stage: factual_verification\n', `Stage: factual_verification\n${groundingSerializedContract}\n`)
       }
       body.temperature = 0
       if (this.config.provider === 'minimax') {

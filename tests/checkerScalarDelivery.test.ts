@@ -20,6 +20,7 @@ describe('MiniMax scalar checker delivery', () => {
     expect(bodies[0].tools[0].function.parameters.required).toEqual(['reviewJson'])
     expect(Object.keys(bodies[0].tools[0].function.parameters.properties)).toEqual(['reviewJson'])
     expect(bodies[0].messages[0].content).toContain('only reviewJson')
+    expect(bodies[0].messages[1].content).toMatch(/^Stage: factual_verification\n.*only reviewJson/)
     expect(bodies[0].messages[0].content).not.toContain('Do not encode a review inside reviewJson')
   })
 
