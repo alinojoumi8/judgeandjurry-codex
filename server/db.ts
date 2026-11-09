@@ -17,6 +17,9 @@ import { defaultRunConfig, normalizeRunConfig } from './runConfig'
 import { simulationStages } from './stages'
 import { WorkflowRepository } from './workflowRepository'
 import { AnalysisRepository } from './analysis/repository'
+import { AnalysisJobRepository } from './analysis/jobRepository'
+import { FrameworkRepository } from './frameworks/repository'
+import { VenueRepository } from './venue/repository'
 import type {
   AgentRole,
   AgentTurn,
@@ -220,6 +223,9 @@ export class CaseStore {
   private readonly matterArchiveRepository: MatterArchiveRepository
   readonly workflow: WorkflowRepository
   readonly analysis: AnalysisRepository
+  readonly analysisJobs: AnalysisJobRepository
+  readonly frameworks: FrameworkRepository
+  readonly venue: VenueRepository
   private ftsAvailable = false
 
   constructor(dbPath = defaultDbPath(), logger: AppLogger = noopLogger()) {
@@ -232,6 +238,9 @@ export class CaseStore {
     this.matterArchiveRepository = new MatterArchiveRepository(this.db)
     this.workflow = new WorkflowRepository(this.db)
     this.analysis = new AnalysisRepository(this.db)
+    this.analysisJobs = new AnalysisJobRepository(this.db)
+    this.frameworks = new FrameworkRepository(this.db)
+    this.venue = new VenueRepository(this.db)
     this.db.exec('PRAGMA foreign_keys = ON')
     this.migrate()
     this.backfillDurableRows()

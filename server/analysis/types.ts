@@ -17,10 +17,16 @@ export interface AnalysisInputManifest {
   evidenceHashes: string[]
   rulePackHash?: string
   juryProfileHash?: string
+  // Content hashes of the imported datasets a jury profile was built from.
+  datasetHashes?: string[]
   runIds?: string[]
   promptVersion?: string
   algorithmVersion?: string
+  // The seed a seeded study (a forecast) was computed from, so its numbers can be reproduced.
+  seed?: string
   provider?: { name: string; model: string; mode: string }
+  // Set only when the optional tier-2 model check was on for this artifact.
+  modelCheck?: { promptVersion: string; batchSize: number }
 }
 
 export interface AnalysisRejectedItem {

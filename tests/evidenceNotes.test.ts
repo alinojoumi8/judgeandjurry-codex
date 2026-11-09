@@ -43,7 +43,7 @@ it('migrates an existing v8 evidence table transactionally and retains its origi
   const evidence = store.addEvidence(matter.id, { name: 'source.txt', type: 'text', mimeType: 'text/plain', size: 1, text: 'Preserved', summary: '', tags: [] })
   store.close()
   const db = new DatabaseSync(path)
-  db.exec('DROP TABLE analysis_artifacts; ALTER TABLE evidence DROP COLUMN private_note; PRAGMA user_version = 8'); db.close()
+  db.exec('ALTER TABLE issue_ballots DROP COLUMN element_findings_json; ALTER TABLE issue_ballots DROP COLUMN amounts_json; ALTER TABLE issue_ballots DROP COLUMN apportionment_json; DROP TABLE venue_datasets; DROP TABLE framework_attestations; DROP TABLE matter_frameworks; DROP TABLE analysis_jobs; DROP TABLE analysis_artifacts; ALTER TABLE evidence DROP COLUMN private_note; PRAGMA user_version = 8'); db.close()
   store = new CaseStore(path)
   try { expect(store.getEvidence(evidence.id).text).toBe('Preserved'); expect(store.getEvidenceNote(matter.id, evidence.id)).toBe('') }
   finally { store.close(); rmSync(root, { recursive: true, force: true }) }

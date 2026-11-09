@@ -109,8 +109,44 @@ export interface TrialRunConfig {
   witnessPlan: Array<{ witnessId: string; calledByPartyId: string; order: number }>
   deliberation: { maxRounds: number; concurrency: number }
   civilDecisionMaker?: 'judge_alone' | 'jury'
+  // Court rules pinned by the server when the run was created. Absent on older runs.
+  framework?: JuryFramework
+  // Local jury profile: the client asks with the hash, the server pins the strata.
+  juryProfileHash?: string
+  juryProfile?: import('../server/venue/types').PinnedJuryProfile
+  // Opt-in run depth settings (F8). Absent means off.
+  ballotContract?: 'v2'
+  jurorCognition?: true
+  deliberationForecast?: true
+  strawPollCounts?: 'visible' | 'hidden'
+  // Opt-in damages amounts (F12) and damages condition (F13). Absent means off.
+  damagesAmounts?: true
+  damagesCategories?: Array<{ id: string; label: string; kind: import('../server/frameworks/schema').DamagesCategoryKind }>
+  damagesExcluded?: Array<{ id: string; label: string; reason: string }>
+  damagesCurrency?: string
+  damagesCondition?: NonNullable<import('../server/trialEngineTypes').TrialRunConfig['damagesCondition']>
+  // Opt-in advocacy styles (F15). Absent means off.
+  advocacy?: NonNullable<import('../server/trialEngineTypes').TrialRunConfig['advocacy']>
   externalDisclosureConfirmed: boolean
 }
+
+// Court rules. Types only, shared with the server's node-free framework module.
+export type JuryFramework = import('../server/frameworks/framework').JuryFramework
+export type MatterFrameworkView = import('../server/frameworks/framework').MatterFrameworkView
+export type FrameworkPackSummary = import('../server/frameworks/framework').PackSummary
+export type FrameworkPackView = import('../server/frameworks/framework').PackView
+export type FrameworkOverrideInput = import('../server/frameworks/framework').FrameworkOverrideInput
+export type FrameworkRule = import('../server/frameworks/schema').Rule<unknown>
+export type FrameworkRuleKey = import('../server/frameworks/schema').RuleKey
+
+// Local jury profile (F4). Types only; the module has no Node imports.
+export type VenueDatasetSummary = import('../server/venue/types').VenueDatasetSummary
+export type VenueDataset = import('../server/venue/types').VenueDataset
+export type JuryProfileContent = import('../server/venue/types').JuryProfileContent
+export type JuryProfileState = import('../server/venue/types').JuryProfileState
+export type JuryProfileView = import('../server/venue/types').JuryProfileView
+export type JuryProfileAssumptions = import('../server/venue/types').ProfileAssumptions
+export type SamplePanelResult = import('../server/venue/types').SamplePanelResult
 
 export interface TrialRunView {
   run: TrialRun
@@ -118,7 +154,7 @@ export interface TrialRunView {
   checkpoints: Array<{ id: string; phase: string; status: string; note: string }>
   events: Array<{ id: string; sequence: number; phase: string; type: string; actorId?: string; payload: Record<string, unknown>; modelAudit?: import('../server/trialEngineTypes').ModelAudit }>
   jurorProfiles: Array<{ id: string; actorId: string; traits: Record<string, number> }>
-  ballots: Array<{ id: string; issueId: string; actorId: string; round: string; choice: string; valid: boolean; rationale: string }>
+  ballots: Array<{ id: string; issueId: string; actorId: string; round: string; choice: string; valid: boolean; rationale: string; error?: string }>
   decisionSheet?: {
     complete: boolean
     decisions: import('../server/trialEngineTypes').IssueDecision[]
@@ -146,3 +182,12 @@ export interface WorkflowState {
 }
 
 export type RobustnessReport = import('../server/trialEngineTypes').RobustnessReport
+
+// Juror cognition (F8). Types only; the server module has no Node imports that matter here.
+export type CognitionResponse = import('../server/routes/cognition').CognitionResponse
+export type CognitionView = import('../server/jurorCognition').CognitionView
+
+// Deliberation forecast (F9). Types only.
+export type DeliberationResponse = import('../server/routes/deliberation').DeliberationResponse
+export type DeliberationTableResponse = import('../server/routes/deliberation').DeliberationTableResponse
+export type DeliberationView = import('../server/deliberationAnalysis').DeliberationView

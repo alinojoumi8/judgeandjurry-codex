@@ -4,7 +4,7 @@ import type { AnalysisInputManifest, AnalysisRejectedItem } from './types'
 
 // Not `contextHash`: it sorts keys with localeCompare, which depends on the
 // machine's locale, and this hash is verified on other machines at import.
-function canonicalJson(value: unknown): string {
+export function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map((item) => (item === undefined ? 'null' : canonicalJson(item))).join(',')}]`
   if (value && typeof value === 'object') {
     const record = value as Record<string, unknown>

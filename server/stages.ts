@@ -21,3 +21,7 @@ export const simulationStages: Array<{ id: string; role: AgentRole; label: strin
 // jury_deliberation stage. It is intentionally not part of simulationStages:
 // it has no stage row of its own and produces no courtroom turn.
 export const jurorBallotStage = 'juror_ballot'
+
+// Model-call stage for a juror's private appraisal of one trial segment (F8
+// juror cognition). Opt-in per run; like the ballot stage it has no stage row.
+export const jurorAppraisalStage = 'juror_appraisal'

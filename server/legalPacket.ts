@@ -7,6 +7,8 @@ export function packetContentHash(packet: ReviewedLegalPacket): string {
   const { contentHash: _hash, review: _review, ...content } = packet
   return contextHash(content)
 }
+// Wording that marks an element as a stand-in for law nobody has entered yet.
+export const placeholderLawPattern = /placeholder|confirm the|to be reviewed|essential element/i
 export function legalPacketReadiness(model: CaseModelV1) {
   const errors: string[] = []
   const packet = model.legalPacket
@@ -34,7 +36,7 @@ export function legalPacketReadiness(model: CaseModelV1) {
     for (const element of issue.elements) {
       const e = charge.elements.find(item => item.elementId === element.id)
       if (!e) { errors.push(`Missing element ${element.id}.`); continue }
-      if (/placeholder|confirm the|to be reviewed|essential element/i.test(e.text)) errors.push(`Element ${element.id} contains placeholder law.`)
+      if (placeholderLawPattern.test(e.text)) errors.push(`Element ${element.id} contains placeholder law.`)
       if (!model.parties.some(p => p.id === e.burdenPartyId)) errors.push(`Element ${element.id} burden party is outside the model.`)
       validateAuthorityIds(e.authorityIds, `Element ${element.id}`)
     }
@@ -49,7 +51,7 @@ export function legalPacketReadiness(model: CaseModelV1) {
 // default packet or a substitute for legal review in the application.
 export function fictionalLegalPacket(model: CaseModelV1): ReviewedLegalPacket {
   const packet: ReviewedLegalPacket = {
-    schemaVersion: 1, jurisdiction: 'Ontario', proceeding: 'ontario_criminal_jury_v1',
+    schemaVersion: 1, jurisdiction: 'Ontario', proceeding: model.procedureAdapter === 'ontario_civil_v1' ? 'ontario_civil_v1' : 'ontario_criminal_jury_v1',
     issues: model.decisionIssues.map(i => ({ issueId: i.id, respondingPartyIds: i.respondingPartyIds, outcomes: i.permittedOutcomes, alternatives: [], elements: i.elements.map(e => ({ elementId: e.id, text: `Fictional fixture condition for ${e.id}; no statement of applicable law.`, burdenPartyId: i.claimantPartyId ?? model.parties[0].id, standard: e.burden, authorityIds: ['fixture'] })) })),
     instructions: (['duties', 'burden', 'elements', 'limited_use', 'deliberation'] as const).map(kind => ({ id: kind, kind, text: `Fictional ${kind} instruction: use only presented, permitted sources; counsel allegations are submissions; no preferred verdict.`, authorityIds: ['fixture'] })),
     authorities: [{ id: 'fixture', title: 'Fictional scenario conditions', jurisdiction: 'Ontario', type: 'guidance', url: 'https://fixture.invalid/scenario', pinpoint: 'Scenario conditions', asOf: '2026-10-03', retrievedAt: '2026-10-03', reviewed: true }], contentHash: '',

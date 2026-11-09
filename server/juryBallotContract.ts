@@ -1,3 +1,4 @@
+import { matchPermittedOutcome, normalizeOutcome } from './ballotV2'
 import type { StageRequest } from './minimax'
 import type { StageResult } from './types'
 
@@ -24,10 +25,29 @@ export function validateJuryBallotContract(request: StageRequest, result: StageR
       // An initial label in a final response reports history, not the current vote.
       if (declaration?.[1] && declaration[1].toLowerCase() !== 'current' && declaration[1].toLowerCase() !== request.ballotRound) continue
       const vote = declaration?.[2]?.toLowerCase().replace(/[_ -]/g, '')
+      if (request.ballotContractVersion === 'v2') {
+        // Contract v2 has no leaning: a vote the text declares must be the outcome the juror named.
+        const spoken = vote === 'notguilty' ? 'not_guilty' : vote === 'noverdict' ? 'no_verdict' : vote
+        if (spoken && spoken !== 'undecided' && contract.permittedOutcomes.includes(spoken) && normalizeOutcome(juror.outcome) !== spoken) errors.push(`The current ballot text disagrees with this juror's structured outcome. Return a consistent current vote and outcome; do not change either mechanically or infer a preferred verdict.`)
+        continue
+      }
       const declared = vote === 'guilty' ? 'crown' : vote === 'notguilty' ? 'defence' : vote || /^I (?:cannot|can\x27t|am unable to) reach (?:a|any) verdict\b/i.test(clause) ? 'mixed' : undefined
       if (declared && declared !== juror.leaning) errors.push(`The current ballot text disagrees with this juror's structured leaning. Return a consistent current vote and leaning; do not change either mechanically or infer a preferred verdict.`)
     }
     const outcomes = contract.permittedOutcomes
+    if (request.ballotContractVersion === 'v2') {
+      const named = matchPermittedOutcome(juror.outcome, outcomes) ?? (request.ballotRound === 'initial' && normalizeOutcome(juror.outcome) === 'undecided' ? 'undecided' : undefined)
+      if (!named) {
+        errors.push(`Return outcome as exactly one of the permitted outcomes: ${outcomes.join(', ')}${request.ballotRound === 'initial' ? ', or undecided' : ''}.`)
+        continue
+      }
+      if (request.ballotRound !== 'final' || contract.initialChoice === undefined || named === contract.initialChoice) continue
+      const changedEvent = contract.events.find(e => e.eventId === juror.changedByEventId)
+      if (!changedEvent || !juror.mindChangedBecause?.trim() || !changedEvent.exhibitIds.some(id => juror.citations.includes(id))) {
+        errors.push(`A changed final ballot requires an eligible visible deliberation event, a concise explanation, and a shared permitted citation in this juror's citations. Eligible events: ${JSON.stringify(contract.events)}. Do not use a limiting instruction as the deliberation event.`)
+      }
+      continue
+    }
     const choice = juror.leaning === 'crown' ? outcomes.find(o => ['guilty', 'proved', 'yes', 'liable'].includes(o)) ?? outcomes[0]
       : juror.leaning === 'defence' ? outcomes.find(o => ['not_guilty', 'not_proved', 'no', 'not_liable'].includes(o)) ?? outcomes[1]
       : request.ballotRound === 'initial' ? 'undecided' : outcomes.find(o => ['no_verdict', 'no_finding', 'no_decision'].includes(o)) ?? outcomes.at(-1)

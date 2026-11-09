@@ -1,8 +1,17 @@
 import { randomUUID } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
+import { z } from 'zod'
 import { contextHash } from './actorMemory'
+import { parseBallotV2Columns } from './ballotV2'
 import { analysisContentHash } from './analysis/hash'
 import { analysisArtifactSchemaVersion, analysisAudiences, analysisKinds, analysisStatuses } from './analysis/types'
+import { rulePacks } from './frameworks/packs'
+import { datasetKinds } from './venue/types'
+import { verifyStoredDataset } from './venue/datasets'
+import { pinnedJuryProfileSchema } from './venue/panelSampler'
+import { frameworkOverrideSchema, juryFrameworkSchema } from './frameworks/framework'
+import { applyOverrides } from './frameworks/resolver'
+import { isStyleId } from './styles/catalogue'
 
 export type ArchiveRow = Record<string, unknown>
 
@@ -38,6 +47,8 @@ export interface MatterDatabaseSnapshot {
   courtroomCommandReceipts?: ArchiveRow[]
   actorContextInputs?: ArchiveRow[]
   analysisArtifacts?: ArchiveRow[]
+  matterFrameworks?: ArchiveRow[]
+  venueDatasets?: ArchiveRow[]
 }
 
 export class MatterArchiveRepository {
@@ -131,10 +142,12 @@ export class MatterArchiveRepository {
         `SELECT p.* FROM juror_cognitive_profiles p JOIN trial_runs r ON r.id = p.trial_run_id WHERE r.matter_id = ?`,
         matterId,
       ),
+      // A ballot cast before contract v2 exports exactly as it always did: the v2
+      // columns appear only on a ballot that has them.
       issueBallots: this.rows(
         `SELECT b.* FROM issue_ballots b JOIN trial_runs r ON r.id = b.trial_run_id WHERE r.matter_id = ?`,
         matterId,
-      ),
+      ).map(withoutEmptyBallotColumns),
       decisionSheets: this.rows(
         `SELECT d.* FROM decision_sheets d JOIN trial_runs r ON r.id = d.trial_run_id WHERE r.matter_id = ?`,
         matterId,
@@ -143,6 +156,8 @@ export class MatterArchiveRepository {
         'SELECT * FROM analysis_artifacts WHERE matter_id = ? ORDER BY kind, subject_key, version',
         matterId,
       ),
+      matterFrameworks: this.rows('SELECT * FROM matter_frameworks WHERE matter_id = ?', matterId),
+      venueDatasets: this.rows('SELECT * FROM venue_datasets WHERE matter_id = ? ORDER BY created_at, rowid', matterId),
     }
   }
 
@@ -167,15 +182,21 @@ export class MatterArchiveRepository {
     const ballotIds = idMap(snapshot.issueBallots)
     const inputIds = idMap(snapshot.actorContextInputs ?? [])
     const analysisIds = idMap(snapshot.analysisArtifacts ?? [])
+    const frameworkIds = idMap(snapshot.matterFrameworks ?? [])
+    const datasetIds = idMap(snapshot.venueDatasets ?? [])
     const allIds = new Map([
       ...evidenceIds, ...sessionIds, ...trialForgeIds, ...corpusJobIds, ...manifestIds,
       ...caseModelIds, ...theoryIds, ...findingIds, ...motionIds, ...ledgerIds,
-      ...trialRunIds, ...trialEventIds, ...ballotIds, ...inputIds, ...analysisIds,
+      ...trialRunIds, ...trialEventIds, ...ballotIds, ...inputIds, ...analysisIds, ...frameworkIds, ...datasetIds,
       [String(snapshot.matter.id), newMatterId],
     ])
     // Fail closed before anything is written: a tampered or unsupported row is
     // refused even when the envelope checksum was recomputed to match.
     for (const row of snapshot.analysisArtifacts ?? []) verifyArchivedAnalysisRow(row, caseModelIds)
+    for (const row of snapshot.matterFrameworks ?? []) verifyArchivedFrameworkRow(row)
+    for (const row of snapshot.venueDatasets ?? []) verifyArchivedDatasetRow(row)
+    for (const row of snapshot.trialRuns) { verifyArchivedRunFramework(row); verifyArchivedRunJuryProfile(row); verifyArchivedRunOptions(row) }
+    for (const row of snapshot.issueBallots) verifyArchivedBallotColumns(row)
 
     this.db.exec('BEGIN IMMEDIATE')
     try {
@@ -314,6 +335,12 @@ export class MatterArchiveRepository {
         })
         this.insert('analysis_artifacts', remapped)
       }
+      for (const row of snapshot.matterFrameworks ?? []) {
+        this.insert('matter_frameworks', remapRow({ ...row, id: frameworkIds.get(String(row.id)), matter_id: newMatterId }, allIds))
+      }
+      for (const row of snapshot.venueDatasets ?? []) {
+        this.insert('venue_datasets', remapRow({ ...row, id: datasetIds.get(String(row.id)), matter_id: newMatterId }, allIds))
+      }
       this.db.exec('COMMIT')
       return newMatterId
     } catch (error) {
@@ -386,6 +413,115 @@ function verifyArchivedAnalysisRow(row: ArchiveRow, caseModelIds: ReadonlyMap<st
     return refuse('failed its integrity check because its stored JSON cannot be read')
   }
   if (hash !== row.content_hash) refuse('failed its integrity check: its content does not match its recorded hash, so the archive may have been altered')
+}
+
+// Court rules fail closed on import: an unknown pack or an override the current
+// rules cannot apply is refused before anything is written.
+function verifyArchivedFrameworkRow(row: ArchiveRow): void {
+  const id = String(row.id)
+  const refuse = (problem: string): never => {
+    throw new Error(`Archived court rules ${id} ${problem}.`)
+  }
+  const pack = rulePacks.get(String(row.pack_id))
+  if (!pack) refuse(`name the rule pack "${String(row.pack_id)}", which this application does not have`)
+  try {
+    const overrides = z.array(frameworkOverrideSchema).parse(JSON.parse(String(row.overrides_json)))
+    applyOverrides(pack!, overrides)
+    JSON.parse(String(row.history_json))
+  } catch {
+    refuse('cannot be read: their overrides are not valid for this application')
+  }
+  if (!/^[a-f0-9]{64}$/.test(String(row.pack_hash))) refuse('have no valid pack hash')
+}
+
+// Imported datasets fail closed on import: a row that has lost its source or
+// licence, or whose rows no longer match the recorded hash, is refused before
+// anything is written.
+function verifyArchivedDatasetRow(row: ArchiveRow): void {
+  const refuse = (problem: string): never => {
+    throw new Error(`Archived dataset ${String(row.id)} ${problem}.`)
+  }
+  if (!(datasetKinds as readonly unknown[]).includes(row.kind)) refuse('has an unknown kind')
+  try {
+    verifyStoredDataset({
+      kind: row.kind as (typeof datasetKinds)[number], source: String(row.source), retrievedAt: String(row.retrieved_at), licence: String(row.licence),
+      rows: JSON.parse(String(row.rows_json)), datasetHash: String(row.dataset_hash),
+    })
+  } catch (error) {
+    refuse(`failed its integrity check (${error instanceof Error ? error.message : 'unreadable'}), so the archive may have been altered`)
+  }
+}
+
+// A pinned framework in a run's configuration must still be a valid framework.
+function verifyArchivedRunFramework(row: ArchiveRow): void {
+  let framework: unknown
+  try {
+    framework = (JSON.parse(String(row.config_json)) as { framework?: unknown }).framework
+  } catch {
+    return
+  }
+  if (framework === undefined) return
+  if (!juryFrameworkSchema.safeParse(framework).success) {
+    throw new Error(`Archived run ${String(row.id)} pins court rules that this application cannot read.`)
+  }
+}
+
+// A jury profile pinned to a run must still be a valid pin: it sets juror traits.
+function verifyArchivedRunJuryProfile(row: ArchiveRow): void {
+  let pinned: unknown
+  try {
+    pinned = (JSON.parse(String(row.config_json)) as { juryProfile?: unknown }).juryProfile
+  } catch {
+    return
+  }
+  if (pinned === undefined) return
+  if (!pinnedJuryProfileSchema.safeParse(pinned).success) {
+    throw new Error(`Archived run ${String(row.id)} pins a jury profile that this application cannot read.`)
+  }
+}
+
+const ballotV2Columns = ['element_findings_json', 'amounts_json', 'apportionment_json'] as const
+
+function withoutEmptyBallotColumns(row: ArchiveRow): ArchiveRow {
+  const copy = { ...row }
+  for (const column of ballotV2Columns) if (copy[column] === null) delete copy[column]
+  return copy
+}
+
+// Ballot contract v2 columns must still be what this version wrote.
+function verifyArchivedBallotColumns(row: ArchiveRow): void {
+  try {
+    parseBallotV2Columns(row)
+  } catch {
+    throw new Error(`Archived ballot ${String(row.id)} has v2 ballot fields that this application cannot read.`)
+  }
+}
+
+const damagesConditionIds = ['anchor_low', 'anchor_central', 'anchor_high', 'defence_counter_anchor', 'per_diem', 'lump_sum', 'fairness_framing']
+
+// Run settings that change how a run behaves must be the values this version understands.
+function verifyArchivedRunOptions(row: ArchiveRow): void {
+  let config: { ballotContract?: unknown; jurorCognition?: unknown; deliberationForecast?: unknown; strawPollCounts?: unknown; damagesAmounts?: unknown; damagesCondition?: unknown; advocacy?: unknown }
+  try {
+    config = JSON.parse(String(row.config_json))
+  } catch {
+    return
+  }
+  if (config.ballotContract !== undefined && config.ballotContract !== 'v2') throw new Error(`Archived run ${String(row.id)} uses a ballot contract that this application cannot read.`)
+  if (config.jurorCognition !== undefined && config.jurorCognition !== true) throw new Error(`Archived run ${String(row.id)} has a juror cognition setting that this application cannot read.`)
+  // The deliberation forecast and its straw-poll setting: only the values this version writes.
+  if (config.deliberationForecast !== undefined && config.deliberationForecast !== true) throw new Error(`Archived run ${String(row.id)} has a deliberation forecast setting that this application cannot read.`)
+  if (config.strawPollCounts !== undefined && (config.deliberationForecast !== true || (config.strawPollCounts !== 'visible' && config.strawPollCounts !== 'hidden'))) throw new Error(`Archived run ${String(row.id)} has a straw-poll setting that this application cannot read.`)
+  // Damages amounts and conditions: only the values this version writes, and a condition needs amounts.
+  if (config.damagesAmounts !== undefined && config.damagesAmounts !== true) throw new Error(`Archived run ${String(row.id)} has a damages amounts setting that this application cannot read.`)
+  if (config.damagesCondition !== undefined && (config.damagesAmounts !== true || typeof config.damagesCondition !== 'object' || config.damagesCondition === null || !damagesConditionIds.includes(String((config.damagesCondition as { id?: unknown }).id)))) throw new Error(`Archived run ${String(row.id)} has a damages condition that this application cannot read.`)
+  // Advocacy styles (F15): a list of a party and a style this version's catalogue knows, with the pinned text. Anything else fails closed.
+  if (config.advocacy !== undefined) {
+    const entries = Array.isArray(config.advocacy) ? config.advocacy as Array<{ partyId?: unknown; id?: unknown; text?: unknown }> : null
+    if (!entries || entries.length === 0 || entries.some((entry) => typeof entry !== 'object' || entry === null || typeof entry.partyId !== 'string' || !isStyleId(entry.id) || typeof entry.text !== 'string')) {
+      throw new Error(`Archived run ${String(row.id)} has an advocacy style that this application cannot read.`)
+    }
+  }
 }
 
 function idMap(rows: ArchiveRow[]): Map<string, string> {

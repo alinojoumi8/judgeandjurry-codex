@@ -1,0 +1,49 @@
+{
+  "name": "FICTIONAL county population table (sample)",
+  "kind": "population_table",
+  "source": "Fictional sample data written for TrialLens tests. Not real. Not from any survey, census, court or publication.",
+  "retrievedAt": "2026-11-08",
+  "licence": "CC0-1.0 (fictional test data)",
+  "rows": [
+    {
+      "label": "Fictional group A",
+      "count": 41000,
+      "attributes": {
+        "is_citizen": true,
+        "is_adult": true
+      }
+    },
+    {
+      "label": "Fictional group B",
+      "count": 22000,
+      "attributes": {
+        "is_citizen": true,
+        "is_adult": true
+      }
+    },
+    {
+      "label": "Fictional group C",
+      "count": 9000,
+      "attributes": {
+        "is_citizen": false,
+        "is_adult": true
+      }
+    },
+    {
+      "label": "Fictional group D",
+      "count": 15000,
+      "attributes": {
+        "is_citizen": true,
+        "is_adult": false
+      }
+    },
+    {
+      "label": "Fictional group E",
+      "count": 3000,
+      "attributes": {
+        "is_citizen": false,
+        "is_adult": false
+      }
+    }
+  ]
+}

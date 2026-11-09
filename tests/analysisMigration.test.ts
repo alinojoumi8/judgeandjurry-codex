@@ -19,14 +19,14 @@ function insertArtifact(db: DatabaseSync, overrides: Record<string, unknown> = {
     .run(...names.map((name) => (row as Record<string, unknown>)[name] as never))
 }
 
-describe('analysis artifact migration (schema version 10)', () => {
+describe('analysis artifact migration (schema version 10, current version 14)', () => {
   it('creates the table, index and constraints on a fresh database', () => {
     const db = new DatabaseSync(':memory:')
     try {
       db.exec('PRAGMA foreign_keys = ON')
       applySchemaMigrations(db)
-      expect(currentSchemaVersion).toBe(10)
-      expect(userVersion(db)).toBe(10)
+      expect(currentSchemaVersion).toBe(14)
+      expect(userVersion(db)).toBe(14)
       expect(columns(db).map((column) => column.name)).toEqual([
         'id', 'matter_id', 'case_model_id', 'kind', 'subject_key', 'version', 'status', 'schema_version', 'audience',
         'input_manifest_json', 'content_json', 'content_hash', 'rejected_json', 'import_provenance_json', 'created_at', 'approved_at',
@@ -52,9 +52,9 @@ describe('analysis artifact migration (schema version 10)', () => {
     try {
       applySchemaMigrations(db)
       db.exec("INSERT INTO matters VALUES ('m1', 'Existing matter', 'Ontario', 'Narrative', 'now', 'now')")
-      db.exec('DROP TABLE analysis_artifacts; PRAGMA user_version = 9')
+      db.exec('ALTER TABLE issue_ballots DROP COLUMN element_findings_json; ALTER TABLE issue_ballots DROP COLUMN amounts_json; ALTER TABLE issue_ballots DROP COLUMN apportionment_json; DROP TABLE venue_datasets; DROP TABLE framework_attestations; DROP TABLE matter_frameworks; DROP TABLE analysis_jobs; DROP TABLE analysis_artifacts; PRAGMA user_version = 9')
       applySchemaMigrations(db)
-      expect(userVersion(db)).toBe(10)
+      expect(userVersion(db)).toBe(14)
       expect(db.prepare("SELECT title FROM matters WHERE id = 'm1'").get()).toEqual({ title: 'Existing matter' })
       expect(columns(db)).toHaveLength(16)
     } finally { db.close() }
@@ -76,9 +76,9 @@ describe('analysis artifact migration (schema version 10)', () => {
     const db = new DatabaseSync(':memory:')
     try {
       applySchemaMigrations(db)
-      db.exec('PRAGMA user_version = 11')
+      db.exec('PRAGMA user_version = 15')
       expect(() => applySchemaMigrations(db)).toThrow(/newer than supported/)
-      expect(userVersion(db)).toBe(11)
+      expect(userVersion(db)).toBe(15)
     } finally { db.close() }
   })
 })

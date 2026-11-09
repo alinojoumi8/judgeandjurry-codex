@@ -15,8 +15,9 @@ import { jurorHistoryError, initialHistoryStatement, jurorConditionalState, juro
 // Submissions establish only what an actor said; private strategies and owner
 // audits are excluded. The input projection already applies visibility rules.
 export function courtroomAuditEvents(events: TrialEvent[]) {
-  const types = new Set(['public_submission', 'witness_called', 'witness_question', 'witness_answer', 'objection', 'objection_ruling', 'limiting_instruction', 'judicial_instruction', 'examination_stage_completed', 'witness_examination_completed', 'exhibit_presented', 'juror_deliberation_turn'])
-  const fields = new Set(['text', 'question', 'witnessId', 'examination', 'ground', 'outcome', 'reasons', 'authorityIds', 'withheld', 'calledByPartyId', 'evidenceId', 'contribution', 'round'])
+  const types = new Set(['public_submission', 'witness_called', 'witness_question', 'witness_answer', 'objection', 'objection_ruling', 'limiting_instruction', 'judicial_instruction', 'examination_stage_completed', 'witness_examination_completed', 'exhibit_presented', 'juror_deliberation_turn', 'deliberation_straw_poll'])
+  // `poll` and `counts` belong to the deliberation forecast's straw-poll event, which exists only for a run that opted in.
+  const fields = new Set(['text', 'question', 'witnessId', 'examination', 'ground', 'outcome', 'reasons', 'authorityIds', 'withheld', 'calledByPartyId', 'evidenceId', 'contribution', 'round', 'poll', 'counts'])
   const instructionFields = new Set(['issueInstructions', 'reviewedInstructions', 'reviewedIssues', 'sourceNotice', 'packetHash'])
   return events.filter(e => types.has(e.type)).map(e => ({ eventId: e.id, type: e.type, ...(e.actorId ? { actorId: e.actorId } : {}), ...(e.phase ? { phase: e.phase } : {}), payload: Object.fromEntries(Object.entries(e.payload).filter(([key]) => fields.has(key) || ['judicial_instruction', 'limiting_instruction'].includes(e.type) && instructionFields.has(key))) }))
 }
@@ -325,6 +326,10 @@ export function groundingTextFields(result: StageResult): Array<[string, string]
     values.push([`juror-${index}`, juror.rationale])
     if (juror.mindChangedBecause) values.push([`juror-change-${index}`, juror.mindChangedBecause])
     for (const [warningIndex, warning] of (juror.consistencyWarnings ?? []).entries()) values.push([`juror-warning-${index}-${warningIndex}`, warning])
+    // Ballot contract v2: the basis of each element finding and amount is
+    // reviewed against its cited source like any other ballot prose.
+    for (const [findingIndex, finding] of (juror.elementFindings ?? []).entries()) if (finding.basis) values.push([`juror-element-${index}-${findingIndex}`, finding.basis])
+    for (const [amountIndex, amount] of (juror.amounts ?? []).entries()) if (amount.basis.trim()) values.push([`juror-amount-${index}-${amountIndex}`, amount.basis])
     for (const [snapshotIndex, snapshot] of (juror.beliefTrail ?? []).entries()) {
       for (const field of ['stage', 'belief', 'why'] as const) values.push([`juror-trail-${index}-${snapshotIndex}-${field}`, snapshot[field]])
     }
@@ -384,7 +389,7 @@ export function groundingUnits(result: StageResult): GroundingUnit[] {
       if (preceding && priorJuryClaim(preceding) && /^I agree\b/i.test(chunk)) dependentChunks[dependentChunks.length - 1] += ` ${chunk}`
       else dependentChunks.push(chunk)
     }
-    const jurorIndex = field.match(/^juror(?:-change|-warning|-trail|-round)?-(\d+)/)?.[1]
+    const jurorIndex = field.match(/^juror(?:-change|-warning|-trail|-round|-element|-amount)?-(\d+)/)?.[1]
     const citedExhibitIds = jurorIndex === undefined ? result.citations : result.jurors?.[Number(jurorIndex)].citations ?? result.citations
     return dependentChunks.map((text, index) => ({ id: `${field}:${index + 1}`, text,
       ...(/\bthe account\b/i.test(text) ? { citedExhibitIds: [...(citedExhibitIds ?? [])] } : {}),
@@ -397,7 +402,7 @@ export function groundingUnits(result: StageResult): GroundingUnit[] {
 export function ballotConsistencyUnits(result: StageResult): GroundingUnit[] {
   return (result.jurors ?? []).map((juror, index) => ({
     id: `ballot-consistency-${index}:1`, kind: 'ballot_consistency',
-    text: JSON.stringify({ juror: juror.juror, leaning: juror.leaning,
+    text: JSON.stringify({ juror: juror.juror, ...(juror.outcome !== undefined ? { outcome: juror.outcome } : { leaning: juror.leaning }),
       ...(result.jurors?.length === 1 ? { title: result.title, content: result.content } : {}),
       rationale: juror.rationale, mindChangedBecause: juror.mindChangedBecause }),
   }))

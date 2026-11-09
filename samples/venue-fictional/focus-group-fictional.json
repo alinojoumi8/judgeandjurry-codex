@@ -1,0 +1,27 @@
+{
+  "name": "FICTIONAL focus-group findings (sample)",
+  "kind": "focus_group",
+  "source": "Fictional sample data written for TrialLens tests. Not real. Not from any survey, census, court or publication.",
+  "retrievedAt": "2026-11-08",
+  "licence": "CC0-1.0 (fictional test data)",
+  "rows": [
+    {
+      "theme": "Large damages claims",
+      "finding": "Fictional participants said they wanted the claimed amounts explained item by item before they would accept them.",
+      "dimension": "damages_skepticism",
+      "participants": 8
+    },
+    {
+      "theme": "Expert testimony",
+      "finding": "Fictional participants asked who was paying each expert and what the expert had been given to read.",
+      "dimension": "trust_in_experts",
+      "participants": 8
+    },
+    {
+      "theme": "Company defendants",
+      "finding": "Fictional participants expected a company to keep records and wanted to know why a record was missing.",
+      "dimension": "corporate_skepticism",
+      "participants": 8
+    }
+  ]
+}

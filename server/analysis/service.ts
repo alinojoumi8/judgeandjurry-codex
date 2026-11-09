@@ -1,7 +1,9 @@
 import { z } from 'zod'
 
 import type { CaseStore } from '../db'
+import { effectiveRulesForMatter } from '../frameworks/effective'
 import type { CaseModelV1 } from '../trialEngineTypes'
+import { assertJuryProfileReproducible } from '../venue/verify'
 import { analysisAudienceSchema, analysisInputManifestSchema, analysisKindSchema } from './schemas'
 import { partitionSourcedItems, type SourcedItem } from './sourceCheck'
 import {
@@ -34,6 +36,12 @@ export interface FreshnessContext {
   caseModelVersion?: number
   ledgers: Array<{ id: string; trialRunId?: string }>
   runIds: Set<string>
+  // Content hashes of the matter's imported venue datasets.
+  datasetHashes: Set<string>
+  // Hash of the matter's effective court rules; undefined when none are chosen.
+  rulePackHash?: string
+  // Content hash of the matter's approved jury profile; undefined when there is none.
+  juryProfileHash?: string
 }
 
 const notAvailable = 'Analysis artifacts are not available to this participant.'
@@ -56,11 +64,19 @@ export class AnalysisService {
 
   // Runs the free source check. Accepted items become the content; failures are
   // stored in `rejected` so they stay visible after a reload.
-  saveSourcedDraft<T extends SourcedItem>(input: DraftInput & { items: readonly unknown[] }): AnalysisArtifact<{ items: T[] }> {
-    const { items, ...rest } = input
+  // `extraContent` adds sibling fields next to `items` (it can never replace
+  // them) and `extraRejected` keeps items a feature already refused, such as
+  // events whose cited date is unsupported, in front of the source check's own.
+  saveSourcedDraft<T extends SourcedItem>(
+    input: DraftInput & { items: readonly unknown[]; extraContent?: Record<string, unknown>; extraRejected?: AnalysisRejectedItem[] },
+  ): AnalysisArtifact<{ items: T[] } & Record<string, unknown>> {
+    const { items, extraContent, extraRejected, ...rest } = input
     this.store.getMatter(input.matterId)
     const { accepted, rejected } = partitionSourcedItems<T>(items, this.store.listEvidence(input.matterId))
-    return this.save({ ...rest, content: { items: accepted }, rejected }, 'draft') as AnalysisArtifact<{ items: T[] }>
+    return this.save(
+      { ...rest, content: { ...(extraContent ?? {}), items: accepted }, rejected: [...(extraRejected ?? []), ...rejected] },
+      'draft',
+    ) as AnalysisArtifact<{ items: T[] } & Record<string, unknown>>
   }
 
   get(matterId: string, artifactId: string): AnalysisArtifact {
@@ -79,6 +95,8 @@ export class AnalysisService {
   approve(matterId: string, artifactId: string): AnalysisArtifact {
     const artifact = this.get(matterId, artifactId)
     if (artifact.status !== 'draft') throw new Error(`Only a draft analysis artifact can be approved; this one is ${artifact.status}.`)
+    // A jury profile's figures must reproduce from its imported datasets.
+    if (artifact.kind === 'jury_profile') assertJuryProfileReproducible(this.store, artifact)
     const freshness = this.freshness(artifact)
     if (freshness.status === 'out_of_date') {
       throw new Error(`This analysis is out of date and cannot be approved: ${freshness.reasons.join(' ')}`)
@@ -105,6 +123,9 @@ export class AnalysisService {
       caseModelVersion: current?.version,
       ledgers: this.store.workflow.listAdmissionLedgers(matterId).map((ledger) => ({ id: ledger.id, trialRunId: ledger.trialRunId })),
       runIds: new Set(this.store.workflow.listTrialRuns(matterId).map((run) => run.id)),
+      datasetHashes: new Set(this.store.venue.listSummaries(matterId).map((dataset) => dataset.datasetHash)),
+      rulePackHash: effectiveRulesForMatter(this.store, matterId)?.hash,
+      juryProfileHash: this.store.analysis.list(matterId, { kind: 'jury_profile', status: 'approved' })[0]?.contentHash,
     }
   }
 
@@ -141,8 +162,19 @@ export class AnalysisService {
       if (missing) reasons.push(`${missing} run${missing === 1 ? '' : 's'} used for this analysis no longer ${missing === 1 ? 'exists' : 'exist'}.`)
     }
 
-    if (manifest.rulePackHash !== undefined) notChecked.push('Rule pack: no current rule pack is available to compare with.')
-    if (manifest.juryProfileHash !== undefined) notChecked.push('Jury profile: no current jury profile is available to compare with.')
+    if (manifest.datasetHashes?.length) {
+      const missing = manifest.datasetHashes.filter((hash) => !context.datasetHashes.has(hash)).length
+      if (missing) reasons.push(`${missing} imported dataset${missing === 1 ? '' : 's'} used for this analysis ${missing === 1 ? 'is' : 'are'} no longer in this matter.`)
+    }
+
+    if (manifest.rulePackHash !== undefined) {
+      if (context.rulePackHash === undefined) notChecked.push('Rule pack: no current rule pack is available to compare with.')
+      else if (context.rulePackHash !== manifest.rulePackHash) reasons.push('The court rules for this case have changed since this analysis was prepared.')
+    }
+    if (manifest.juryProfileHash !== undefined) {
+      if (context.juryProfileHash === undefined) notChecked.push('Jury profile: no current jury profile is available to compare with.')
+      else if (context.juryProfileHash !== manifest.juryProfileHash) reasons.push('The approved jury profile has changed since this analysis was prepared.')
+    }
 
     return { status: reasons.length ? 'out_of_date' : 'current', reasons, notChecked }
   }

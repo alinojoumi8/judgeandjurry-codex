@@ -4,6 +4,7 @@ import { createApp } from '../server/app'
 import { CaseWorkflowService } from '../server/caseWorkflow'
 import { CaseStore } from '../server/db'
 import { sourceDocument, traceReference } from '../server/decisionTrace'
+import { NOT_YET_TESTED_SENTENCE } from '../server/forecast/winRates'
 import { TrialEngineService } from '../server/trialEngine'
 import type { ElementEvidenceRow, TrialRunConfig } from '../server/trialEngineTypes'
 
@@ -111,6 +112,10 @@ describe('evidence-to-decision records', () => {
     }
     const report = engine.robustnessReport(base.id)
     expect(report.completeRuns).toBe(2)
+    // The D1 wording: the shared sentence, the dependence on assumptions, and no claim of predicting a real verdict.
+    expect(report.disclaimer).toContain(NOT_YET_TESTED_SENTENCE)
+    expect(report.disclaimer).toMatch(/depend on the assumptions/)
+    expect(report.disclaimer).toMatch(/not a prediction of any real verdict/)
     expect(report.scenarioSensitivity[0]).toMatchObject({ sensitive: true, outcomes: { guilty: 1, not_guilty: 1 } })
     const comparison = report.comparisons.find((item) => item.runId === variant.id)!
     expect(comparison.changes.map((item) => item.setting)).toContain(`Starting document use · ${f.source.exhibitId}`)

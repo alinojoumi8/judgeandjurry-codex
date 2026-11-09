@@ -12,6 +12,13 @@ import { ParticipantMemoryPanel } from './ParticipantMemoryPanel'
 import { LegalReadinessPanel } from './LegalReadinessPanel'
 import { CourtroomPanel } from './CourtroomPanel'
 import { ScenarioComparisonPanel } from './EvidenceDecisionWorkspace'
+import { useMatterFramework } from './analysis/courtRules'
+import { civilPanelSize } from '../panelRules'
+import { estimateRunCalls } from '../runEstimate'
+import { JurorJourney } from './analysis/JurorJourney'
+import { DeliberationView } from './analysis/DeliberationView'
+import { RunDepthSettings } from './analysis/RunDepthSettings'
+import { TheoryModelCheckNote } from './analysis/analysisShared'
 
 import {
   analyzeDisclosure,
@@ -87,6 +94,7 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, matter, evidence,
   const [manifest, setManifest] = useState<ManifestEntry[]>([])
   const [adapter, setAdapter] = useState<ProcedureAdapterId>('ontario_criminal_jury_v1')
   const [civilDecisionMaker, setCivilDecisionMaker] = useState<'judge_alone' | 'jury'>('judge_alone')
+  const courtRules = useMatterFramework(matterId)
   const [civilJuryNoticeConfirmed, setCivilJuryNoticeConfirmed] = useState(false)
   const [caseModel, setCaseModel] = useState<CaseModel | null>(null)
   const [theoryText, setTheoryText] = useState<Record<string, string>>({})
@@ -101,6 +109,11 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, matter, evidence,
   const [restoring, setRestoring] = useState(true)
   const [useWitnesses, setUseWitnesses] = useState(false)
   const [courtroomProtocol, setCourtroomProtocol] = useState(false)
+  const [ballotV2, setBallotV2] = useState(false)
+  const [jurorCognition, setJurorCognition] = useState(false)
+  const [damagesAmounts, setDamagesAmounts] = useState(false)
+  const [deliberationForecast, setDeliberationForecast] = useState(false)
+  const [strawPollCounts, setStrawPollCounts] = useState<'visible' | 'hidden'>('visible')
   const [robustness, setRobustness] = useState<RobustnessReport | null>(null)
   const [variantLedgerId, setVariantLedgerId] = useState('')
   const [externalConfirmed, setExternalConfirmed] = useState(false)
@@ -183,15 +196,22 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, matter, evidence,
     return () => { cancelled = true }
   }, [step, trial?.run.id, trial?.run.parentRunId])
 
+  // Juror cognition and ballot contract v2 need jurors and are not offered with
+  // the reviewed courtroom protocol. Otherwise the run is made exactly as before.
+  const depthBlocked = adapter === 'ontario_capital_markets_v1' ? 'They need a jury, and this proceeding has an adjudicator panel.'
+    : adapter === 'ontario_civil_v1' && civilDecisionMaker !== 'jury' ? 'They need a jury: choose a six-person civil jury in Review case.'
+    : courtroomProtocol ? 'They are not available with the reviewed courtroom protocol.' : ''
   const estimate = useMemo(() => {
     const files = sources.length
     const issues = Math.max(1, caseModel?.decisionIssues.length ?? 1)
-    const panel = adapter === 'ontario_criminal_jury_v1' ? 12 : adapter === 'ontario_capital_markets_v1' ? 3 : civilDecisionMaker === 'jury' ? 6 : 1
-    const calls = caseModel
-      ? panel * issues * 2 + panel * 3 + caseModel.parties.length * 2 + motions.filter((motion) => motion.status === 'approved').length * 3
-      : 0
-      return { files, calls: calls * 2, minutes: calls ? `${Math.max(2, Math.ceil(calls / 3))}–${Math.max(5, Math.ceil(calls))}` : 'not yet available' }
-  }, [adapter, caseModel, civilDecisionMaker, sources.length, motions])
+    const panel = adapter === 'ontario_criminal_jury_v1' ? 12 : adapter === 'ontario_capital_markets_v1' ? 3 : civilDecisionMaker === 'jury' ? civilPanelSize(courtRules?.framework) : 1
+    const figures = estimateRunCalls({
+      panel, issues, parties: caseModel?.parties.length ?? 0, approvedMotions: motions.filter((motion) => motion.status === 'approved').length,
+      mode: 'full', witnesses: useWitnesses ? caseModel?.witnesses.length ?? 0 : 0, jurorCognition: jurorCognition && depthBlocked === '', deliberationForecast: deliberationForecast && depthBlocked === '',
+    })
+    const calls = caseModel ? figures.stageCalls + figures.cognitionCalls + (figures.forecastCalls ?? 0) : 0
+    return { files, calls: caseModel ? figures.calls : 0, panel, figures, minutes: calls ? `${Math.max(2, Math.ceil(calls / 3))}–${Math.max(5, Math.ceil(calls))}` : 'not yet available' }
+  }, [adapter, caseModel, civilDecisionMaker, courtRules, sources.length, motions, jurorCognition, deliberationForecast, depthBlocked, useWitnesses])
 
   const run = async (work: () => Promise<void>) => {
     setBusy(true)
@@ -236,6 +256,10 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, matter, evidence,
         })) : [],
       deliberation: { maxRounds: 3, concurrency: 4 },
       civilDecisionMaker: adapter === 'ontario_civil_v1' ? civilDecisionMaker : undefined,
+      ...(depthBlocked === '' && ballotV2 ? { ballotContract: 'v2' as const } : {}),
+      ...(depthBlocked === '' && jurorCognition ? { jurorCognition: true as const } : {}),
+      ...(depthBlocked === '' && ballotV2 && damagesAmounts ? { damagesAmounts: true as const } : {}),
+      ...(depthBlocked === '' && deliberationForecast ? { deliberationForecast: true as const, strawPollCounts } : {}),
       externalDisclosureConfirmed: externalConfirmed,
     })
   const checkSourceSize = async (config = newTrialConfig()) => {
@@ -259,7 +283,7 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, matter, evidence,
   const displayedConfig = trial?.run.config
   const displayedProvider = displayedConfig?.provider ?? provider
   const displayedAdapter = trial?.run.procedureAdapter ?? adapter
-  const panel = displayedAdapter === 'ontario_criminal_jury_v1' ? '12 jurors' : displayedAdapter === 'ontario_capital_markets_v1' ? '3 adjudicators' : (displayedConfig?.civilDecisionMaker ?? civilDecisionMaker) === 'jury' ? '6 jurors' : 'Judge alone'
+  const panel = displayedAdapter === 'ontario_criminal_jury_v1' ? '12 jurors' : displayedAdapter === 'ontario_capital_markets_v1' ? '3 adjudicators' : (displayedConfig?.civilDecisionMaker ?? civilDecisionMaker) === 'jury' ? `${civilPanelSize(displayedConfig ? displayedConfig.framework : courtRules?.framework)} jurors` : 'Judge alone'
   const consent = displayedConfig?.externalDisclosureConfirmed ?? externalConfirmed
   const activeLedger = trial ? ledgers.find((ledger) => ledger.id === trial.run.admissionLedgerId) : settingsLedger
 
@@ -354,7 +378,7 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, matter, evidence,
         {step === 3 && (
           <div className="workflow-stack">
             <p>Each brief stays private to its side and never becomes evidence. Public submissions become visible only after the advocate renders them.</p>
-            {caseModel?.parties.map((party) => <article className="theory-editor" key={party.id}><strong>{party.name} · {party.role}</strong><textarea value={theoryText[party.id] ?? ''} onChange={(event) => setTheoryText((current) => ({ ...current, [party.id]: event.target.value }))} placeholder="Optional private scenario; leave blank to generate from the neutral ledger." /><button type="button" onClick={() => void run(async () => {
+            {caseModel?.parties.map((party) => <article className="theory-editor" key={party.id}><strong>{party.name} · {party.role}</strong><textarea value={theoryText[party.id] ?? ''} onChange={(event) => setTheoryText((current) => ({ ...current, [party.id]: event.target.value }))} placeholder="Optional private scenario; leave blank to generate from the neutral ledger." /><TheoryModelCheckNote narrative={theoryText[party.id] ?? ''} /><button type="button" onClick={() => void run(async () => {
               const brief = await saveTheoryBrief(caseModel.id, { partyId: party.id, side: party.role, narrative: theoryText[party.id] ?? '' })
               setTheories((current) => [...current.filter((item) => item.partyId !== party.id), brief])
             })}>Save private theory</button></article>)}
@@ -393,11 +417,12 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, matter, evidence,
             <SummaryGrid items={[["Files", String(estimate.files)], ["Expected model calls", String(estimate.calls)], ["Expected runtime", `${estimate.minutes} minutes`], ["External disclosure", externalConfirmed ? 'Confirmed' : 'Not confirmed']]} />
               <label className="workflow-check"><input type="checkbox" checked={externalConfirmed} onChange={(event) => setExternalConfirmed(event.target.checked)} /> I confirm the permitted sources may be disclosed to the configured external model for a new run.</label>
               <label className="workflow-check"><input type="checkbox" checked={useWitnesses} onChange={(event) => setUseWitnesses(event.target.checked)} /> Include source-bound witness examinations from the approved model.</label>
+              <RunDepthSettings ballotContract={ballotV2} jurorCognition={jurorCognition} onBallotContract={setBallotV2} onJurorCognition={setJurorCognition} deliberationForecast={deliberationForecast} strawPollCounts={strawPollCounts} onDeliberationForecast={setDeliberationForecast} onStrawPollCounts={setStrawPollCounts} damagesAmounts={damagesAmounts} onDamagesAmounts={setDamagesAmounts} unavailableReason={depthBlocked} panel={estimate.panel} estimate={estimate.figures} />
               <RecordCoverage scope={caseModel?.recordScope} sources={sources} ledger={settingsLedger} />
               {!settingsLedger && <p role="status">Save document-use settings in Admitted Record before starting.</p>}
             <label className="workflow-check"><input type="checkbox" checked={reviewMotions} onChange={(event) => setReviewMotions(event.target.checked)} /> Pause for review after motion rulings.</label>
             {adapter !== 'ontario_capital_markets_v1' && <label className="workflow-check"><input type="checkbox" checked={reviewInstructions} onChange={(event) => setReviewInstructions(event.target.checked)} /> Pause for review after judicial instructions.</label>}
-            <p className="disclaimer">Synthetic panels are not statistically representative and do not predict real verdicts. This workflow is for preparation and stress testing.</p>
+            <p className="disclaimer">Synthetic panels are not statistically representative, and one run's votes are not probabilities or predictions of a real verdict. The Strategy forecast reports win probabilities from many simulated panels, with intervals; they have not been tested against real outcomes. This workflow is for preparation and stress testing.</p>
             <button type="button" disabled={busy || !caseModel || !settingsLedger} onClick={() => void run(async () => { await checkSourceSize() })}>Check source size</button>
             {sourceSize && <div className="notice-card" role="status"><strong>Selected source context: {sourceSize.characters.toLocaleString()} / {sourceSize.characterBudget.toLocaleString()} characters</strong><p>{sourceSize.message}</p><small>Largest source contributions: {sourceSize.sources.slice(0, 5).map(source => `${source.exhibitId}: ${source.characters.toLocaleString()}`).join(' · ')}</small>{!sourceSize.fits && <button type="button" onClick={() => setStep(6)}>Choose documents and paragraphs</button>}</div>}
               <button className="primary-action" type="button" disabled={busy || !caseModel || caseModel.status !== 'approved' || !settingsLedger || trial?.run.status === 'running'} onClick={() => void run(createAndStartTrial)}><Play size={16} /> Create and run full proceeding</button>
@@ -412,6 +437,8 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, matter, evidence,
         )}
 
         {step === 8 && <CaseResults matterId={matterId} trial={trial} model={caseModel} onSimulation={() => setStep(7)} />}
+        {step === 8 && trial?.run.config.jurorCognition && <JurorJourney runId={trial.run.id} />}
+        {step === 8 && trial?.run.config.deliberationForecast && <DeliberationView runId={trial.run.id} matterId={matterId} />}
 
             {(step === 8 || step === 9) && <details className="case-detail"><summary>Source-check audit</summary><GroundingAudit trial={trial} matterId={matterId} /></details>}
             {trial && (step === 7 || step === 9) && <ParticipantMemoryPanel runId={trial.run.id} actors={(trial.events.find(e => e.type === 'run_created')?.payload.actors ?? []) as Array<{ id: string; role: string }>} />}

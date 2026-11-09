@@ -29,7 +29,9 @@ jobs:
       - run: npm run test:sim
       - run: npm run test:arguments
       - run: npm run test:courtroom
+      - run: npm run test:intelligence
       - run: npm run eval:courtroom
+      - run: npm run eval:intelligence
       - run: npm audit
 
   authority-links:

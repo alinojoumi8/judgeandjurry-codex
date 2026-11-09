@@ -1,0 +1,41 @@
+{
+  "assumptions": {
+    "responseRate": {
+      "low": 0.15,
+      "central": 0.25,
+      "high": 0.35
+    },
+    "awardBandEdgesCents": [
+      10000000
+    ],
+    "reporting": [
+      {
+        "probability": {
+          "low": 0.5,
+          "central": 0.6,
+          "high": 0.7
+        }
+      },
+      {
+        "sourceType": "media_report",
+        "outcome": "plaintiff",
+        "probability": {
+          "low": 0.8,
+          "central": 0.9,
+          "high": 0.95
+        }
+      },
+      {
+        "sourceType": "media_report",
+        "outcome": "defence",
+        "probability": {
+          "low": 0.1,
+          "central": 0.2,
+          "high": 0.3
+        }
+      }
+    ]
+  },
+  "seed": "fictional-sample-seed",
+  "note": "Every number here is an invented assumption for tests. The media rows are assumed to be far more likely to be reported when the plaintiff won (see the selection warning). Replace these with assumptions you can defend."
+}

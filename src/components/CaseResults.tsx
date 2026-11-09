@@ -50,7 +50,8 @@ export function CaseResults({ matterId, trial, model, onSimulation }: { matterId
       {!trial.ballots.length && <p>This attempt stopped before any ballots were recorded.</p>}
     </details>}
     {trial && <details className="case-detail"><summary>Proceeding transcript ({trial.events.length} saved events)</summary>
-      {trial.events.map(event => <article className="recorded-event" key={event.id}><h3>{event.actorId ?? 'System'} · {event.phase.replaceAll('_', ' ')}</h3><small>#{event.sequence} · {event.type.replaceAll('_', ' ')}</small>
+      {trial.events.map(event => <article className="recorded-event" id={`event-${event.id}`} key={event.id}><h3>{event.actorId ?? 'System'} · {event.phase.replaceAll('_', ' ')}</h3><small>#{event.sequence} · {event.type.replaceAll('_', ' ')}</small>
+        {event.payload.simulated === true && typeof event.payload.label === 'string' && <small className="case-warning">{event.payload.label}</small>}
         {typeof event.payload.content === 'string' ? <p>{event.payload.content}</p> : typeof event.payload.text === 'string' ? <p>{event.payload.text}</p> : <p>Structured event. Inspect the source-check audit or download the case for the full saved record.</p>}
       </article>)}
     </details>}

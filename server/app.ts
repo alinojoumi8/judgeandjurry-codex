@@ -39,7 +39,23 @@ import { createHardeningRouter } from './routes/hardening'
 import { createCorpusRouter } from './routes/corpus'
 import { createWorkflowRouter } from './routes/workflow'
 import { createAnalysisRouter } from './routes/analysis'
+import { createFrameworkRouter } from './routes/frameworks'
+import { FrameworkService } from './frameworks/service'
 import { AnalysisService } from './analysis/service'
+import { AnalysisJobService } from './analysis/jobs'
+import { createCaseIntelligence } from './analysis/intelligenceJobs'
+import type { StructuredModelClient } from './analysis/structured'
+import { createCaseIntelligenceRouter } from './routes/caseIntelligence'
+import { createCaseMapRouter } from './routes/caseMap'
+import { createCaseSummaryRouter } from './routes/caseSummary'
+import { createImprovementPlanRouter } from './routes/improvementPlan'
+import { createVenueRouter } from './routes/venue'
+import { createCognitionRouter } from './routes/cognition'
+import { createDeliberationRouter } from './routes/deliberation'
+import { createForecastRouter } from './routes/forecast'
+import { createDamagesRouter } from './routes/damages'
+import { createStyleStudyRouter } from './routes/styleStudies'
+import { VenueService } from './venue/service'
 import {
   apiAuthentication,
   apiSecurityConfig,
@@ -113,6 +129,10 @@ export interface CreateAppOptions {
   service?: SimulationService
   trialForgeModelClient?: ModelClient
   corpusService?: CorpusService
+  // The case-intelligence jobs register their handlers on it; tests may inject a service with small caps.
+  analysisJobs?: AnalysisJobService
+  // The model client for chronology, evidence index and expert jobs. Tests pass a scripted one.
+  structuredModelClient?: StructuredModelClient
   logger?: AppLogger
   security?: ApiSecurityConfig
 }
@@ -150,6 +170,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     logger.child({ component: 'trial-engine' }),
     providerStatusFromConfig(config),
   )
+  const analysisJobs = options.analysisJobs ?? new AnalysisJobService(store, undefined, logger.child({ component: 'analysis-jobs' }))
   const interruptedRuns = store.workflow.recoverInterruptedTrialRuns()
   if (interruptedRuns) logger.warn('trial_engine.runs.interrupted', { count: interruptedRuns })
 
@@ -169,6 +190,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.locals.corpus = corpus
   app.locals.caseWorkflow = caseWorkflow
   app.locals.trialEngine = trialEngine
+  app.locals.analysisJobs = analysisJobs
   app.locals.logger = logger
 
   const trustProxy = trustProxySetting()
@@ -185,7 +207,18 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     remote: security.remote,
   }))
   app.use('/api', createWorkflowRouter(caseWorkflow, trialEngine))
-  app.use('/api', createAnalysisRouter(new AnalysisService(store)))
+  app.use('/api', createAnalysisRouter(new AnalysisService(store), analysisJobs))
+  app.use('/api', createCaseIntelligenceRouter(createCaseIntelligence(store, new AnalysisService(store), analysisJobs, options.structuredModelClient, logger.child({ component: 'case-intelligence' })), analysisJobs))
+  app.use('/api', createFrameworkRouter(new FrameworkService(store)))
+  app.use('/api', createCaseMapRouter(store, analysisJobs, options.structuredModelClient, logger.child({ component: 'case-map' })))
+  app.use('/api', createCaseSummaryRouter(store, analysisJobs, options.structuredModelClient, logger.child({ component: 'case-summary' })))
+  app.use('/api', createImprovementPlanRouter(store, analysisJobs, options.structuredModelClient, logger.child({ component: 'improvement-plan' })))
+  app.use('/api', createVenueRouter(new VenueService(store)))
+  app.use('/api', createCognitionRouter(store))
+  app.use('/api', createDeliberationRouter(store))
+  app.use('/api', createForecastRouter(store, analysisJobs, trialEngine, logger.child({ component: 'forecast' })))
+  app.use('/api', createDamagesRouter(store, analysisJobs, trialEngine, logger.child({ component: 'damages' })))
+  app.use('/api', createStyleStudyRouter(store, analysisJobs, trialEngine, logger.child({ component: 'style_study' })))
 
   app.get(
     '/api/health',
