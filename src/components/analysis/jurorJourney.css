@@ -1,0 +1,24 @@
+.juror-journey { overflow-x: auto; margin: 28px 0; padding-top: 24px; border-top: 1px solid var(--case-border, #dedee4); }
+.juror-journey h2 { display: flex; align-items: center; gap: 8px; }
+.juror-journey__banner { border-left: 4px solid #966a09; background: #fbf5e6; padding: 10px 14px; margin: 0 0 16px; font-size: 14px; }
+.juror-journey__table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0 16px; }
+.juror-journey__table caption { text-align: left; color: var(--case-muted, #5e5e69); padding-bottom: 8px; }
+.juror-journey__table :is(th, td) { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--case-border, #dedee4); overflow-wrap: anywhere; }
+.juror-journey__table thead th { font-weight: 650; }
+.juror-journey__table ul { margin: 0; padding-left: 16px; }
+.juror-journey__note { display: block; color: var(--case-muted, #5e5e69); margin-top: 3px; }
+.juror-journey__picker { margin: 12px 0; }
+.juror-journey__picker select { margin-left: 8px; }
+.juror-journey__link { border: 1px solid var(--case-border, #dedee4); background: transparent; border-radius: 4px; padding: 4px 8px; font-size: 12px; white-space: nowrap; }
+.juror-journey__traits { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: 6px 16px; margin: 8px 0; }
+.juror-journey__traits div { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.juror-journey__traits dd { margin: 0; font-variant-numeric: tabular-nums; }
+.juror-journey__emotion { position: relative; display: inline-block; vertical-align: middle; width: 90px; height: 10px; margin-right: 6px; background: #ececf0; border-radius: 3px; overflow: hidden; }
+.juror-journey__emotion::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: #8f8f98; }
+.juror-journey__emotion > span { position: absolute; top: 0; bottom: 0; }
+.juror-journey__emotion > .is-positive { background: #2d6a4f; }
+.juror-journey__emotion > .is-negative { background: #a4161a; }
+.juror-journey__share { display: inline-block; vertical-align: middle; width: 90px; height: 10px; margin-right: 6px; background: #ececf0; border-radius: 3px; overflow: hidden; }
+.juror-journey__share > span { display: block; height: 100%; }
+.juror-journey__share > .is-attention { background: #3a5a99; }
+.juror-journey__share > .is-fatigue { background: #966a09; }
