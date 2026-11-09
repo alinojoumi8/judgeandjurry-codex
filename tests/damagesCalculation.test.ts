@@ -320,7 +320,7 @@ describe('ledger notes are shown as dollars and percentages', () => {
     expect(notes).toContain('fees of $36,550.00')
     expect(notes).toContain('the running figure of $109,650.00 is within the policy limit of $300,000.00')
     expect(notes).toContain('collectability of 90% applied')
-    expect(notes.join(' ')).not.toMatch(/d{6,}/)
+    expect(notes.join(' ')).not.toMatch(/\b\d{6,}\b/)
     expect(readableNote('excluded punitive (2000000): not available')).toBe('excluded punitive ($20,000.00): not available')
     expect(readableNote('deduction d1: 50000 of 80000 applied; 30000 exceeded the in-scope amount and was not applied')).toBe('deduction d1: $500.00 of $800.00 applied; $300.00 exceeded the amount it covers and was not applied')
     expect(readableNote('liens total 900000 exceeded the running figure; 400000 not applied')).toBe('liens total $9,000.00, which exceeded the running figure; $4,000.00 not applied')

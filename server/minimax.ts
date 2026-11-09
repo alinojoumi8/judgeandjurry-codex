@@ -600,7 +600,12 @@ export class MiniMaxClient implements ModelClient {
       nextProviderRequest.set(paceKey, slot + interval)
       if (slot > now) await waitForRetry(slot - now, signal)
     }
-    await waitForSlot()
+    const cancelled = () => new ModelProviderError(`${providerLabel(this.config.provider)} request was cancelled.`, { retryable: false })
+    try { await waitForSlot(cancel) } catch (error) {
+      // A caller who cancelled while this call waited for its pacing slot gets a cancellation, not a retryable timeout.
+      if (cancel?.aborted) throw cancelled()
+      throw error
+    }
     const controller = new AbortController()
     const deadline = Date.now() + this.config.timeoutMs
     const timeout = setTimeout(() => controller.abort(), this.config.timeoutMs)
@@ -674,6 +679,8 @@ export class MiniMaxClient implements ModelClient {
 
       return { content, usage: tokenUsage(data.usage) }
     } catch (error) {
+      // A cancel by the caller is final: it must not look like a timeout that is safe to retry.
+      if (cancel?.aborted) throw cancelled()
       if (isAbortError(error)) {
         throw new ModelProviderError(
           `${providerLabel(this.config.provider)} request timed out.`,

@@ -127,6 +127,21 @@ describe('case map screen', () => {
     expect(root.querySelector('article.case-map__detail')).toBeNull()
   })
 
+  it('still expands a row when a matrix cell names a question that is not in the list', async () => {
+    const world = caseMapWorld()
+    const views = await viewsFor(world)
+    // A damaged view: one cell points at a question key that no question has.
+    const cell = views.draft!.matrix.rows.flatMap((row) => row.cells).find((item) => item.issueKey)
+    if (!cell) throw new Error('the fixture has no cell with a question')
+    cell.issueKey = 'no-such-question'
+    const root = await mount(propsFor(views))
+    const expander = button(root, /Show details: Tamarack breached its duty/)!
+    await act(async () => expander.click())
+    expect(expander.getAttribute('aria-expanded')).toBe('true')
+    // The screen is still there: nothing threw while drawing the expanded row.
+    expect(root.querySelector('table')).not.toBeNull()
+  })
+
   it('shows the evidence already mapped for a question that is in the case model', async () => {
     const world = caseMapWorld()
     await world.caseMap.generate(world.matterId, { client: scripted(world) })

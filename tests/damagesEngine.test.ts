@@ -132,8 +132,7 @@ describe('damages amounts in a run (F12)', () => {
     const without = damagesWorld(stores)
     await runIt(without, { damagesAmounts: undefined })
     expect(withDamages.scripted.count).toBe(without.scripted.count)
-    // Both are priced alike: amounts ride on the ballots that are already sent.
-    expect(estimateRunCalls({ panel: 6, issues: 2, parties: 2, approvedMotions: 0, mode: 'screen' }).calls).toBe(estimateRunCalls({ panel: 6, issues: 2, parties: 2, approvedMotions: 0, mode: 'screen' }).calls)
+    // Amounts ride on the ballots that are already sent: the estimator has no damages input, and the measured calls above match.
     const perRun = estimateRunCalls({ panel: 6, issues: 2, parties: 2, approvedMotions: 0, mode: 'screen' }).calls
     expect(withDamages.scripted.count).toBeLessThanOrEqual(perRun)
   })

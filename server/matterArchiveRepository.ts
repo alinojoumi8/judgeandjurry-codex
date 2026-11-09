@@ -339,7 +339,8 @@ export class MatterArchiveRepository {
         this.insert('matter_frameworks', remapRow({ ...row, id: frameworkIds.get(String(row.id)), matter_id: newMatterId }, allIds))
       }
       for (const row of snapshot.venueDatasets ?? []) {
-        this.insert('venue_datasets', remapRow({ ...row, id: datasetIds.get(String(row.id)), matter_id: newMatterId }, allIds))
+        // Imported research rows carry no row ids, so keep their bytes: the recorded dataset hash must still match.
+        this.insert('venue_datasets', { ...row, id: datasetIds.get(String(row.id)), matter_id: newMatterId })
       }
       this.db.exec('COMMIT')
       return newMatterId

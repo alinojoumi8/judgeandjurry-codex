@@ -217,7 +217,7 @@ describe('damages screen: results', () => {
     expect([...table.querySelectorAll('thead th')].map((cell) => cell.textContent)).toEqual(['Question and category', 'Basis', '10th', '25th', '50th', '75th', '90th', 'Mean', 'Values', 'Bar'])
     const rows = [...table.querySelectorAll('tbody tr')]
     expect(rows.some((row) => /Past income loss/.test(row.textContent ?? '') && /\$50,000\.00/.test(row.textContent ?? ''))).toBe(true)
-    expect(rows.every((row) => [...row.querySelectorAll('th')].every((cell) => cell.getAttribute('scope') === 'row' || cell.getAttribute('rowspan') !== null || true))).toBe(true)
+    expect(rows.every((row) => [...row.querySelectorAll('th')].every((cell) => cell.getAttribute('scope') === 'row' || cell.getAttribute('rowspan') !== null))).toBe(true)
     for (const bar of table.querySelectorAll('.damages__bar')) expect(bar.closest('td')!.getAttribute('aria-hidden')).toBe('true')
     // Dollars are formatted from cents everywhere: no bare cents figure such as 5000000 appears.
     expect(text(root)).not.toMatch(/\b\d{7,}\b/)

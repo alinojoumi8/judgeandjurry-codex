@@ -199,7 +199,10 @@ function MapBody(props: CaseMapScreenProps & { view: CaseMapArtifactView; base: 
         <caption>Each row is a claim or crossclaim. Each party column says whether it is pleaded against that party, and which question it becomes.</caption>
         <thead><tr><th scope="col">Claim</th><th scope="col">Pleaded by</th>{view.matrix.defendants.map((party) => <th scope="col" key={party.id}>{party.name}{party.proposed ? ' (proposed)' : ''}</th>)}</tr></thead>
         <tbody>{view.matrix.rows.map((row) => {
-          const issues = row.cells.flatMap((cell) => (cell.issueKey ? [issueByKey.get(cell.issueKey)!] : []))
+          const issues = row.cells.flatMap((cell) => {
+            const issue = cell.issueKey ? issueByKey.get(cell.issueKey) : undefined
+            return issue ? [issue] : []
+          })
           const id = `${base}-row-${row.itemId}`
           return <Fragment key={row.itemId}>
             <tr>

@@ -68,6 +68,10 @@ export class FrameworkService {
     const previousOverrides = previous && previous.packId === input.packId ? previous.overrides : []
     const history: FrameworkHistoryEntry[] = [...(previous?.history ?? [])]
     if (!previous || previous.packId !== input.packId) {
+      // Record each override this switch discards, so the history shows why it no longer applies.
+      for (const old of previous?.overrides ?? []) {
+        history.push({ at: changedAt, by: input.changedBy, kind: 'override_cleared', field: old.field, summary: `Removed the override of ${old.field} because the court rules changed to ${input.packId}.` })
+      }
       history.push({ at: changedAt, by: input.changedBy, kind: 'pack_selected', summary: `Chose court rules ${input.packId}.` })
     }
     const overrides: FrameworkOverride[] = input.overrides.map((override) => {

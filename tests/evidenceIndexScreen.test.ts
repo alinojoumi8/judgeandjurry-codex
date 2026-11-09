@@ -1,14 +1,22 @@
 // @vitest-environment jsdom
 import { URL as NodeURL } from 'node:url'
+import { act } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { EvidenceIndexService } from '../server/analysis/evidenceIndex'
 import type { CoverageView, IndexPage, IndexQuery, SuggestionsView } from '../server/analysis/intelligenceTypes'
 import type { AnalysisJob } from '../server/analysis/jobTypes'
-import { EvidenceIndexScreen, type EvidenceIndexScreenProps } from '../src/components/analysis/EvidenceIndex'
+import * as api from '../src/api'
+import { EvidenceIndex, EvidenceIndexScreen, type EvidenceIndexScreenProps } from '../src/components/analysis/EvidenceIndex'
 import type { GenerateState } from '../src/components/analysis/analysisHelpers'
 import { cleanupAnalysisFixtures } from './analysisFixtures'
 import { browserDocument, button, choose, click, labelled, mountScreen, roundTrip, type as typeInto, unmountScreens } from './screenHarness'
+
+// Only the three loading calls are replaced, for the out-of-order answer test at the end of this file.
+vi.mock('../src/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/api')>()),
+  fetchEvidenceIndex: vi.fn(), fetchEvidenceCoverage: vi.fn(), fetchIndexSuggestions: vi.fn(),
+}))
 
 let fixtures: typeof import('./intelligenceFixtures')
 beforeAll(async () => {
@@ -332,5 +340,31 @@ describe('evidence index screen: refusals, freshness and approval', () => {
     const stale = await mount(propsFor(read(), { exhibits }))
     expect(stale.textContent).toContain('This evidence index is out of date.')
     expect((button(stale, /Approve evidence index/) as HTMLButtonElement).disabled).toBe(true)
+  })
+})
+
+describe('evidence index: answers that arrive out of order', () => {
+  it('keeps the answer for the newest filters when an older answer arrives later', async () => {
+    const { read, exhibits } = await world()
+    const first = read()
+    const slowPage = { ...first.page, total: 111 }
+    const fastPage = { ...first.page, total: 7 }
+    const waiting: Array<(page: IndexPage) => void> = []
+    vi.mocked(api.fetchEvidenceCoverage).mockResolvedValue(first.coverage)
+    vi.mocked(api.fetchIndexSuggestions).mockResolvedValue(first.suggestions)
+    vi.mocked(api.fetchEvidenceIndex).mockImplementation(() => waiting.length === 0 && vi.mocked(api.fetchEvidenceIndex).mock.calls.length === 1
+      ? Promise.resolve(first.page)
+      : new Promise<IndexPage>((resolve) => { waiting.push(resolve) }))
+    const root = await mountScreen(EvidenceIndex, { matterId: 'm1', provider: null, exhibits })
+    // The user changes two filters quickly: the first request is still open when the second one starts.
+    await choose(labelled<HTMLSelectElement>(root, 'Entry type'), 'testimony')
+    await choose(labelled<HTMLSelectElement>(root, 'Source type'), 'allegation')
+    expect(waiting).toHaveLength(2)
+    await act(async () => waiting[1](fastPage))
+    expect(root.textContent).toContain('7 entries match')
+    // The older answer arrives last. It must not replace the newer one.
+    await act(async () => waiting[0](slowPage))
+    expect(root.textContent).toContain('7 entries match')
+    expect(root.textContent).not.toContain('111 entries match')
   })
 })

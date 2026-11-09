@@ -253,9 +253,12 @@ export function EvidenceIndex({ matterId, provider, exhibits }: { matterId: stri
   const queryRef = useRef(query)
   useEffect(() => { queryRef.current = query })
 
+  // Only the latest request may update the page: a slower, older answer must not replace a newer one.
+  const pageRequest = useRef(0)
   const loadPage = useCallback(async (next: IndexQuery) => {
-    try { const result = await fetchEvidenceIndex(matterId, next); if (alive.current) { setPage(result); setError('') } }
-    catch (caught) { if (alive.current) setError(messageOf(caught, 'Could not load the evidence index.')) }
+    const request = ++pageRequest.current
+    try { const result = await fetchEvidenceIndex(matterId, next); if (alive.current && request === pageRequest.current) { setPage(result); setError('') } }
+    catch (caught) { if (alive.current && request === pageRequest.current) setError(messageOf(caught, 'Could not load the evidence index.')) }
   }, [matterId])
   const loadAll = useCallback(async () => {
     try {
