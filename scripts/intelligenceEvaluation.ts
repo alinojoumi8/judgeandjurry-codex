@@ -80,8 +80,16 @@ function metric(id: MetricId, thresholds: Thresholds, numerator: number, denomin
 }
 
 const norm = (text: string): string => text.replace(/\s+/g, ' ').trim().toLowerCase()
-interface Ref { file: string; quote: string }
-const sameRef = (a: Ref, b: Ref): boolean => a.file === b.file && (norm(a.quote).includes(norm(b.quote)) || norm(b.quote).includes(norm(a.quote)))
+export interface Ref { file: string; quote: string }
+// Two quotations are the same passage when the shorter one sits inside the longer one. A fragment too short to identify a
+// passage (empty, or a word such as "the") never matches a longer quotation, so citing fragments cannot earn recall or precision.
+export const MIN_QUOTE = 12
+export const sameRef = (a: Ref, b: Ref): boolean => {
+  if (a.file !== b.file) return false
+  const left = norm(a.quote), right = norm(b.quote)
+  const [short, long] = left.length <= right.length ? [left, right] : [right, left]
+  return short.length > 0 && short.length >= Math.min(MIN_QUOTE, long.length) && long.includes(short)
+}
 const anyShared = (a: Ref[], b: Ref[]): boolean => a.some((left) => b.some((right) => sameRef(left, right)))
 const nameOf = (evidence: readonly EvidenceItem[], id: string): string => evidence.find((item) => item.id === id)?.name ?? id
 const refsOf = (evidence: readonly EvidenceItem[], sources: ReadonlyArray<{ evidenceId: string; quote: string }>): Ref[] => sources.map((source) => ({ file: nameOf(evidence, source.evidenceId), quote: source.quote }))
@@ -107,16 +115,14 @@ export function scoreChronology(content: ChronologyContent, evidence: readonly E
   const scoped = answerKey.conflicts.filter((conflict) => thresholds.chronologyConflictScope.keyConflictIds.includes(conflict.id))
   const conflictSideRefs = (conflict: (typeof scoped)[number]) => conflict.sides.map((side) => ({ file: side.file, quote: side.quote }))
   const byId = new Map(events.map((candidate) => [candidate.event.id, candidate]))
-  const flaggedFor = (conflict: (typeof scoped)[number]) => content.conflicts.some((flagged) => {
+  // A flagged conflict matches a key conflict when its members cite the sides of that conflict in two different documents.
+  const covers = (flagged: ChronologyContent['conflicts'][number], conflict: (typeof scoped)[number]) => {
     const members = flagged.eventIds.flatMap((id) => byId.get(id)?.refs ?? [])
     const files = new Set(conflictSideRefs(conflict).filter((side) => members.some((member) => sameRef(member, side))).map((side) => side.file))
     return files.size >= 2
-  })
-  const conflictsFound = scoped.filter(flaggedFor)
-  const conflictsCorrect = content.conflicts.filter((flagged) => {
-    const members = flagged.eventIds.flatMap((id) => byId.get(id)?.refs ?? [])
-    return scoped.some((conflict) => members.length > 0 && members.every((member) => conflictSideRefs(conflict).some((side) => sameRef(member, side)) || anyShared([member], referenceRefs)))
-  })
+  }
+  const conflictsFound = scoped.filter((conflict) => content.conflicts.some((flagged) => covers(flagged, conflict)))
+  const conflictsCorrect = content.conflicts.filter((flagged) => scoped.some((conflict) => covers(flagged, conflict)))
   const outOfScope = answerKey.conflicts.filter((conflict) => !scoped.includes(conflict)).map((conflict) => `${conflict.id} ${conflict.topic}`)
 
   return [
@@ -216,6 +222,33 @@ export function degradedChronology(gold: Router): Router {
       ],
     }
   }
+}
+
+// A model that takes two real, unrelated events from different documents for one occurrence: giving them the same event key
+// makes the software flag a conflict between them. The conflict is false, because neither event is on a side of a key conflict.
+export function falseConflictChronology(gold: Router, evidenceIds: ReadonlySet<string>): Router {
+  return (request) => {
+    const reply = gold(request) as { events?: Array<Record<string, unknown> & { when: { start?: string } }> }
+    if (request.task !== 'chronology_extraction' || !evidenceIds.has(documentOf(request)!) || !reply.events) return reply
+    const first = reply.events.findIndex((event) => event.when.start !== undefined)
+    return { events: reply.events.map((event, index) => (index === first ? { ...event, eventKey: 'the unrelated pair' } : event)) }
+  }
+}
+
+export interface FalseConflictProbe { conflicts: number; precision: MetricResult; recall: MetricResult }
+
+// Runs the real chronology service with a model that flags one false conflict between two valid events, and scores it.
+export async function runFalseConflictProbe(thresholds: Thresholds): Promise<FalseConflictProbe> {
+  const store = new CaseStore(':memory:')
+  try {
+    const world = buildCivilWorld({}, store)
+    const ids = new Set(['11-physiotherapy-records.txt', '12-expert-report-plaintiff-orthopaedic.txt'].map((file) => world.exhibit(file)))
+    const router = falseConflictChronology(intelligenceRouter(world), ids)
+    const artifact = await new ChronologyService(world.store, world.service, world.workflow).generate(world.matterId, { client: routedClient(router, 300) })
+    const content = artifact.content as unknown as ChronologyContent
+    const scored = scoreChronology(content, world.store.listEvidence(world.matterId), thresholds)
+    return { conflicts: content.conflicts.length, precision: scored.find((item) => item.id === 'chronology.conflictPrecision')!, recall: scored.find((item) => item.id === 'chronology.conflictRecall')! }
+  } finally { store.close() }
 }
 
 export function degradedIntelligence(gold: Router): Router {
@@ -348,12 +381,13 @@ export async function runInvariants(): Promise<InvariantResult[]> {
         const evidence = world.store.listEvidence(world.matterId)
         const gold = intelligenceRouter(world)
         const fabricated = 'The plaintiff won a fictional lottery on the day of the fall.'
+        const fabricatedQuote = 'The plaintiff won a lottery.'
         const router: Router = (request) => {
           const reply = gold(request) as { events?: unknown[] }
           if (request.task !== 'chronology_extraction' || documentOf(request) !== world.exhibit('10-family-physician-chart.txt')) return reply
           return { events: [...reply.events!, {
             when: { precision: 'day', start: '2023-11-08', original: '2023-11-08' }, description: fabricated, type: 'other', assertion: 'record',
-            sources: [{ evidenceId: documentOf(request), paragraph: 1, quote: 'The plaintiff won a lottery.' }], issueIds: [],
+            sources: [{ evidenceId: documentOf(request), paragraph: 1, quote: fabricatedQuote }], issueIds: [],
           }] }
         }
         const artifact = await new ChronologyService(world.store, world.service, world.workflow).generate(world.matterId, { client: routedClient(router, 60) })
@@ -361,7 +395,7 @@ export async function runInvariants(): Promise<InvariantResult[]> {
         checks.check('every saved event cites at least one passage', content.items.length > 0 && content.items.every((event) => event.sources.length > 0))
         checks.check('every cited passage is in the preserved source', content.items.every((event) => event.sources.every((source) => checkPassage(source, evidence) === null)))
         checks.check('an event whose quotation is not in the source is not saved', !content.items.some((event) => event.description === fabricated))
-        checks.check('the refusal stays visible in the rejected list', artifact.rejected.some((entry) => JSON.stringify(entry).includes(fabricated)) || artifact.rejected.length > 0, `${artifact.rejected.length} rejected`)
+        checks.check('the refusal stays visible in the rejected list', artifact.rejected.some((entry) => { const text = JSON.stringify(entry); return text.includes(fabricated) || text.includes(fabricatedQuote) }), `${artifact.rejected.length} rejected`)
         checks.check('control: the valid events from the same document were kept', content.items.some((event) => event.sources.some((source) => nameOf(evidence, source.evidenceId) === '10-family-physician-chart.txt')))
       }),
 
@@ -558,7 +592,7 @@ export class BudgetedStructuredClient implements StructuredModelClient {
   private readonly started = performance.now()
   private readonly inner: StructuredModelClient
   private readonly budget: LiveBudget
-  private readonly mode: 'local' | 'external'
+  readonly mode: 'local' | 'external'
   private readonly confirmed: boolean
 
   constructor(inner: StructuredModelClient, budget: LiveBudget, mode: 'local' | 'external', confirmed: boolean) {
@@ -640,6 +674,11 @@ export async function evaluate(options: {
     name: `the degraded client fails at least one ${group} metric`, passed: degraded.groupsFailed.includes(group),
     detail: degraded.metrics.filter((item) => item.group === group).map((item) => `${item.id} ${item.score === null ? 'n/a' : item.score.toFixed(3)}`).join(', '),
   }))
+  const falseConflict = await runFalseConflictProbe(thresholds)
+  vacuityChecks.push({
+    name: 'a false conflict between two valid events lowers conflict precision below the target, and the true conflict still counts', passed: falseConflict.conflicts >= 2 && falseConflict.precision.score !== null && falseConflict.precision.score < falseConflict.precision.threshold && falseConflict.recall.passed,
+    detail: `${falseConflict.conflicts} conflicts flagged; precision ${falseConflict.precision.numerator}/${falseConflict.precision.denominator}; recall ${falseConflict.recall.numerator}/${falseConflict.recall.denominator}`,
+  })
   vacuityChecks.push({ name: 'the key client and the degraded client score differently', passed: key.allTargetsMet && !degraded.allTargetsMet, detail: `key all met: ${key.allTargetsMet}; degraded all met: ${degraded.allTargetsMet}` })
   for (const check of vacuityChecks.filter((item) => !item.passed)) failures.push(`Vacuity check failed: ${check.name} (${check.detail})`)
 
@@ -677,4 +716,12 @@ export async function evaluate(options: {
     },
     failures, passed: failures.length === 0,
   }
+}
+
+// The one-line result. Targets are counted from the run that matches the provider mode only: in a live report the scripted key
+// run is fixture evidence and is never added to the live model's score.
+export function summaryLine(report: EvaluationReport): string {
+  const primary = report.runs.find((run) => run.id === (report.providerMode === 'live' ? 'live' : 'key'))
+  const met = primary?.metrics.filter((item) => item.passed).length ?? 0
+  return `${met}/${primary?.metrics.length ?? 0} targets met by the ${report.providerMode} client, ${report.counts.invariantsPassed}/${report.invariants.length} invariants, ${report.counts.vacuityChecksFailed} vacuity failures.`
 }

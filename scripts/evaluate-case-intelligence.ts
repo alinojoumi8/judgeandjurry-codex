@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { createMiniMaxConfig } from '../server/minimax'
 import { EvaluationTransport } from '../server/courtroomEvaluation'
-import { buildLiveClient, evaluate, liveBudgetFromEnv, loadThresholds, STANDING_STATEMENT, type EvaluationReport } from './intelligenceEvaluation'
+import { buildLiveClient, evaluate, liveBudgetFromEnv, loadThresholds, STANDING_STATEMENT, summaryLine, type EvaluationReport } from './intelligenceEvaluation'
 
 // Scripted by default. `--live` is gated exactly like `npm run eval:courtroom -- --live`: an explicit flag, external
 // disclosure confirmation, request, time and retry limits, and a call/character budget. This script never runs a live
@@ -40,8 +40,8 @@ async function main(): Promise<void> {
     transport = new EvaluationTransport({ maxCalls: budget.maxCalls * (budget.maxRetries + 1), maxInputCharacters: budget.maxInputCharacters * (budget.maxRetries + 1), maxElapsedMs: budget.maxElapsedMs })
     // Refuses here, before any request, when an external provider has no disclosure confirmation.
     const client = buildLiveClient(config, budget, transport.fetch)
-    const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(config.baseUrl).hostname)
-    liveSetup = { client, budget, provider: { name: config.provider, model: config.model, mode: local ? 'local' : 'external' } }
+    // The mode the gate decided and stamped on every request, not a second guess from the host name.
+    liveSetup = { client, budget, provider: { name: config.provider, model: config.model, mode: client.mode } }
   }
   const report = await evaluate({ live: liveSetup })
   if (transport && report.runs.some((run) => run.id === 'live')) {
@@ -55,7 +55,7 @@ async function main(): Promise<void> {
   const body = JSON.stringify(report, null, 2)
   await writeFile(file, body)
   await writeFile(file.replace('-evaluation.json', `-evaluation-${report.createdAt.replace(/[:.]/g, '-')}.json`), body)
-  console.log(`\n${report.passed ? 'PASS' : 'FAIL'}: ${report.counts.metricsPassed}/${report.counts.metricsEvaluated} targets met by the ${report.providerMode} client, ${report.counts.invariantsPassed}/${report.invariants.length} invariants, ${report.counts.vacuityChecksFailed} vacuity failures.`)
+  console.log(`\n${report.passed ? 'PASS' : 'FAIL'}: ${summaryLine(report)}`)
   console.log(`Report: ${file}`)
   if (!report.passed) process.exitCode = 1
 }
