@@ -11,7 +11,8 @@ jobs:
   verify:
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The suite plus the browser journeys under coverage take about 20 minutes on a hosted runner; leave headroom.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
