@@ -8,7 +8,11 @@ import { removeEvidenceSource, restoreEvidenceSource } from './evidenceStorage'
 import type { ArchiveRow, MatterDatabaseSnapshot } from './matterArchiveRepository'
 import type { Matter } from './types'
 
-export const matterArchiveVersion = 3
+// The newest format this build writes and reads. Matters with no analysis data
+// still export as version 2, or 3 when they contain courtroom_v1 protocol runs,
+// 4 when they have analysis artifacts, 5 when the matter has chosen court rules, and 6 when
+// the matter has imported venue datasets.
+export const matterArchiveVersion = 6
 
 interface MatterArchiveV1 {
   format: 'judge-jury-matter'
@@ -21,7 +25,7 @@ interface MatterArchiveV1 {
 
 export interface MatterArchive {
   format: 'judge-jury-matter'
-  version: 2 | 3
+  version: 2 | 3 | 4 | 5 | 6
   createdAt: string
   checksum: string
   snapshot: MatterDatabaseSnapshot
@@ -81,6 +85,48 @@ const archiveV2Schema = z.object({
   evidenceSources: z.array(z.object({ evidenceId: z.string(), sha256: z.string().regex(/^[a-f0-9]{64}$/) })),
 })
 const archiveV3Schema = archiveV2Schema.extend({ version: z.literal(3), snapshot: snapshotV2Schema.extend({ courtroomStates: z.array(rowSchema), courtroomCommandReceipts: z.array(rowSchema), actorContextInputs: z.array(rowSchema) }) })
+// The checksum covers JSON.stringify of the parsed archive, which follows this
+// schema's key order. Keep `analysisArtifacts` last, after the courtroom
+// collections, exactly as createMatterArchive builds the snapshot.
+const archiveV4Schema = archiveV2Schema.extend({
+  version: z.literal(4),
+  snapshot: snapshotV2Schema.extend({
+    courtroomStates: z.array(rowSchema).optional(),
+    courtroomCommandReceipts: z.array(rowSchema).optional(),
+    actorContextInputs: z.array(rowSchema).optional(),
+    analysisArtifacts: z.array(rowSchema).min(1),
+  }),
+})
+
+// Version 5 adds the matter's chosen court rules and their recorded overrides.
+// The key order is the checksum order: `matterFrameworks` comes last, after
+// `analysisArtifacts`, which is optional here because a matter can have chosen
+// court rules before it has any analysis.
+const archiveV5Schema = archiveV2Schema.extend({
+  version: z.literal(5),
+  snapshot: snapshotV2Schema.extend({
+    courtroomStates: z.array(rowSchema).optional(),
+    courtroomCommandReceipts: z.array(rowSchema).optional(),
+    actorContextInputs: z.array(rowSchema).optional(),
+    analysisArtifacts: z.array(rowSchema).min(1).optional(),
+    matterFrameworks: z.array(rowSchema).min(1),
+  }),
+})
+
+// Version 6 adds the matter's imported venue datasets (private research inputs
+// for the jury profile). `venueDatasets` comes last, after `matterFrameworks`,
+// because that is the checksum order; both earlier collections are optional here.
+const archiveV6Schema = archiveV2Schema.extend({
+  version: z.literal(6),
+  snapshot: snapshotV2Schema.extend({
+    courtroomStates: z.array(rowSchema).optional(),
+    courtroomCommandReceipts: z.array(rowSchema).optional(),
+    actorContextInputs: z.array(rowSchema).optional(),
+    analysisArtifacts: z.array(rowSchema).min(1).optional(),
+    matterFrameworks: z.array(rowSchema).min(1).optional(),
+    venueDatasets: z.array(rowSchema).min(1),
+  }),
+})
 
 export async function createMatterArchive(store: CaseStore, matterId: string): Promise<MatterArchive> {
   const rawSnapshot = store.exportMatterSnapshot(matterId)
@@ -121,14 +167,26 @@ export async function createMatterArchive(store: CaseStore, matterId: string): P
   delete snapshot.courtroomStates
   delete snapshot.courtroomCommandReceipts
   delete snapshot.actorContextInputs
+  delete snapshot.analysisArtifacts
+  delete snapshot.matterFrameworks
+  delete snapshot.venueDatasets
   if (protocol) {
     snapshot.courtroomStates = rawSnapshot.courtroomStates ?? []
     snapshot.courtroomCommandReceipts = rawSnapshot.courtroomCommandReceipts ?? []
     snapshot.actorContextInputs = rawSnapshot.actorContextInputs ?? []
   }
+  // Added last so the key order matches the version 4 schema.
+  const analysisArtifacts = rawSnapshot.analysisArtifacts ?? []
+  if (analysisArtifacts.length > 0) snapshot.analysisArtifacts = analysisArtifacts
+  // Added after the artifacts so the key order matches the version 5 schema.
+  const matterFrameworks = rawSnapshot.matterFrameworks ?? []
+  if (matterFrameworks.length > 0) snapshot.matterFrameworks = matterFrameworks
+  // Added last so the key order matches the version 6 schema.
+  const venueDatasets = rawSnapshot.venueDatasets ?? []
+  if (venueDatasets.length > 0) snapshot.venueDatasets = venueDatasets
   const unsigned = {
     format: 'judge-jury-matter' as const,
-    version: (protocol ? matterArchiveVersion : 2) as 2 | 3,
+    version: (venueDatasets.length > 0 ? 6 : matterFrameworks.length > 0 ? 5 : analysisArtifacts.length > 0 ? 4 : protocol ? 3 : 2) as 2 | 3 | 4 | 5 | 6,
     createdAt: new Date().toISOString(),
     snapshot,
     blobs,
@@ -138,7 +196,31 @@ export async function createMatterArchive(store: CaseStore, matterId: string): P
 }
 
 export async function importMatterArchive(store: CaseStore, input: unknown): Promise<Matter> {
-  const header = z.object({ format: z.literal('judge-jury-matter'), version: z.union([z.literal(1), z.literal(2), z.literal(3)]) }).parse(input)
+  const header = z.object({ format: z.literal('judge-jury-matter'), version: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6)]) }).parse(input)
+  if (header.version === 6) {
+    const archive = archiveV6Schema.parse(input) as unknown as MatterArchive
+    const { courtroomStates, courtroomCommandReceipts, actorContextInputs } = archive.snapshot
+    if (archive.snapshot.trialRuns.some(row => JSON.parse(String(row.config_json)).courtroomProtocol) && !(courtroomStates && courtroomCommandReceipts && actorContextInputs)) {
+      throw new Error('A protocol run requires the courtroom collections in archive format 6.')
+    }
+    return importV2(store, archive)
+  }
+  if (header.version === 5) {
+    const archive = archiveV5Schema.parse(input) as unknown as MatterArchive
+    const { courtroomStates, courtroomCommandReceipts, actorContextInputs } = archive.snapshot
+    if (archive.snapshot.trialRuns.some(row => JSON.parse(String(row.config_json)).courtroomProtocol) && !(courtroomStates && courtroomCommandReceipts && actorContextInputs)) {
+      throw new Error('A protocol run requires the courtroom collections in archive format 5.')
+    }
+    return importV2(store, archive)
+  }
+  if (header.version === 4) {
+    const archive = archiveV4Schema.parse(input) as unknown as MatterArchive
+    const { courtroomStates, courtroomCommandReceipts, actorContextInputs } = archive.snapshot
+    if (archive.snapshot.trialRuns.some(row => JSON.parse(String(row.config_json)).courtroomProtocol) && !(courtroomStates && courtroomCommandReceipts && actorContextInputs)) {
+      throw new Error('A protocol run requires the courtroom collections in archive format 4.')
+    }
+    return importV2(store, archive)
+  }
   if (header.version === 3) return importV2(store, archiveV3Schema.parse(input) as unknown as MatterArchive)
   if (header.version === 2) {
     const archive = archiveV2Schema.parse(input) as unknown as MatterArchive

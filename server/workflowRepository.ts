@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
 
+import { parseBallotV2Columns } from './ballotV2'
 import { nowIso } from './time'
 import type {
   AdmissionLedgerVersion,
@@ -634,16 +635,21 @@ export class WorkflowRepository {
     this.db.prepare(
       `INSERT INTO issue_ballots
        (id, trial_run_id, issue_id, actor_id, round, choice, confidence, rationale,
-        source_refs_json, changed_by_event_id, valid, error_text, created_at, instruction_event_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        source_refs_json, changed_by_event_id, valid, error_text, created_at, instruction_event_id,
+        element_findings_json, amounts_json, apportionment_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(trial_run_id, issue_id, actor_id, round) DO UPDATE SET
        choice = excluded.choice, confidence = excluded.confidence, rationale = excluded.rationale,
        source_refs_json = excluded.source_refs_json, changed_by_event_id = excluded.changed_by_event_id,
-       valid = excluded.valid, error_text = excluded.error_text, created_at = excluded.created_at, instruction_event_id = excluded.instruction_event_id`,
+       valid = excluded.valid, error_text = excluded.error_text, created_at = excluded.created_at, instruction_event_id = excluded.instruction_event_id,
+       element_findings_json = excluded.element_findings_json, amounts_json = excluded.amounts_json, apportionment_json = excluded.apportionment_json`,
     ).run(
       ballot.id, ballot.trialRunId, ballot.issueId, ballot.actorId, ballot.round,
       ballot.choice, ballot.confidence, ballot.rationale, JSON.stringify(ballot.sourceRefs),
       ballot.changedByEventId ?? null, ballot.valid ? 1 : 0, ballot.error ?? null, ballot.createdAt, ballot.instructionEventId ?? null,
+      ballot.elementFindings ? JSON.stringify(ballot.elementFindings) : null,
+      ballot.amounts ? JSON.stringify(ballot.amounts) : null,
+      ballot.apportionment ? JSON.stringify(ballot.apportionment) : null,
     )
     return ballot
   }
@@ -867,6 +873,8 @@ function rowToBallot(row: Row): IssueBallot {
     changedByEventId: optionalString(row.changed_by_event_id), valid: Boolean(row.valid),
     instructionEventId: optionalString(row.instruction_event_id),
     error: optionalString(row.error_text), createdAt: String(row.created_at),
+    // Present only on ballots cast under contract v2; an older ballot has no such keys.
+    ...parseBallotV2Columns(row),
   }
 }
 

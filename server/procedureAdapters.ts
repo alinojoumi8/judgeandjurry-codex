@@ -1,3 +1,4 @@
+import type { JuryFramework } from './frameworks/framework'
 import type {
   CaseModelV1,
   DecisionIssue,
@@ -33,7 +34,20 @@ export interface ProcedureAdapter {
   instructionSections: Array<{ id: string; title: string; text: string; sourceUrl: string }>
   defaultIssue(kind?: DecisionIssue['kind']): Omit<DecisionIssue, 'id' | 'respondingPartyIds' | 'sourceRefs'>
   validateRun(model: CaseModelV1, config: TrialRunConfig): string[]
-  decide(model: CaseModelV1, ballots: IssueBallot[], config: TrialRunConfig): IssueDecision[]
+  decide(model: CaseModelV1, ballots: IssueBallot[], config: TrialRunConfig, context?: DecisionContext): IssueDecision[]
+}
+
+// Facts about the run that the ballots alone do not carry.
+export interface DecisionContext {
+  // Jurors the judge discharged before the verdict. Their ballots do not count.
+  dischargedJurorIds?: string[]
+}
+
+// A judge-decided question is never put to jurors and never counts a juror's
+// ballot. It is judge-decided when the case model says so or when the pinned
+// court rules say that kind of question is for the judge.
+export function isJudgeDecided(issue: Pick<DecisionIssue, 'kind' | 'decider'>, framework?: Pick<JuryFramework, 'judgeOnlyKinds'>): boolean {
+  return issue.decider === 'judge' || Boolean(framework?.judgeOnlyKinds.includes(issue.kind))
 }
 
 const checkedAt = '2026-07-18T00:00:00.000Z'
@@ -66,6 +80,7 @@ export const procedureAdapters: Record<ProcedureAdapterId, ProcedureAdapter> = {
     validateRun: (model, config) => {
       const warnings: string[] = []
       if (config.mode === 'full' && model.decisionIssues.some((issue) => issue.kind !== 'criminal_count')) warnings.push('Criminal adapter accepts criminal-count decision issues only.')
+      if (model.decisionIssues.some((issue) => issue.decider === 'judge')) warnings.push('Judge-decided questions are supported only by the civil adapter.')
       return warnings
     },
     decide: (model, ballots) => model.decisionIssues.map((issue) => unanimousDecision(issue, ballots, 12)),
@@ -122,12 +137,64 @@ export const procedureAdapters: Record<ProcedureAdapterId, ProcedureAdapter> = {
       if (config.civilDecisionMaker === 'jury' && model.juryNotice?.valid !== true) return ['Civil jury mode requires an approved case model confirming a valid jury notice.']
       return []
     },
-    decide: (model, ballots, config) => model.decisionIssues.map((issue) =>
-      config.civilDecisionMaker === 'judge_alone'
+    decide: (model, ballots, config, context) => model.decisionIssues.map((issue) =>
+      config.civilDecisionMaker === 'judge_alone' || isJudgeDecided(issue, config.framework)
         ? judgeAloneDecision(issue, ballots)
-        : thresholdDecision(issue, ballots, 6, 5, 'no_decision'),
+        : civilJuryDecision(issue, ballots, config.framework, context?.dischargedJurorIds ?? []),
     ),
   },
+}
+
+// Six jurors, five to decide: today's rule, kept exactly when no court rules
+// are pinned. With pinned court rules the panel and threshold come from them,
+// and a trial that proceeds with fewer jurors follows the reduced-panel rule
+// (Courts of Justice Act, s. 108(8): five jurors means unanimity).
+function civilJuryDecision(issue: DecisionIssue, ballots: IssueBallot[], framework: JuryFramework | undefined, discharged: string[]): IssueDecision {
+  if (!framework) return thresholdDecision(issue, ballots, 6, 5, 'no_decision')
+  const { panelSize, threshold } = framework
+  if (panelSize === null || threshold === null) {
+    return blockedDecision(issue, 'The pinned court rules do not state the panel size or the decision rule, so no decision can be calculated.')
+  }
+  const left = [...new Set(discharged)]
+  if (left.length === 0) return thresholdDecision(issue, ballots, panelSize, threshold, 'no_decision')
+  const rule = framework.reducedPanelRule
+  if (!rule) return blockedDecision(issue, 'A juror was discharged, but the pinned court rules do not state what applies to a reduced panel (unknown, not treated as unanimity or as the full-panel rule).')
+  const remaining = panelSize - left.length
+  if (remaining < rule.minimumJurors) {
+    return blockedDecision(issue, `Only ${remaining} jurors remain; the court rules do not allow the trial to proceed with fewer than ${rule.minimumJurors}.`)
+  }
+  const required = rule.requiredAgreement === 'unanimous' ? remaining : Math.min(rule.requiredAgreement, remaining)
+  const counted = ballots.filter((ballot) => !left.includes(ballot.actorId))
+  const decision = thresholdDecision(issue, counted, remaining, required, 'no_decision')
+  return { ...decision, rule: `${required} of ${remaining} (reduced panel after ${left.length} discharged)` }
+}
+
+function blockedDecision(issue: DecisionIssue, warning: string): IssueDecision {
+  return { issueId: issue.id, outcome: 'no_decision', complete: false, rule: 'Blocked', voteCounts: {}, warnings: [warning] }
+}
+
+// Text for a run that pins court rules. It cites the pack's authorities, so the
+// statute behind the five-of-six rule (s. 108(6)) is named where it is stated.
+export function frameworkRuleText(framework: JuryFramework): string {
+  const cite = (items: string[]) => (items.length ? ` (${items.join('; ')})` : '')
+  if (framework.panelSize === null || framework.threshold === null) {
+    return 'The pinned court rules do not state the panel size or the decision rule. Jury decisions are blocked.'
+  }
+  const parts = [
+    `Judge-alone is available; a valid jury notice is required for jury mode. The jury has ${framework.panelSize} jurors${cite(framework.citations.panelSize)}.`,
+    `${framework.threshold} of ${framework.panelSize} jurors must agree on each answer${framework.differentMajorityPerQuestion ? ', and the same jurors need not agree on every answer' : ''}${cite(framework.citations.decisionRule)}.`,
+  ]
+  if (framework.reducedPanelRule) {
+    const { minimumJurors, requiredAgreement } = framework.reducedPanelRule
+    parts.push(`If the trial proceeds with ${minimumJurors} jurors, ${requiredAgreement === 'unanimous' ? 'the verdict or answers must be unanimous' : `${requiredAgreement} jurors must agree`}${cite(framework.citations.reducedPanelRule)}.`)
+  }
+  return parts.join(' ')
+}
+
+export function frameworkInstructionSections(framework: JuryFramework): ProcedureAdapter['instructionSections'] {
+  return procedureAdapters.ontario_civil_v1.instructionSections.map((section) =>
+    section.id === 'civil-jury-rule' ? { ...section, text: frameworkRuleText(framework) } : section,
+  )
 }
 
 export function getProcedureAdapter(id: ProcedureAdapterId): ProcedureAdapter {

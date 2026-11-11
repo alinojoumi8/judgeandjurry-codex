@@ -14,7 +14,7 @@ Bring the documents. Build a case model. Keep each side's theory separate. Rehea
 
 **[Get started](#run-locally)** · **[Try a fictional case](#your-first-case)** · **[Explore the workflow](#from-evidence-to-reasons)** · **[Detailed guide](docs/user-guide.md)** · **[Rebrand plan](docs/plans/2026-10-06-triallens-rebrand.md)**
 
-> **Research and rehearsal software.** Generated arguments and decisions can be wrong. Synthetic panels are not representative juries, and their votes are not real-world verdict probabilities. TrialLens does not provide legal advice or binding court outcomes.
+> **Research and rehearsal software.** Generated arguments and decisions can be wrong. Synthetic panels are not representative juries, and the votes in a single run are not probabilities. The Forecast screen (Strategy) reports win probabilities from many simulated panels, with intervals and sample sizes. Those probabilities come from simulated panels and have not been tested against real outcomes. TrialLens does not provide legal advice or binding court outcomes.
 
 ## What can you explore?
 

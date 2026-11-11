@@ -122,6 +122,8 @@ Read `.env.example` for configuration names; never print secrets from `.env*`.
 | `npm run test:arguments` | Fictional evidence-to-decision browser journey |
 | `npm run test:courtroom` | Courtroom protocol browser journey |
 | `npm run eval:courtroom` | Scripted fictional courtroom evaluations |
+| `npm run test:intelligence` | Case intelligence browser journey: court rules, case map, facts and evidence, jury profile, summaries, juror journey, deliberation, forecast, improvement plan (scripted, fictional) |
+| `npm run eval:intelligence` | Scripted case intelligence evaluation scored against the civil answer key, with a degraded-client check and invariants; `-- --live` is gated like `eval:courtroom -- --live` (see docs/evals/case-intelligence.md) |
 | `npm run check:authorities -- --strict` | Check curated authority-link reachability |
 
 Browser journeys require Chromium; if missing, use

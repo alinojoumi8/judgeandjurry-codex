@@ -40,6 +40,9 @@ import { CaseIntake } from './components/CaseIntake'
 import { DecisionSummary } from './components/DecisionSummary'
 import { EvidenceInspector } from './components/EvidenceInspector'
 import { FullWorkflowWorkspace } from './components/FullWorkflowWorkspace'
+import { CaseMapArea } from './components/analysis/CaseMap'
+import { StrategyArea } from './components/analysis/Forecast'
+import { FactsEvidenceArea } from './components/analysis/FactsEvidence'
 import { ProviderBanner } from './components/ProviderBanner'
 import { RunSettingsModal } from './components/RunSettingsModal'
 import { Sidebar } from './components/Sidebar'
@@ -92,6 +95,9 @@ function App() {
     try { return localStorage.getItem('judge-jury:active-matter') ?? undefined } catch { return undefined }
   })
   const [caseArea, setCaseArea] = useState<CaseArea>('Overview')
+  // The workflow workspace keeps the last area it showed while the Case Map screen is open.
+  const workflowArea = useRef<CaseArea>('Overview')
+  if (caseArea !== 'Case Map' && caseArea !== 'Facts & Evidence' && caseArea !== 'Strategy') workflowArea.current = caseArea
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | undefined>()
   const [runOptions, setRunOptions] = useState<RunOptions | null>(null)
@@ -988,21 +994,29 @@ function App() {
             />
           </div>
         ) : (
-          <FullWorkflowWorkspace
-            key={activeMatter.id}
-            matterId={activeMatter.id}
-            matterTitle={activeMatter.title}
-            matter={activeMatter}
-            evidence={state.evidence}
-            area={caseArea}
-            onAreaChange={changeCaseArea}
-            onSaveMatter={handleSaveMatter}
+          <>
+            {/* The Case Map area has its own screen. The workflow workspace stays mounted behind it, so its state is kept. */}
+            <div style={{ display: caseArea === 'Case Map' || caseArea === 'Facts & Evidence' || caseArea === 'Strategy' ? 'none' : 'contents' }}>
+              <FullWorkflowWorkspace
+                key={activeMatter.id}
+                matterId={activeMatter.id}
+                matterTitle={activeMatter.title}
+                matter={activeMatter}
+                evidence={state.evidence}
+                area={workflowArea.current}
+                onAreaChange={changeCaseArea}
+                onSaveMatter={handleSaveMatter}
 
-            onUploadEvidence={handleUploadEvidence}
-            onEditState={updateCaseEditState}
-            onEvidenceImported={() => refreshState(activeMatter.id)}
-            provider={runOptions?.provider ?? null}
-          />
+                onUploadEvidence={handleUploadEvidence}
+                onEditState={updateCaseEditState}
+                onEvidenceImported={() => refreshState(activeMatter.id)}
+                provider={runOptions?.provider ?? null}
+              />
+            </div>
+            {caseArea === 'Case Map' && <CaseMapArea key={activeMatter.id} matterId={activeMatter.id} matterTitle={activeMatter.title} provider={runOptions?.provider ?? null} />}
+            {caseArea === 'Facts & Evidence' && <FactsEvidenceArea key={activeMatter.id} matterId={activeMatter.id} matterTitle={activeMatter.title} provider={runOptions?.provider ?? null} evidence={state.evidence} />}
+            {caseArea === 'Strategy' && <StrategyArea key={activeMatter.id} matterId={activeMatter.id} matterTitle={activeMatter.title} provider={runOptions?.provider ?? null} />}
+          </>
         )}
       </main>
 

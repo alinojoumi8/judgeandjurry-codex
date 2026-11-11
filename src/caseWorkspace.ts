@@ -1,6 +1,6 @@
 import type { TrialRunView } from './trialEngineTypes'
 
-export const caseAreas = ['Overview', 'Documents', 'Simulation', 'Results'] as const
+export const caseAreas = ['Overview', 'Documents', 'Case Map', 'Facts & Evidence', 'Simulation', 'Results', 'Strategy'] as const
 export type CaseArea = typeof caseAreas[number]
 
 export function readCaseArea(matterId: string): CaseArea {
