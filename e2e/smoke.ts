@@ -40,9 +40,11 @@ async function main(): Promise<void> {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
     await startBrowserCoverage(page)
     await page.goto(clientUrl)
-    await page.getByText(/No matters yet/i).waitFor()
+    await page.getByRole('heading', { name: 'Your case, from documents to decisions' }).waitFor()
     await expectHidden(page, /Smith v\. Northbridge Properties/i)
-    await page.getByRole('button', { name: /new matter/i }).click()
+    await page.getByRole('button', { name: /new case/i }).click()
+    await page.getByText('Advanced tools', { exact: true }).click()
+    await page.getByRole('button', { name: 'Decision', exact: true }).click()
     await page.getByText(/Local provider mode/i).waitFor()
     const evidenceInput = page.locator('.intake-panel input[type="file"]')
     await evidenceInput.setInputFiles({

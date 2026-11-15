@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSourceInspector } from '../sourceInspectorContext'
 import type { CaseModel, RobustnessReport, WorkflowSource } from '../trialEngineTypes'
 import type { DecisionTrace, ElementEvidenceRow, SourceDocument, TraceReference } from '../../server/trialEngineTypes'
 import { downloadEvidenceSource, fetchOriginalSource, fetchSourcePassages } from '../api'
@@ -8,8 +9,9 @@ const errorMessage = (error: unknown) => error instanceof Error ? error.message 
 
 export function SourceReferenceButton({ matterId, source }: { matterId: string; source: TraceReference }) {
   const [open, setOpen] = useState(false)
+  const inspect = useSourceInspector()
   return <>
-    <button type="button" className="source-reference" disabled={!source.evidenceId} onClick={() => setOpen(true)}>
+    <button type="button" className="source-reference" disabled={!source.evidenceId} onClick={event => inspect ? inspect(source, event.currentTarget) : setOpen(true)}>
       View {source.exhibitId ?? source.name ?? 'source'}{source.locator?.paragraph ? ` · paragraph ${source.locator.paragraph}` : ''}
     </button>
     {source.warning && <small>{source.warning}</small>}
