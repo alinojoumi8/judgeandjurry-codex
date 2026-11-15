@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import ts from 'typescript'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { DamagesError } from '../server/analysis/damages'
@@ -216,6 +217,19 @@ function protectedIdentifiers(names: Iterable<string>): string[] {
   })
 }
 
+function sourceIdentifiers(file: string, code: string): Set<string> {
+  const names = new Set<string>()
+  const source = ts.createSourceFile(file, code, ts.ScriptTarget.Latest, true)
+  const visit = (node: ts.Node) => {
+    if (ts.isIdentifier(node) || (ts.isStringLiteral(node) &&
+      ((ts.isElementAccessExpression(node.parent) && node === node.parent.argumentExpression) ||
+        (ts.isPropertyAssignment(node.parent) && node === node.parent.name)))) names.add(node.text)
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  return names
+}
+
 function keysOf(value: unknown, found = new Set<string>()): Set<string> {
   if (Array.isArray(value)) value.forEach((item) => keysOf(item, found))
   else if (value && typeof value === 'object') for (const [key, child] of Object.entries(value)) { found.add(key); keysOf(child, found) }
@@ -227,6 +241,11 @@ describe('no protected characteristic anywhere', () => {
     const keys = keysOf({ message: { usage: 1, jurorGender: '', claimantAge: 1, race_code: '', maritalStatus: '', skinColour: '' } })
     expect(protectedIdentifiers(keys)).toEqual(['jurorGender', 'claimantAge', 'race_code', 'maritalStatus', 'skinColour'])
   })
+  it('scans expressions inside templates and ignores plain text', () => {
+    const code = 'const message = `age ${juror.gender} ${juror["race"]}`; // sex'
+    expect(protectedIdentifiers(sourceIdentifiers('example.ts', code))).toEqual(['gender', 'race'])
+  })
+
   it('has no protected characteristic among the keys of a saved result, however deep', async () => {
     const world = damagesWorld(stores)
     saveFullInputs(world)
@@ -246,9 +265,7 @@ describe('no protected characteristic anywhere', () => {
       'src/components/analysis/damagesHelpers.ts', 'src/components/analysis/damagesShared.tsx',
     ]
     for (const file of files) {
-      // Comments and strings may name what is NOT used; only code identifiers count.
-      const code = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '').replace(/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g, '""')
-      const identifiers = new Set(code.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? [])
+      const identifiers = sourceIdentifiers(file, readFileSync(file, 'utf8'))
       expect({ file, found: protectedIdentifiers(identifiers) }).toEqual({ file, found: [] })
     }
   })

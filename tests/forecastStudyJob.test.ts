@@ -7,6 +7,7 @@ import { forecastLabel, type ForecastContent } from '../server/analysis/forecast
 import { NOT_YET_TESTED_SENTENCE } from '../server/forecast/winRates'
 import { estimateRunCalls } from '../src/runEstimate'
 import type { CaseStore } from '../server/db'
+import { addSource } from './analysisFixtures'
 import { expectedJurorShare, forecastWorld, PlantedModel, runStudy, strongExhibit, weakExhibit, type ForecastWorld } from './forecastFixtures'
 
 const stores: CaseStore[] = []
@@ -126,6 +127,40 @@ describe('forecast study: what is stored and pinned', () => {
     const again = world.forecast.computeAndSave(world.matterId, params)!
     expect(again.version).toBe(2)
     expect(again.contentHash).toBe(first.artifact.contentHash)
+  })
+
+  it('saves the original model when a different model is approved during the last run', async () => {
+    const world = forecastWorld(stores, { evidence: [strongExhibit] })
+    const workflow = new CaseWorkflowService(world.store)
+    let revised: ReturnType<CaseWorkflowService['approveCaseModel']> | undefined
+    world.scripted.beforeCall = () => {
+      if (!revised && world.store.workflow.listTrialRuns(world.matterId).length === 2) {
+        revised = workflow.approveCaseModel(workflow.reviseCaseModel(world.model.id, { unresolved: ['Approved while running.'] }).id)
+      }
+    }
+    const { job } = await runStudy(world, { runs: 2 })
+    expect(revised?.id).not.toBe(world.model.id)
+    expect(revised).toBeDefined()
+    expect(job.status).toBe('succeeded')
+    const draft = world.forecast.view(world.matterId).draft!
+    expect(job.resultArtifactIds).toEqual([draft.artifact.id])
+    expect(draft.artifact).toMatchObject({ caseModelId: world.model.id, inputManifest: { caseModelVersion: world.model.version } })
+    expect(draft.freshness.reasons.join(' ')).toMatch(/case model has changed/)
+    expect(draft.content.completedRuns).toBe(2)
+  })
+
+  it('keeps the completed runs’ evidence when later documents are added or earlier ones archived', async () => {
+    const world = forecastWorld(stores)
+    const original = addSource(world.store, world.matterId, strongExhibit.name, strongExhibit.text)
+    const { params } = await runStudy(world, { runs: 2 })
+    const baseline = world.forecast.view(world.matterId).draft!.artifact.inputManifest.evidenceHashes
+    expect(baseline).toEqual([original.sha256])
+    const later = addSource(world.store, world.matterId, 'later.txt', 'A fictional source that arrived afterward.')
+    world.store.archiveEvidence(original.id)
+    const artifact = world.forecast.computeAndSave(world.matterId, params)!
+    expect(artifact.inputManifest.evidenceHashes).toEqual(baseline)
+    expect(artifact.inputManifest.evidenceHashes).not.toContain(later.sha256)
+    expect(world.forecast.view(world.matterId).draft!.freshness.reasons.join(' ')).toMatch(/no longer current evidence.*added/)
   })
 
   it('rejects incompatible completed runs before resuming or saving a forecast', async () => {

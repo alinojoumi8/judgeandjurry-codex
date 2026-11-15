@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { performance } from 'node:perf_hooks'
 
 import type { CaseMapContent } from '../server/analysis/caseMapTypes'
-import { ChronologyService, type ChronologyContent, type ChronologyEvent } from '../server/analysis/chronology'
+import { ChronologyService, descriptionOverlap, type ChronologyContent, type ChronologyEvent } from '../server/analysis/chronology'
 import { countsAsEvidence, entryTypes, EvidenceIndexService, evidenceAssertions, indexAssertions } from '../server/analysis/evidenceIndex'
 import { buildForecastReport } from '../server/analysis/forecastExport'
 import { forecastLabel } from '../server/analysis/forecastTypes'
@@ -26,7 +26,7 @@ import { caseMapRouter, caseMapWorld, pleadingKey, type Router as CaseMapRouter 
 import { forecastWorld, runStudy } from '../tests/forecastFixtures'
 import { runStyleStudy, styleWorld } from '../tests/styleFixtures'
 import { planClient, planWorld } from '../tests/improvementPlanFixtures'
-import { answerKey, buildCivilWorld, civilText, documentOf, intelligenceRouter, routedClient, type Router } from '../tests/intelligenceFixtures'
+import { answerKey, buildCivilWorld, civilText, documentOf, fallDescription, intelligenceRouter, routedClient, type Router } from '../tests/intelligenceFixtures'
 
 // Scripted evaluation of the case intelligence features. It scores what the REAL services produce from a scripted
 // structured client against the labelled answer key in samples/civil-negligence/answer-key.json. Fixtures establish
@@ -100,12 +100,25 @@ const refsOf = (evidence: readonly EvidenceItem[], sources: ReadonlyArray<{ evid
 export function scoreChronology(content: ChronologyContent, evidence: readonly EvidenceItem[], thresholds: Thresholds): MetricResult[] {
   const events = content.items.map((event: ChronologyEvent) => ({ event, refs: refsOf(evidence, event.sources) }))
   const keyRefs: Ref[][] = answerKey.chronology.map((entry) => entry.sources.map((source) => ({ file: source.file, quote: source.quote })))
-  // An output event is correct when it cites a passage the key lists, for an event or for a side of a key conflict.
-  const referenceRefs: Ref[] = [...keyRefs.flat(), ...answerKey.conflicts.flatMap((conflict) => conflict.sides.map((side) => ({ file: side.file, quote: side.quote })))]
-
-  const found = answerKey.chronology.map((entry, index) => ({ entry, matched: events.filter((candidate) => anyShared(candidate.refs, keyRefs[index])) }))
+  // Check the labelled event topic in addition to its citation. Token overlap is a fixture
+  // scoring rule for paraphrases and can only approximate proposition correctness.
+  const topicMatches = (actual: string, expected: string) => {
+    const overlap = descriptionOverlap(actual, expected)
+    return norm(actual) === norm(expected) || (overlap.shared >= 2 && overlap.ratio >= 0.5)
+  }
+  const fallIds = new Set(['CH08', 'CH09', 'CH10'])
+  const found = answerKey.chronology.map((entry, index) => ({
+    entry,
+    matched: events.filter(({ event, refs }) => event.type === entry.type && anyShared(refs, keyRefs[index])
+      && (topicMatches(event.description, entry.description) || (fallIds.has(entry.id) && topicMatches(event.description, fallDescription)))),
+  }))
   const recalled = found.filter((item) => item.matched.length > 0)
-  const correct = events.filter((candidate) => anyShared(candidate.refs, referenceRefs))
+  const matchedEvents = new Set(found.flatMap((item) => item.matched))
+  const conflictTopicMatches = (event: ChronologyEvent, conflict: (typeof answerKey.conflicts)[number]) =>
+    conflict.id === 'C1' ? event.type === 'incident' && topicMatches(event.description, fallDescription)
+      : conflict.sides.some((side) => topicMatches(event.description, side.says))
+  const correct = events.filter((candidate) => matchedEvents.has(candidate) || answerKey.conflicts.some((conflict) =>
+    conflictTopicMatches(candidate.event, conflict) && anyShared(candidate.refs, conflict.sides)))
   const dateOk = recalled.filter(({ entry, matched }) => matched.some(({ event }) => {
     if (entry.when.precision === 'unknown') return event.when.precision === 'unknown' && event.when.start === undefined
     return event.when.precision === entry.when.precision && event.when.start === entry.when.start
@@ -117,7 +130,10 @@ export function scoreChronology(content: ChronologyContent, evidence: readonly E
   const byId = new Map(events.map((candidate) => [candidate.event.id, candidate]))
   // A flagged conflict matches a key conflict when its members cite the sides of that conflict in two different documents.
   const covers = (flagged: ChronologyContent['conflicts'][number], conflict: (typeof scoped)[number]) => {
-    const members = flagged.eventIds.flatMap((id) => byId.get(id)?.refs ?? [])
+    const members = flagged.eventIds.flatMap((id) => {
+      const candidate = byId.get(id)
+      return candidate && conflictTopicMatches(candidate.event, conflict) ? candidate.refs : []
+    })
     const files = new Set(conflictSideRefs(conflict).filter((side) => members.some((member) => sameRef(member, side))).map((side) => side.file))
     return files.size >= 2
   }

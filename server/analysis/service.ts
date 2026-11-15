@@ -200,8 +200,18 @@ export class AnalysisService {
       if (manifest.runIds.some((id) => !runs.has(id))) throw new Error('A run in the manifest does not belong to this matter.')
     }
     if (manifest.evidenceHashes.length) {
-      const current = new Set(this.store.listEvidence(input.matterId).flatMap((item) => (item.sha256 ? [item.sha256] : [])))
-      if (manifest.evidenceHashes.some((hash) => !current.has(hash))) {
+      const sources = this.store.listEvidence(input.matterId)
+      const permitted = new Set(sources.flatMap((item) => item.sha256 ? [item.sha256] : []))
+      if (parsed.kind === 'forecast' && manifest.runIds?.length) {
+        const pinnedIds = new Set(manifest.runIds.flatMap((id) => {
+          const ledgerId = this.store.workflow.getTrialRun(id).admissionLedgerId
+          return ledgerId ? this.store.workflow.getAdmissionLedger(ledgerId).evidenceUses.map((use) => use.evidenceId) : []
+        }))
+        for (const item of this.store.listEvidence(input.matterId, true)) {
+          if (item.sha256 && pinnedIds.has(item.id)) permitted.add(item.sha256)
+        }
+      }
+      if (manifest.evidenceHashes.some((hash) => !permitted.has(hash))) {
         throw new Error('An evidence hash in the manifest is not on current evidence in this matter.')
       }
     }

@@ -275,7 +275,7 @@ export class ForecastService {
     // A cancelled study saves nothing. A study stopped by its cap keeps what it finished, as a draft marked incomplete.
     const reason: unknown = context.signal.reason
     if (context.signal.aborted && !(reason instanceof Error && reason.name === 'JobCapReached')) return { completed: false }
-    const artifact = this.computeAndSave(matterId, params)
+    const artifact = this.saveStudy(matterId, params, { ...resolved, model, framework })
     if (artifact) context.addResultArtifact(artifact.id)
     return { completed }
   }
@@ -286,6 +286,12 @@ export class ForecastService {
   computeAndSave(matterId: string, params: ForecastJobParams): AnalysisArtifact<ForecastContent> | null {
     const resolved = this.resolve(matterId, params)
     if (resolved.blockers.length || !resolved.model || !resolved.framework) throw new ForecastError(resolved.blockers.join(' '))
+    return this.saveStudy(matterId, params, { ...resolved, model: resolved.model, framework: resolved.framework })
+  }
+
+  private saveStudy(matterId: string, params: ForecastJobParams, resolved: Resolved & {
+    model: CaseModelV1; framework: ForecastFrameworkSnapshot
+  }): AnalysisArtifact<ForecastContent> | null {
     const { model, framework } = resolved
     const runs = this.studyRuns(matterId, model, framework, params)
     if (!runs.some((run) => run.status === 'completed')) return null
@@ -298,9 +304,12 @@ export class ForecastService {
       juryProfileHash: params.juryProfileHash,
     })
     const first = runs.find((run) => run.config.provider)?.config.provider
+    const ledgerIds = [...new Set(runs.flatMap((run) => run.admissionLedgerId ? [run.admissionLedgerId] : []))]
+    const evidenceIds = new Set(ledgerIds.flatMap((id) => this.store.workflow.getAdmissionLedger(id).evidenceUses.map((use) => use.evidenceId)))
+    const evidenceHashes = this.store.listEvidence(matterId, true).flatMap((item) => evidenceIds.has(item.id) && item.sha256 ? [item.sha256] : [])
     const manifest: AnalysisInputManifest = {
-      caseModelVersion: model.version, evidenceHashes: this.store.listEvidence(matterId).flatMap((item) => (item.sha256 ? [item.sha256] : [])),
-      ...(runs.find((run) => run.admissionLedgerId)?.admissionLedgerId ? { admissionLedgerId: runs.find((run) => run.admissionLedgerId)!.admissionLedgerId } : {}),
+      caseModelVersion: model.version, evidenceHashes,
+      ...(ledgerIds.length ? { admissionLedgerId: ledgerIds[0] } : {}),
       rulePackHash: framework.packHash, ...(params.juryProfileHash ? { juryProfileHash: params.juryProfileHash } : {}),
       runIds: runs.map((run) => run.id).sort(), algorithmVersion: forecastAlgorithmVersion, seed: params.seed,
       ...(first ? { provider: { name: first.name, model: first.model, mode: first.mode } } : {}),
@@ -313,6 +322,9 @@ export class ForecastService {
   private freshnessOf(artifact: AnalysisArtifact): AnalysisFreshness {
     const base = this.analysis.freshness(artifact)
     const reasons = [...base.reasons]
+    if (artifact.inputManifest.admissionLedgerId && !artifact.inputManifest.evidenceHashes.length && this.store.listEvidence(artifact.matterId).some((item) => item.sha256)) {
+      reasons.push('Source documents have been added since the runs pinned their evidence.')
+    }
     const notChecked = base.notChecked.filter((note) => !note.startsWith('Rule pack:'))
     const view = this.frameworks.getForMatter(artifact.matterId)
     const now = view.selected ? view.framework?.packHash : undefined

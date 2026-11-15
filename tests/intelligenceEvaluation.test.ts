@@ -71,6 +71,12 @@ describe('the scorers can fail', () => {
     const control = scoreChronology(content, evidence, thresholds)
     expect(control.filter((item) => !item.passed)).toEqual([])
     const extra = { ...content.items[0], id: 'extra', sources: [{ evidenceId: content.items[0].sources[0].evidenceId, paragraph: 1, quote: 'FICTIONAL TEST SOURCE' }] }
+    const wrongTopic = scoreChronology({
+      ...content, items: content.items.map((event) => ({ ...event, description: 'Solar telescopes studied a distant nebula.' })),
+    }, evidence, thresholds)
+    expect(wrongTopic.find((item) => item.id === 'chronology.eventRecall')).toMatchObject({ numerator: 0, passed: false })
+    expect(wrongTopic.find((item) => item.id === 'chronology.eventPrecision')).toMatchObject({ numerator: 0, passed: false })
+    expect(wrongTopic.find((item) => item.id === 'chronology.conflictRecall')).toMatchObject({ numerator: 0, passed: false })
     const withExtra = scoreChronology({ ...content, items: [...content.items, ...Array.from({ length: 10 }, (_, index) => ({ ...extra, id: `extra-${index}` }))] }, evidence, thresholds)
     expect(withExtra.find((item) => item.id === 'chronology.eventPrecision')!.passed).toBe(false)
     const withoutHalf = scoreChronology({ ...content, items: content.items.filter((_, index) => index % 2 === 0) }, evidence, thresholds)

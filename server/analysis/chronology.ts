@@ -185,11 +185,17 @@ export function checkWhen(when: ChronologyWhen, cited: readonly CitedSource[]): 
     return unknown('The date was left unknown because the cited passage does not state this date.')
   }
   const times = new Set(paragraphs.flatMap((text) => [...extractTimes(text)]))
-  if (when.start.length === 16 && !times.has(when.start.slice(11))) {
-    const day = when.start.slice(0, 10)
+  const supportedTime = (value: string) => value.length !== 16 || times.has(value.slice(11))
+  if (values.some((value) => !supportedTime(value))) {
+    const warnings = ['The time of day was dropped because the cited passage does not state it.']
+    if (when.precision === 'range') {
+      const [start, end] = values.map((value) => supportedTime(value) ? value : datePart(value))
+      // A day-only end on the same date must not sort before a time on that day.
+      return { when: { ...when, start: end < start ? datePart(start) : start, end }, warnings }
+    }
     return {
-      when: { precision: when.precision === 'approximate' ? 'approximate' : 'day', start: day, original: when.original },
-      warnings: ['The time of day was dropped because the cited passage does not state it.'],
+      when: { precision: when.precision === 'approximate' ? 'approximate' : 'day', start: datePart(when.start), original: when.original },
+      warnings,
     }
   }
   return { when: { ...when }, warnings: [] }
@@ -610,7 +616,11 @@ export class ChronologyService {
     if (facts.some(({ event }) => canonicalJson(draftEvents.get(event.id)) !== canonicalJson(event))) {
       throw new ChronologyError('The latest chronology draft changes an approved key fact. Review and approve the draft before writing readings.', 409)
     }
-    const visible = jurorVisibleEvidence(this.store, matterId, ledger)
+    const assertCurrentLedger = () => {
+      if (matterLedger(this.store, matterId)?.id !== ledger.id) {
+        throw new ChronologyError('The admission settings changed while readings were being written. Review the new settings and try again.', 409)
+      }
+    }
     const profile = this.analysis.approvedFor({ role: 'owner' }, matterId, 'jury_profile')[0]
     const lenses = profile && Array.isArray((profile.content as { lenses?: unknown })?.lenses)
       ? ((profile.content as { lenses: unknown[] }).lenses.filter((lens): lens is string => typeof lens === 'string')) : []
@@ -619,6 +629,8 @@ export class ChronologyService {
     const skipped: ReadingsContent['skipped'] = []
     const failed: ReadingsContent['failed'] = []
     for (const fact of facts) {
+      assertCurrentLedger()
+      const visible = jurorVisibleEvidence(this.store, matterId, ledger)
       const passages = fact.event.sources.flatMap((ref) => {
         const admitted = visible.find((item) => item.id === ref.evidenceId)
         const part = admitted && sourceParagraphs(admitted).find((candidate) => candidate.paragraph === ref.paragraph)
@@ -641,6 +653,7 @@ export class ChronologyService {
         failed.push({ eventId: fact.eventId, reason: error instanceof StructuredModelError ? `The model step failed (${error.category}).` : 'The step failed unexpectedly.' })
       }
     }
+    assertCurrentLedger()
     const readings: ReadingsContent = {
       admissionLedgerId: ledger.id, basis: lenses.length ? 'venue-based' : 'not venue-based',
       ...(lenses.length && profile ? { juryProfileHash: profile.contentHash } : {}), label: readingsLabel, items, skipped, failed,

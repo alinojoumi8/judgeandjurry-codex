@@ -99,6 +99,17 @@ describe('F1 checkWhen: a date must be supported by the cited passage', () => {
     expect(result.when.precision).toBe('unknown')
   })
 
+  it('checks both endpoint times and preserves the supported dates of a range', () => {
+    const original = 'March 3, 2023 through March 4, 2023'
+    const range = { precision: 'range' as const, start: '2023-03-03T10:12', end: '2023-03-04T23:59', original }
+    const startsAt = evidenceOf(`The review ran ${original}. It started at 10:12.`)
+    const bothTimes = evidenceOf(`The review ran ${original}. It started at 10:12 and ended at 23:59.`)
+    const checked = checkWhen(range, [{ item: startsAt, ref: ref(startsAt, startsAt.text) }])
+    expect(checked.when).toEqual({ ...range, end: '2023-03-04' })
+    expect(checked.warnings[0]).toMatch(/time of day was dropped/)
+    expect(checkWhen(range, [{ item: bothTimes, ref: ref(bothTimes, bothTimes.text) }])).toEqual({ when: range, warnings: [] })
+  })
+
   it('downgrades a malformed date and never accepts a start on an unknown date', () => {
     expect(checkWhen({ precision: 'day', start: '2023-3-3', original: 'March 3, 2023' }, cited('Report completed: March 3, 2023.')).when.precision).toBe('unknown')
     expect(checkWhen({ precision: 'unknown', start: '2023-03-03', original: 'sometime' }, cited('Report completed: March 3, 2023.')).when).toEqual({ precision: 'unknown', original: 'sometime' })
@@ -642,6 +653,21 @@ describe('F1 juror-style readings: admitted material only', () => {
     expect(reviewId).toBeDefined()
     expect(service.views(world.matterId).draft?.artifact.id).toBe(reviewId)
     expect(service.views(world.matterId).draft?.content.reviewLog.at(-1)).toMatchObject({ eventId: admitted.id, action: 'reject', note: 'Saved during readings.' })
+  })
+
+  it('stops before sending more facts when admission rules change during the first request', async () => {
+    const { world, service, saveLedger } = await setup()
+    saveLedger({})
+    const client = routedClient(() => {
+      saveLedger({ '15-discovery-excerpt-plaintiff.txt': { status: 'excluded' } })
+      return { readings: [
+        { lens: 'plain_language', text: 'Plain reading.' }, { lens: 'likely_question', text: 'A question.' },
+        { lens: 'which_way_it_cuts', text: 'Unclear.', cutsToward: 'unclear' },
+      ] }
+    })
+    await expect(service.generateReadings(world.matterId, { client })).rejects.toThrow(/admission settings changed/)
+    expect(client.calls).toHaveLength(1)
+    expect(service.views(world.matterId).draft).toBeUndefined()
   })
 
   it('refuses to write approved readings into a draft with different events under the same IDs', async () => {
