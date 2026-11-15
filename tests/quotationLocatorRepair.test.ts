@@ -71,6 +71,39 @@ describe('quotation citation repair requires a new checker selection', () => {
     expect(review.status).toBe('failed')
     expect(review.sourceLocatorValidationUnitIds ?? []).not.toContain('content:1')
   })
+  const scopedDraft = { ...draft, content: 'In the fictional interview, Mira asserts “the envelope was sealed” (E-003), and that “the account was described as a registered custodian” (E-003).' }
+  const scopeRejection = (units: GroundingUnit[]) => ({
+    findings: {
+      ...rows(units, 1).findings,
+      'content:1': { ...finding(1, 'unsupported'), explanation: "The other quotation comes from a paragraph outside this exhibit's permitted scope." },
+    },
+  })
+  it('rechecks a contrary scope claim against the same draft and permitted quote', async () => {
+    const h = harness([scopeRejection, units => rows(units, 2)], request, scopedDraft)
+    const review = await h.run()
+    expect(h.prompts).toHaveLength(2)
+    expect(h.prompts[1]).toContain('"exhibitId":"E-003","paragraph":2')
+    expect(h.prompts[1].split('Draft units to check:\n')[1]).toBe(h.prompts[0].split('Draft units to check:\n')[1])
+    expect(review.status).toBe('passed')
+    expect(review.verificationFailures?.[0].findings?.find(row => row.unitId === 'content:1')?.status).toBe('unsupported')
+  })
+  it('retains the checker rejection while the new citation is unresolved', async () => {
+    const h = harness([scopeRejection], request, scopedDraft, 0)
+    const review = await h.run()
+    expect(h.prompts).toHaveLength(1)
+    expect(review.status).toBe('failed')
+    expect(review.sourceLocatorValidationUnitIds).toContain('content:1')
+    expect(review.findings.find(row => row.unitId === 'content:1')?.citations.map(citation => citation.paragraph)).toEqual([1])
+  })
+  it('does not challenge a scope rejection when the literal passage is excluded', async () => {
+    const permittedOnly = { ...evidence[0], authorizedPassages: [{ paragraph: 1, text: 'Mira said the envelope was sealed.', startOffset: 0, endOffset: 33 }] }
+    const h = harness([scopeRejection], { ...request, evidence: [permittedOnly] }, scopedDraft)
+    const review = await h.run()
+    expect(h.prompts).toHaveLength(1)
+    expect(review.status).toBe('failed')
+    expect(review.sourceLocatorValidationUnitIds ?? []).not.toContain('content:1')
+  })
+
   it('withholds the original wrong selector if no correction allowance remains', async () => {
     const h = harness([units => rows(units, 1)], request, draft, 0)
     expect((await h.run()).status).toBe('failed')

@@ -379,11 +379,11 @@ function sourceQuotations(text: string) {
       const prefixParts = unquotedPrefix.split(/;\s*|(?<=[.!?])\s+|,\s*(?:but|while|whereas)\s+|\band because\s+|,\s*and\s+(?=[^;.!?]{0,180}\b(?:email|letter)\b[^;.!?]{0,80}\b(?:states?|reports?|writes?|says?|quotes?)\b)/i)
       const lastPrefix = prefixParts.at(-1) ?? ''
       const leadingLocator = /^\s*[([]\s*E-\d+\b[^)\]]*[)\]]\s*/
-      const directIntroduction = /^(?:states?|records?|reports?|describes?|says?|quotes?|writes?|wrote|defines?|labels?|attributes?|classif(?:y|ies|ied|ying)|categori[sz](?:e|es|ed|ing))\b/i.test(lastPrefix.replace(leadingLocator, ''))
+      const directIntroduction = /^(?:states?|records?|reports?|describes?|says?|quotes?|writes?|wrote|defines?|labels?|attributes?|asserts?|asserted|asserting|classif(?:y|ies|ied|ying)|categori[sz](?:e|es|ed|ing))\b/i.test(lastPrefix.replace(leadingLocator, ''))
       const prefix = prefixParts.length > 1 || !directIntroduction ? lastPrefix.replace(leadingLocator, '') : lastPrefix
     const suffix = text.slice(match.index + match[0].length)
     const peerSpeaker = [...prefix.matchAll(/\bjuror[- ]?0?\d+\b/gi)].at(-1)?.index ?? -1
-        const introduction = /\b(?:states?|stating|records?|recording|reports?|reporting|describes?|describing|says?|saying|said|quotes?|quoted|writes?|wrote|answered|answering|defines?|defining|labels?|attributes?|classif(?:y|ies|ied|ying)|categori[sz](?:e|es|ed|ing))\b[^.!?;]{0,180}$|\bE-\d+\s*:\s*$/i
+        const introduction = /\b(?:states?|stating|records?|recording|reports?|reporting|describes?|describing|says?|saying|said|quotes?|quoted|writes?|wrote|answered|answering|defines?|defining|labels?|attributes?|asserts?|asserted|asserting|classif(?:y|ies|ied|ying)|categori[sz](?:e|es|ed|ing))\b[^.!?;]{0,180}$|\bE-\d+\s*:\s*$/i
       // Select a document that actually introduces the quotation. An intervening
       // noun ("records Avery's account that ...") does not replace that speaker.
       const documentSpeaker = [...prefix.matchAll(/\b(?:interview|report|account|document|transcript|email|letter|E-\d+)\b/gi)]
@@ -415,6 +415,16 @@ function sourceQuotations(text: string) {
       const exhibitIds = ambiguous ? [...new Set(ids.map(id => id[0]))] : last ? [last[0]] : suffixIds
       return [{ index: match.index, introduction: prefix, documentAttributed, peerActor, instructionAttributed, exhibitIds, pieces: (match[1] ?? match[2]).split(/\s*(?:\[\.\.\.\]|\.{3}|…)\s*/).map(piece => normalize(piece).replace(/[.,]+$/, '').trim()).filter(Boolean) }]
   })
+}
+
+function quotationLocatorCandidates(quotation: ReturnType<typeof sourceQuotations>[number], citations: GroundingCitation[], evidence: EvidenceItem[], approvedContext: string) {
+  if (quotation.peerActor || quotation.instructionAttributed) return []
+  const selectedIds = [...new Set(citations.map(citation => citation.exhibitId))]
+  const intendedIds = quotation.exhibitIds.length === 1 ? quotation.exhibitIds
+    : !quotation.exhibitIds.length && quotation.documentAttributed && selectedIds.length === 1 ? selectedIds : []
+  return evidence
+    .filter(source => intendedIds.includes(source.exhibitId) && !new RegExp(`^${source.exhibitId}:\\s*(?:excluded|struck|withheld|unavailable|not admitted)\\b`, 'im').test(approvedContext))
+    .flatMap(source => sourceParagraphs(source).filter(part => containsQuotation(part.text, quotation.pieces)).map(part => ({ exhibitId: source.exhibitId, paragraph: part.paragraph })))
 }
 
 function correspondenceAttributionError(quotation: ReturnType<typeof sourceQuotations>[number], citations: GroundingCitation[], evidence: EvidenceItem[]) {
@@ -2259,6 +2269,18 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         status = 'analysis'
         explanation = 'The verified source quotation explicitly addresses contents knowledge as unknown. This exact bounded correction says only that the account addresses a point about contents; it does not identify contents or prove them.'
       }
+      if (!recordAttribution && row?.status === 'unsupported' && status === 'unsupported' &&
+          /\boutside\s+(?:the\s+|this\s+exhibit['’]s\s+)?(?:permitted|authorized|admitted)\s+(?:scope|passages?|paragraphs?|range)\b/i.test(explanation)) {
+        const candidates = sourceQuotations(unit.text).flatMap(quotation => {
+          if (quotation.exhibitIds.length !== 1 || citations.some(citation =>
+            citation.exhibitId === quotation.exhibitIds[0] && containsQuotation(citation.quote, quotation.pieces))) return []
+          return quotationLocatorCandidates(quotation, citations, evidence, approvedContext)
+        })
+        if (candidates.length) {
+          invalid(`${unit.id}: checker quotation locator rejected a quote as outside scope, but its words occur in the permitted record. Candidate locators (up to 8 of ${candidates.length}; words only, not a meaning judgment): ${JSON.stringify(candidates.slice(0, 8))}. Re-check the SAME complete unit against the actual source, speaker, qualification and permitted purpose. Return a fresh finding with explicit supporting selectors or reject the claim.`)
+          sourceLocatorValidationUnitIds.push(unit.id)
+        }
+      }
       if (status === 'supported' || status === 'analysis') {
       const failedSourceQuotation = !recordAttribution && sourceQuotations(unit.text).find(quotation => {
           const attributedPassages = quotation.peerActor && proceduralSetup
@@ -2283,12 +2305,8 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         // A quotation may precede several other quoted fragments and share one
         // trailing exhibit reference. Missing selected support needs a fresh
         // checker locator, not an advocate rewrite or an inferred selection.
-        const selectedIds = [...new Set(citations.map(citation => citation.exhibitId))]
-        const intendedIds = failedSourceQuotation.exhibitIds.length === 1 ? failedSourceQuotation.exhibitIds
-          : !failedSourceQuotation.exhibitIds.length && failedSourceQuotation.documentAttributed && selectedIds.length === 1 ? selectedIds : []
-        const candidates = !failedSourceQuotation.peerActor && !failedSourceQuotation.instructionAttributed && ['supported', 'analysis'].includes(row?.status ?? '') ? evidence
-          .filter(source => intendedIds.includes(source.exhibitId) && !new RegExp(`^${source.exhibitId}:\\s*(?:excluded|struck|withheld|unavailable|not admitted)\\b`, 'im').test(approvedContext))
-          .flatMap(source => sourceParagraphs(source).filter(part => containsQuotation(part.text, failedSourceQuotation.pieces)).map(part => ({ exhibitId: source.exhibitId, paragraph: part.paragraph }))) : []
+        const candidates = ['supported', 'analysis'].includes(row?.status ?? '')
+          ? quotationLocatorCandidates(failedSourceQuotation, citations, evidence, approvedContext) : []
         if (candidates.length) {
           invalid(`${unit.id}: checker quotation locator omitted its actual source passage. Permitted candidate locators (up to 8 of ${candidates.length}; words only, not a meaning judgment): ${JSON.stringify(candidates.slice(0, 8))}. Re-check the SAME complete unit against the actual source, speaker, qualification and permitted purpose. Return a complete fresh finding and explicit supporting selectors or reject the claim. Do not rewrite its words, borrow another source, or copy a locator without checking its meaning.`)
           sourceLocatorValidationUnitIds.push(unit.id)
