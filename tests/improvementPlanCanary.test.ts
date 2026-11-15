@@ -141,7 +141,10 @@ describe('a plan survives export and import with its signals pointing at the imp
       }
     }
     expect(content.ideas[0].sources.every((source) => store.listEvidence(imported.id).some((item) => item.id === source.evidenceId))).toBe(true)
-    expect(copy.contentHash).toBe(analysisContentHash(copy))
+    const expectedHash = analysisContentHash(copy)
+    expect(copy.contentHash).toBe(expectedHash)
     expect(copy.contentHash).not.toBe(plan.contentHash)
+    const persisted = JSON.parse(dump(path, 'analysis_artifacts')) as Array<{ id: string; content_hash: string }>
+    expect(persisted.find((row) => row.id === copy.id)?.content_hash).toBe(expectedHash)
   }, 90_000)
 })
