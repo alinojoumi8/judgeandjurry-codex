@@ -8,8 +8,9 @@ import { ScriptedStructuredClient, type StructuredModelClient, type StructuredRe
 import type { ModelProviderConfig } from '../server/minimax'
 import {
   assertLiveAllowed, buildLiveClient, BudgetedStructuredClient, evaluate, liveBudgetFromEnv, loadThresholds, runExtractionSuite, runFalseConflictProbe, sameRef,
-  scoreChronology, scoreEvidenceIndex, STANDING_STATEMENT, summaryLine, type MetricResult,
+  scoreChronology, scoreEvidenceIndex, scoreExperts, STANDING_STATEMENT, summaryLine, type MetricResult,
 } from '../scripts/intelligenceEvaluation'
+import { ExpertAssessmentService, type ExpertAssessmentContent } from '../server/analysis/expertAssessment'
 import { CaseStore } from '../server/db'
 import { ChronologyService, type ChronologyContent } from '../server/analysis/chronology'
 import { buildCivilWorld, intelligenceRouter, routedClient } from './intelligenceFixtures'
@@ -54,6 +55,31 @@ describe('the scorers can fail', () => {
     expect(degraded.metrics.find((item) => item.id === 'chronology.dateAccuracy')!.score).toBeLessThan(0.5)
   }, slow)
 
+  it('scores opinions and weaknesses only inside the matching expert’s record', async () => {
+    const store = new CaseStore(':memory:')
+    try {
+      const world = buildCivilWorld({}, store)
+      const evidence = store.listEvidence(world.matterId)
+      const artifact = await new ExpertAssessmentService(store, world.service).generate(world.matterId, {
+        client: routedClient(intelligenceRouter(world), 80),
+      })
+      const content = artifact.content as unknown as ExpertAssessmentContent
+      const [first, second, ...other] = content.items
+      expect(first.record.opinions.length).toBeGreaterThan(0)
+      expect(second.record.opinions.length).toBeGreaterThan(0)
+      const swapped = { ...content, items: [
+        { ...first, indicators: second.indicators, findings: second.findings, record: { ...first.record, opinions: second.record.opinions } },
+        { ...second, indicators: first.indicators, findings: first.findings, record: { ...second.record, opinions: first.record.opinions } },
+        ...other,
+      ] }
+      const recall = (input: ExpertAssessmentContent) => scoreExperts(input, evidence, thresholds).filter((metric) => metric.id !== 'experts.qualificationAccuracy')
+      expect(recall(content).map((metric) => metric.score)).toEqual([1, 1])
+      expect(recall(swapped).map((metric) => metric.passed)).toEqual([false, false])
+    } finally {
+      store.close()
+    }
+  })
+
   it('scores an empty chronology and an empty set of record gaps as failures, never as passes', () => {
     const world = buildCivilWorld({}, new CaseStore(':memory:'))
     const evidence = world.store.listEvidence(world.matterId)
@@ -71,6 +97,13 @@ describe('the scorers can fail', () => {
     const control = scoreChronology(content, evidence, thresholds)
     expect(control.filter((item) => !item.passed)).toEqual([])
     const extra = { ...content.items[0], id: 'extra', sources: [{ evidenceId: content.items[0].sources[0].evidenceId, paragraph: 1, quote: 'FICTIONAL TEST SOURCE' }] }
+    const [correctConflict] = content.conflicts
+    const unrelated = content.items.find((event) => !correctConflict.eventIds.includes(event.id) && event.type !== 'incident')!
+    expect(unrelated).toBeDefined()
+    const contaminated = scoreChronology({
+      ...content, conflicts: [{ ...correctConflict, eventIds: [...correctConflict.eventIds, unrelated.id] }],
+    }, evidence, thresholds)
+    expect(contaminated.find((item) => item.id === 'chronology.conflictPrecision')).toMatchObject({ numerator: 0, passed: false })
     const wrongTopic = scoreChronology({
       ...content, items: content.items.map((event) => ({ ...event, description: 'Solar telescopes studied a distant nebula.' })),
     }, evidence, thresholds)

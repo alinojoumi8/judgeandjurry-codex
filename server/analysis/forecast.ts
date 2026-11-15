@@ -202,8 +202,10 @@ export class ForecastService {
   private studyRuns(matterId: string, model: CaseModelV1, framework: ForecastFrameworkSnapshot, params: ForecastJobParams): TrialRun[] {
     const seeds = new Set(Array.from({ length: params.runs }, (_, index) => studySeedOf(params, index)))
     // Damages studies use the same numbered seeds and pin their own ballot and award settings.
-    const runs = this.store.workflow.listTrialRuns(matterId).filter((run) =>
-      run.caseModelId === model.id && seeds.has(run.seed) && !run.config.damagesAmounts)
+    const runs = this.store.workflow.listTrialRuns(matterId).filter((run) => seeds.has(run.seed) && !run.config.damagesAmounts)
+    if (runs.some((run) => run.caseModelId !== model.id)) {
+      throw new ForecastError('This study seed is pinned to a different case model version. Start a new study with a new seed.', 409)
+    }
     const seen = new Set<string>()
     for (const run of runs) {
       const config = run.config

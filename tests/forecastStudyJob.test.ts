@@ -235,6 +235,27 @@ describe('forecast study: resumes after an interruption', () => {
     expect(done.usage.calls).toBe(6 * 68)
   }, slow)
 
+  it('refuses additional panels when a resumed seed is pinned to an older model', async () => {
+    const world = forecastWorld(stores, { evidence: [strongExhibit] })
+    world.scripted.beforeCall = () => {
+      if (world.store.workflow.listTrialRuns(world.matterId).length === 2) throw new Error('Interrupted for the model change test.')
+    }
+    const { job } = await runStudy(world, { runs: 2 })
+    expect(job.status).toBe('failed')
+    const stored = world.store.workflow.listTrialRuns(world.matterId)
+    expect(stored.find((run) => run.status === 'completed')?.caseModelId).toBe(world.model.id)
+
+    const workflow = new CaseWorkflowService(world.store)
+    workflow.approveCaseModel(workflow.reviseCaseModel(world.model.id, { unresolved: ['Changed after interruption.'] }).id)
+    world.scripted.beforeCall = undefined
+    const calls = world.scripted.count
+    world.jobs.resume(world.matterId, job.id)
+    await world.jobs.whenIdle()
+    expect(world.jobs.get(world.matterId, job.id)).toMatchObject({ status: 'failed', error: expect.stringMatching(/pinned to a different case model/) })
+    expect(world.scripted.count).toBe(calls)
+    expect(world.store.workflow.listTrialRuns(world.matterId)).toEqual(stored)
+  })
+
   it('refuses to start a second study on a seed that is already waiting or running', async () => {
     const world = forecastWorld(stores)
     const params = { runs: 2, mode: 'screen' as const, seed: 'busy' }

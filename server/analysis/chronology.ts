@@ -224,7 +224,14 @@ export function descriptionOverlap(a: string, b: string): { ratio: number; share
 }
 
 const mergeRatio = 0.6
+const explicitNegation = /\b(?:no|not|never|neither|nor|without|deny|denies|denied)\b|n['’]t\b/i
 const conflictRatio = 0.6
+
+// Similar words can carry opposite claims. Require the same wording if either
+// description contains an explicit denial or negation.
+export function canMatchDescriptions(a: string, b: string): boolean {
+  return normalize(a) === normalize(b) || (!explicitNegation.test(a) && !explicitNegation.test(b))
+}
 
 type Draft = Omit<ChronologyEvent, 'id' | 'conflictsWith'>
 
@@ -243,6 +250,7 @@ export function mergeDrafts(drafts: readonly Draft[]): Draft[] {
     const key = dateKey(draft.when)
     const into = key === undefined ? undefined : merged.find((candidate) => {
       if (dateKey(candidate.when) !== key || candidate.assertion !== draft.assertion) return false
+      if (!canMatchDescriptions(candidate.description, draft.description)) return false
       const overlap = descriptionOverlap(candidate.description, draft.description)
       return overlap.ratio >= mergeRatio && overlap.shared >= 2
     })
@@ -541,6 +549,13 @@ export class ChronologyService {
     }
     const items = content.items.map((candidate, position) => (position === index ? next : candidate))
     const recomputed = input.action === 'edit' ? refreshConflicts(items) : { events: items, conflicts: content.conflicts }
+    if (content.readings && (input.action === 'edit' || next.review !== event.review)) {
+      const { readings } = content
+      const items = readings.items.filter((item) => item.eventId !== eventId)
+      const skipped = readings.skipped.filter((item) => item.eventId !== eventId)
+      const failed = readings.failed.filter((item) => item.eventId !== eventId)
+      content.readings = items.length || skipped.length || failed.length ? { ...readings, items, skipped, failed } : undefined
+    }
     const saved = this.analysis.saveDraft<ChronologyContent>({
       matterId, kind: 'chronology', caseModelId: latest.caseModelId, inputManifest: latest.inputManifest,
       content: { ...content, items: recomputed.events, conflicts: recomputed.conflicts, reviewLog: [...content.reviewLog, { eventId, action: input.action, ...(input.note ? { note: input.note } : {}) }] },

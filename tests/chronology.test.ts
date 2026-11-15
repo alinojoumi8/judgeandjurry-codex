@@ -194,6 +194,20 @@ describe('F1 merge and conflicts', () => {
     expect(mergeDrafts([draft('Plaintiff fell on ice at the entrance', day('2025-01-14')), draft('Surgery performed on the left tibial plateau', day('2025-01-14'))])).toHaveLength(2)
   })
 
+  it('keeps an affirmative account separate from a same-date denial', () => {
+    const sameDay = day('2025-01-14')
+    const affirmative = draft('Plaintiff fell on ice at the entrance', sameDay, { assertion: 'testimony' })
+    const denial = draft('Plaintiff did not fall on ice at the entrance', sameDay, {
+      assertion: 'testimony', sources: [{ evidenceId: 'b', paragraph: 1, quote: 'I did not fall on the ice' }],
+    })
+    const merged = mergeDrafts([affirmative, denial])
+    expect(merged).toHaveLength(2)
+    for (const input of [affirmative, denial]) {
+      expect(merged.find((event) => event.description === input.description)?.sources).toEqual(input.sources)
+    }
+    expect(mergeDrafts([denial, { ...denial, sources: [{ evidenceId: 'c', paragraph: 1, quote: 'another identical denial' }] }])[0].sources).toHaveLength(2)
+  })
+
   it('never merges two events whose dates are unknown', () => {
     const unknown: ChronologyWhen = { precision: 'unknown', original: 'later' }
     expect(mergeDrafts([draft('Plaintiff fell on ice at the entrance', unknown), draft('Plaintiff fell on ice at the entrance', unknown)])).toHaveLength(2)
@@ -694,6 +708,23 @@ describe('F1 juror-style readings: admitted material only', () => {
     await expect(service.generateReadings(world.matterId, { client })).rejects.toThrow(/changes an approved key fact/)
     expect(client.calls).toHaveLength(0)
     expect(service.views(world.matterId).draft?.artifact.id).toBe(changed.artifact.id)
+  })
+
+  it('removes only the edited event’s readings from a new revision', async () => {
+    const { world, service, admitted, saveLedger } = await setup()
+    saveLedger({})
+    const client = routedClient(() => ({ readings: [
+      { lens: 'plain_language', text: 'Plain reading.' }, { lens: 'likely_question', text: 'A question.' },
+      { lens: 'which_way_it_cuts', text: 'Unclear.', cutsToward: 'unclear' },
+    ] }))
+    const saved = await service.generateReadings(world.matterId, { client })
+    expect(saved.content.readings?.items).toEqual(expect.arrayContaining([expect.objectContaining({ eventId: admitted.id })]))
+    const edited = service.review(world.matterId, admitted.id, { action: 'edit', patch: { description: 'Revised fictional event.' } })
+    expect(edited.content.readings?.items.map((item) => item.eventId)).toEqual(
+      saved.content.readings?.items.filter((item) => item.eventId !== admitted.id).map((item) => item.eventId),
+    )
+    const original = world.service.get(world.matterId, saved.id).content as ChronologyContent
+    expect(original.readings).toEqual(saved.content.readings)
   })
 
   it('needs an admission ledger: with none, nothing is admitted', async () => {

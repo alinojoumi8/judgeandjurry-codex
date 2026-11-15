@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { performance } from 'node:perf_hooks'
 
 import type { CaseMapContent } from '../server/analysis/caseMapTypes'
-import { ChronologyService, descriptionOverlap, type ChronologyContent, type ChronologyEvent } from '../server/analysis/chronology'
+import { ChronologyService, canMatchDescriptions, descriptionOverlap, type ChronologyContent, type ChronologyEvent } from '../server/analysis/chronology'
 import { countsAsEvidence, entryTypes, EvidenceIndexService, evidenceAssertions, indexAssertions } from '../server/analysis/evidenceIndex'
 import { buildForecastReport } from '../server/analysis/forecastExport'
 import { forecastLabel } from '../server/analysis/forecastTypes'
@@ -103,6 +103,7 @@ export function scoreChronology(content: ChronologyContent, evidence: readonly E
   // Check the labelled event topic in addition to its citation. Token overlap is a fixture
   // scoring rule for paraphrases and can only approximate proposition correctness.
   const topicMatches = (actual: string, expected: string) => {
+    if (!canMatchDescriptions(actual, expected)) return false
     const overlap = descriptionOverlap(actual, expected)
     return norm(actual) === norm(expected) || (overlap.shared >= 2 && overlap.ratio >= 0.5)
   }
@@ -130,11 +131,15 @@ export function scoreChronology(content: ChronologyContent, evidence: readonly E
   const byId = new Map(events.map((candidate) => [candidate.event.id, candidate]))
   // A flagged conflict matches a key conflict when its members cite the sides of that conflict in two different documents.
   const covers = (flagged: ChronologyContent['conflicts'][number], conflict: (typeof scoped)[number]) => {
-    const members = flagged.eventIds.flatMap((id) => {
-      const candidate = byId.get(id)
-      return candidate && conflictTopicMatches(candidate.event, conflict) ? candidate.refs : []
-    })
-    const files = new Set(conflictSideRefs(conflict).filter((side) => members.some((member) => sameRef(member, side))).map((side) => side.file))
+    const sides = conflictSideRefs(conflict)
+    const files = new Set<string>()
+    for (const id of flagged.eventIds) {
+      const member = byId.get(id)
+      if (!member || !conflictTopicMatches(member.event, conflict) || !anyShared(member.refs, sides)) return false
+      for (const side of sides) {
+        if (member.refs.some((ref) => sameRef(ref, side))) files.add(side.file)
+      }
+    }
     return files.size >= 2
   }
   const conflictsFound = scoped.filter((conflict) => content.conflicts.some((flagged) => covers(flagged, conflict)))
@@ -188,15 +193,19 @@ export function scoreEvidenceIndex(coverage: IndexInputs, evidence: readonly Evi
 }
 
 export function scoreExperts(content: ExpertAssessmentContent, evidence: readonly EvidenceItem[], thresholds: Thresholds): MetricResult[] {
-  const cited = content.items.flatMap((item) => [...item.indicators.flatMap((indicator) => indicator.basis), ...item.findings.flatMap((finding) => finding.basis)])
-  const citedRefs = refsOf(evidence, cited)
-  const weaknesses = answerKey.experts.flatMap((expert) => expert.plantedWeaknesses.map((weakness) => ({ expert: expert.id, weakness })))
-  const weaknessesFound = weaknesses.filter(({ weakness }) => citedRefs.some((ref) => sameRef(ref, { file: weakness.file, quote: weakness.quote })))
-  const opinionRefs = refsOf(evidence, content.items.flatMap((item) => item.record.opinions.flatMap((opinion) => opinion.sources)))
+  const matchedExperts = answerKey.experts.map((expert) => ({ expert, item: content.items.find((item) => item.record.name === expert.name) }))
+  const weaknesses = matchedExperts.flatMap(({ expert, item }) => {
+    const cited = item ? [...item.indicators.flatMap((indicator) => indicator.basis), ...item.findings.flatMap((finding) => finding.basis)] : []
+    const refs = refsOf(evidence, cited)
+    return expert.plantedWeaknesses.map((weakness) => ({ expert: expert.id, weakness, found: refs.some((ref) => sameRef(ref, weakness)) }))
+  })
+  const weaknessesFound = weaknesses.filter(({ found }) => found)
   const opinions = answerKey.experts.flatMap((expert) => expert.opinions)
-  const opinionsFound = opinions.filter((opinion) => opinionRefs.some((ref) => sameRef(ref, { file: opinion.file, quote: opinion.quote })))
-  const qualifications = answerKey.experts.map((expert) => ({ expert, record: content.items.find((item) => item.record.name === expert.name)?.record }))
-  const qualificationsOk = qualifications.filter((item) => item.record && item.record.qualificationsStated === item.expert.qualificationsStated)
+  const opinionsFound = matchedExperts.flatMap(({ expert, item }) => {
+    const refs = refsOf(evidence, item?.record.opinions.flatMap((opinion) => opinion.sources) ?? [])
+    return expert.opinions.filter((opinion) => refs.some((ref) => sameRef(ref, { file: opinion.file, quote: opinion.quote })))
+  })
+  const qualificationsOk = matchedExperts.filter(({ expert, item }) => item && item.record.qualificationsStated === expert.qualificationsStated)
   return [
     metric('experts.weaknessRecall', thresholds, weaknessesFound.length, weaknesses.length, `missed: ${weaknesses.filter((item) => !weaknessesFound.includes(item)).map((item) => `${item.expert}: ${item.weakness.description}`).join(' | ') || 'none'}`),
     metric('experts.opinionRecall', thresholds, opinionsFound.length, opinions.length),
