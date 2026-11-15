@@ -205,7 +205,7 @@ export class CaseWorkflowService {
       if (/incomplete production|production is incomplete|missing pages?|page[s]? omitted|attachment[s]? (?:missing|omitted)|not produced/.test(lower)) candidates.push(findingFor(item, 'incomplete_production', 'high', false, `Potential incomplete production in ${item.exhibitId}`, 'The source indicates that pages, attachments, or other produced material may be incomplete. Confirm the production history before seeking relief.', ['further_production', 'adjourn', 'reserve']))
       if (/unsigned|signature missing|not authenticated|authenticity (?:unknown|disputed)|unverified copy/.test(lower)) candidates.push(findingFor(item, 'authenticity_gap', 'medium', false, `Authenticity foundation review for ${item.exhibitId}`, 'The source contains language suggesting an unsigned, unverified, or disputed copy. Authentication and intended use require review.', ['limited_use', 'voir_dire', 'exclude']))
       if (/privileg|solicitor.client|legal advice/.test(lower)) candidates.push(findingFor(item, 'privilege', 'high', false, `Potential privilege flag in ${item.exhibitId}`, 'The source contains privilege-related language and should be reviewed before use.', ['redact', 'exclude', 'limited_use']))
-      if (/\bexpert (?:report|opinion|evidence|witness)\b|\bopinion report\b|\bforensic (?:accountant|accounting|report|analysis|examination|expert)\b/.test(lower) && !/qualification|curriculum vitae|\bcv\b/.test(lower)) candidates.push(findingFor(item, 'expert_foundation', 'medium', false, `Expert foundation review for ${item.exhibitId}`, 'The source appears to contain opinion evidence without an obvious qualification/foundation reference.', ['limited_use', 'voir_dire']))
+      if (/\bexpert (?:report|opinion|evidence|witness)\b|\bopinion report\b|\bforensic (?:accountant|accounting|report|analysis|examination|expert)\b/.test(lower) && !/qualification|curriculum vitae|\bcv\b/.test(lower.replace(/\bcv[-\s]\d{2}[-\s][\w-]+/g, ' '))) candidates.push(findingFor(item, 'expert_foundation', 'medium', false, `Expert foundation review for ${item.exhibitId}`, 'The source appears to contain opinion evidence without an obvious qualification/foundation reference.', ['limited_use', 'voir_dire']))
       if (/chain of custody|continuity/.test(lower) && /missing|gap|unknown/.test(lower)) candidates.push(findingFor(item, 'chain_of_custody_gap', 'high', false, `Continuity concern in ${item.exhibitId}`, 'The source itself signals an unresolved continuity or chain-of-custody issue.', ['exclude', 'limited_use', 'voir_dire']))
       if (/translation|translated/.test(lower) && !/certified|interpreter/.test(lower)) candidates.push(findingFor(item, 'missing_translation', 'medium', false, `Translation review for ${item.exhibitId}`, 'Translation language appears without an identified certification or interpreter foundation.', ['further_production', 'adjourn', 'limited_use']))
       // A single reported-speech phrase in a long document is weak signal; only
@@ -252,15 +252,22 @@ export class CaseWorkflowService {
     return this.store.workflow.listDisclosureFindings(matterId)
   }
 
-  draftMotionDocket(caseModelId: string): Motion[] {
+  // `movingPartyId` lets any party of the case model move (a plaintiff, say).
+  // Left out, the first accused, respondent or defendant moves, as before.
+  draftMotionDocket(caseModelId: string, movingPartyId?: string): Motion[] {
     const model = this.store.workflow.getCaseModel(caseModelId)
     const findings = this.store.workflow.listDisclosureFindings(model.matterId)
       .filter((finding) => finding.status === 'open' && !finding.operational)
       .sort((a, b) => severityRank(b.severity) - severityRank(a.severity))
-    const movingParty = model.parties.find((party) => ['accused', 'respondent', 'defendant'].includes(party.role))
+    const movingParty = movingPartyId === undefined
+      ? model.parties.find((party) => ['accused', 'respondent', 'defendant'].includes(party.role))
+      : model.parties.find((party) => party.id === movingPartyId)
+    if (movingPartyId !== undefined && !movingParty) throw new Error(`Party is not present in the case model: ${movingPartyId}`)
     if (!movingParty) return []
     const permitted = getProcedureAdapter(model.procedureAdapter).permittedRelief
-    const existing = this.store.workflow.listMotions(model.matterId)
+    // A source one party already has a motion for does not get a second one from
+    // the same party. Another party may still move on it.
+    const existing = this.store.workflow.listMotions(model.matterId).filter((motion) => motion.movingPartyId === movingParty.id)
     // One motion per exhibit: every motion-grade concern on the same source is
     // consolidated, and low-severity heuristic hits stay findings only.
     const byEvidence = new Map<string, DisclosureFinding[]>()

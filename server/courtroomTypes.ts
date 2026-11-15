@@ -35,7 +35,7 @@ export interface ActorContextManifest {
 export interface ReviewedLegalPacket {
   schemaVersion: 1
   jurisdiction: 'Ontario'
-  proceeding: 'ontario_criminal_jury_v1'
+  proceeding: 'ontario_criminal_jury_v1' | 'ontario_civil_v1'
   issues: Array<{ issueId: string; respondingPartyIds: string[]; elements: Array<{ elementId: string; text: string; burdenPartyId: string; standard: string; authorityIds: string[] }>; outcomes: string[]; alternatives: string[] }>
   instructions: Array<{ id: string; kind: 'duties' | 'burden' | 'elements' | 'limited_use' | 'deliberation'; text: string; authorityIds: string[] }>
   authorities: Array<{ id: string; title: string; jurisdiction: string; type: 'legislation' | 'binding_decision' | 'persuasive_decision' | 'guidance' | 'model_instruction'; url: string; pinpoint: string; asOf: string; retrievedAt: string; reviewed: boolean }>

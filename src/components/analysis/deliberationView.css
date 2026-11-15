@@ -1,0 +1,20 @@
+.deliberation-view { overflow-x: auto; margin: 28px 0; padding-top: 24px; border-top: 1px solid var(--case-border, #dedee4); }
+.deliberation-view h2 { display: flex; align-items: center; gap: 8px; }
+.deliberation-view h3 { margin: 20px 0 6px; }
+.deliberation-view__banner { border-left: 4px solid #966a09; background: #fbf5e6; padding: 10px 14px; margin: 0 0 16px; font-size: 14px; }
+.deliberation-view__none { border-left: 4px solid #a4161a; background: #fbecec; padding: 10px 14px; margin: 8px 0; font-size: 14px; }
+.deliberation-view__table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0 16px; }
+.deliberation-view__table caption { text-align: left; color: var(--case-muted, #5e5e69); padding-bottom: 8px; }
+.deliberation-view__table :is(th, td) { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--case-border, #dedee4); overflow-wrap: anywhere; }
+.deliberation-view__table thead th { font-weight: 650; }
+.deliberation-view__note { display: block; color: var(--case-muted, #5e5e69); margin-top: 3px; }
+.deliberation-view__link { border: 1px solid var(--case-border, #dedee4); background: transparent; border-radius: 4px; padding: 4px 8px; font-size: 12px; white-space: nowrap; }
+.deliberation-view__bar { display: inline-flex; vertical-align: middle; width: 120px; height: 10px; margin-right: 6px; background: #ececf0; border-radius: 3px; overflow: hidden; }
+.deliberation-view__bar > span { display: block; height: 100%; }
+.deliberation-view__bar > .is-side-0 { background: #3a5a99; }
+.deliberation-view__bar > .is-side-1 { background: #966a09; }
+.deliberation-view__bar > .is-side-2 { background: #6b6b76; }
+.deliberation-view__camps { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 12px; margin: 8px 0 16px; padding: 0; list-style: none; }
+.deliberation-view__camps li { border: 1px solid var(--case-border, #dedee4); border-radius: 6px; padding: 10px 12px; font-size: 13px; }
+.deliberation-view__camps strong { display: block; }
+.deliberation-view ul { margin: 0; padding-left: 16px; }
