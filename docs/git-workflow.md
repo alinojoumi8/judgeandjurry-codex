@@ -6,13 +6,13 @@ work recoverable and make the next Git action explicit.
 
 ## Establish the current state
 
-Run each command separately from the intended checkout:
+Run each command separately from the intended checkout. Replace REMOTE_NAME with the branch's configured upstream remote. If there is no upstream, use the remote you intend to push to.
 
 ```powershell
 git status --short
 git branch --show-current
 git worktree list
-git fetch --prune origin
+git fetch --prune REMOTE_NAME
 git branch -vv
 ```
 
