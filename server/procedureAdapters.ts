@@ -148,12 +148,15 @@ export const procedureAdapters: Record<ProcedureAdapterId, ProcedureAdapter> = {
   },
 }
 
-// Six jurors, five to decide: today's rule, kept exactly when no court rules
-// are pinned. With pinned court rules the panel and threshold come from them,
+// Six jurors, five to decide for an intact panel without pinned court rules.
+// With pinned court rules the panel and threshold come from them,
 // and a trial that proceeds with fewer jurors follows the reduced-panel rule
 // (Courts of Justice Act, s. 108(8): five jurors means unanimity).
 function civilJuryDecision(issue: DecisionIssue, ballots: IssueBallot[], framework: JuryFramework | undefined, discharged: string[]): IssueDecision {
-  if (!framework) return thresholdDecision(issue, ballots, 6, 5, 'no_decision')
+  if (!framework) {
+    if (discharged.length) return blockedDecision(issue, 'A juror was discharged and this run has no pinned reduced-panel rule.')
+    return thresholdDecision(issue, ballots, 6, 5, 'no_decision')
+  }
   const { panelSize, threshold } = framework
   if (panelSize === null || threshold === null) {
     return blockedDecision(issue, 'The pinned court rules do not state the panel size or the decision rule, so no decision can be calculated.')

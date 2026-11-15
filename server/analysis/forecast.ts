@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 
+import { canonicalJson } from './hash'
 import type { CaseStore } from '../db'
 import type { FrameworkService } from '../frameworks/service'
 import { blockers as frameworkBlockers } from '../frameworks/schema'
@@ -165,7 +166,16 @@ export class ForecastService {
 
   plan(matterId: string, params: ForecastJobParams): ForecastPlan {
     const resolved = this.resolve(matterId, params)
-    const existing = resolved.model ? this.studyRuns(matterId, resolved.model.id, params).filter((run) => run.status === 'completed').length : 0
+    const { model, framework } = resolved
+    let existing = 0
+    if (model && framework) {
+      try {
+        existing = this.studyRuns(matterId, model, framework, params).filter((run) => run.status === 'completed').length
+      } catch (error) {
+        if (!(error instanceof ForecastError)) throw error
+        resolved.blockers.push(error.message)
+      }
+    }
     return {
       blockers: resolved.blockers, panelSize: resolved.framework?.panelSize ?? null, threshold: resolved.framework?.threshold ?? null,
       ruleText: resolved.framework?.ruleText ?? null,
@@ -189,9 +199,28 @@ export class ForecastService {
 
   // ---- Running a study ------------------------------------------------------
 
-  private studyRuns(matterId: string, caseModelId: string, params: ForecastJobParams): TrialRun[] {
+  private studyRuns(matterId: string, model: CaseModelV1, framework: ForecastFrameworkSnapshot, params: ForecastJobParams): TrialRun[] {
     const seeds = new Set(Array.from({ length: params.runs }, (_, index) => studySeedOf(params, index)))
-    return this.store.workflow.listTrialRuns(matterId).filter((run) => run.caseModelId === caseModelId && seeds.has(run.seed))
+    // Damages studies use the same numbered seeds and pin their own ballot and award settings.
+    const runs = this.store.workflow.listTrialRuns(matterId).filter((run) =>
+      run.caseModelId === model.id && seeds.has(run.seed) && !run.config.damagesAmounts)
+    const seen = new Set<string>()
+    for (const run of runs) {
+      const config = run.config
+      const expected = this.configFor(model, params, run.seed)
+      if (seen.has(run.seed) || run.mode !== expected.mode || config.mode !== expected.mode
+        || run.procedureAdapter !== expected.procedureAdapter || config.procedureAdapter !== expected.procedureAdapter
+        || config.seed !== expected.seed || config.civilDecisionMaker !== expected.civilDecisionMaker
+        || config.framework?.packHash !== framework.packHash || config.juryProfileHash !== expected.juryProfileHash
+        || config.ballotContract !== expected.ballotContract || canonicalJson(config.witnessPlan) !== canonicalJson(expected.witnessPlan)
+        || canonicalJson(config.deliberation) !== canonicalJson(expected.deliberation)
+        || canonicalJson(config.checkpointPolicy) !== canonicalJson(expected.checkpointPolicy)
+        || config.courtroomProtocol || config.deliberationForecast || config.jurorCognition || config.advocacy) {
+        throw new ForecastError('A run with this seed is ambiguous or has different settings or court rules. Start a new study with a new seed.', 409)
+      }
+      seen.add(run.seed)
+    }
+    return runs
   }
 
   private configFor(model: CaseModelV1, params: ForecastJobParams, seed: string): TrialRunConfig {
@@ -216,7 +245,7 @@ export class ForecastService {
     const resolved = this.resolve(matterId, params)
     if (resolved.blockers.length || !resolved.model || !resolved.framework) throw new ForecastError(resolved.blockers.join(' '))
     const { model, framework } = resolved
-    const earlier = new Map(this.studyRuns(matterId, model.id, params).map((run) => [run.seed, run]))
+    const earlier = new Map(this.studyRuns(matterId, model, framework, params).map((run) => [run.seed, run]))
     let ledgerId = [...earlier.values()].find((run) => run.admissionLedgerId)?.admissionLedgerId
       ?? this.store.workflow.listAdmissionLedgers(matterId).find((ledger) => !ledger.trialRunId)?.id
 
@@ -231,11 +260,6 @@ export class ForecastService {
         const created = engine.createRun({ matterId, caseModelId: model.id, config: this.configFor(model, params, seed), admissionLedgerId: ledgerId })
         run = created.run
         ledgerId ??= run.admissionLedgerId
-      } else {
-        const settings = run.config
-        if (run.mode !== params.mode || settings.framework?.packHash !== framework.packHash || (settings.juryProfileHash ?? undefined) !== params.juryProfileHash) {
-          throw new ForecastError('A run with this seed already exists with different settings or court rules. Start a new study with a new seed.', 409)
-        }
       }
       try {
         const finished = await engine.runAutonomous(run.id)
@@ -263,16 +287,11 @@ export class ForecastService {
     const resolved = this.resolve(matterId, params)
     if (resolved.blockers.length || !resolved.model || !resolved.framework) throw new ForecastError(resolved.blockers.join(' '))
     const { model, framework } = resolved
-    const runs = this.studyRuns(matterId, model.id, params)
+    const runs = this.studyRuns(matterId, model, framework, params)
     if (!runs.some((run) => run.status === 'completed')) return null
     const inputs: RunInput[] = runs.map((run) => ({
       runId: run.id, seed: run.seed, status: run.status, ballots: this.store.workflow.listBallots(run.id), decisions: this.store.workflow.getDecisionSheet(run.id)?.decisions,
     }))
-    // The framework the runs actually pinned, not the one the matter holds today.
-    const pinnedHashes = new Set(runs.map((run) => run.config.framework?.packHash))
-    if (pinnedHashes.size !== 1 || !pinnedHashes.has(framework.packHash)) {
-      throw new ForecastError('The runs of this study did not all pin the current court rules, so they cannot be forecast together. Start a new study.', 409)
-    }
     const content = computeForecast({
       seed: params.seed, mode: params.mode, ballotContract: params.ballotContractV2 ? 'v2' : 'v1', requestedRuns: params.runs, runs: inputs,
       issues: resolved.issues, parties: model.parties.map((party) => ({ id: party.id, name: party.name, role: party.role })), framework,

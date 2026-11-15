@@ -281,13 +281,14 @@ export function degradedCaseMap(router: CaseMapRouter): CaseMapRouter {
 export async function runExtractionSuite(options: {
   kind: ClientKind
   thresholds: Thresholds
-  liveClient?: StructuredModelClient
+  liveClient?: BudgetedStructuredClient
 }): Promise<SuiteOutcome> {
   const { kind, thresholds } = options
   const failures: string[] = []
   const metrics: MetricResult[] = []
   const counts = { chronologyEvents: 0, chronologyConflicts: 0, caseMapItems: 0, recordGaps: 0, expertRecords: 0, rejected: 0 }
   let modelCalls = 0
+  const initialLiveCalls = options.liveClient?.usage().structuredCalls ?? 0
   const stores: CaseStore[] = []
   const open = (): CaseStore => { const store = new CaseStore(':memory:'); stores.push(store); return store }
   const step = async (name: string, action: () => Promise<void>) => {
@@ -343,6 +344,7 @@ export async function runExtractionSuite(options: {
   } finally {
     for (const store of stores) { try { store.close() } catch { /* already closed */ } }
   }
+  if (options.liveClient) modelCalls = options.liveClient.usage().structuredCalls - initialLiveCalls
   return { metrics, failures, modelCalls, counts }
 }
 
@@ -612,19 +614,39 @@ export class BudgetedStructuredClient implements StructuredModelClient {
 
   async generate<T>(request: StructuredRequest<T>): Promise<StructuredResult<T>> {
     const length = request.inputs.reduce((total, input) => total + input.text.length, 0) + request.instructions.length
-    if (this.calls >= this.budget.maxCalls || this.characters + length > this.budget.maxInputCharacters || performance.now() - this.started > this.budget.maxElapsedMs) {
+    const start = performance.now()
+    const remainingMs = this.budget.maxElapsedMs - (start - this.started)
+    if (this.calls >= this.budget.maxCalls || this.characters + length > this.budget.maxInputCharacters || remainingMs <= 0) {
       this.attempts.push({ task: request.task, status: 'budget_stopped', elapsedMs: 0, error: 'Evaluation resource limit reached.' })
       throw new Error('Evaluation resource limit reached; no provider call was made.')
     }
+    request.signal?.throwIfAborted()
     this.calls += 1; this.characters += length
-    const start = performance.now()
+    const deadline = new AbortController()
+    const expired = new Error('Evaluation elapsed-time limit reached during the provider call.')
+    const timer = setTimeout(() => deadline.abort(expired), Math.ceil(remainingMs))
+    const signal = request.signal ? AbortSignal.any([request.signal, deadline.signal]) : deadline.signal
+    let rejectOnAbort!: () => void
+    const aborted = new Promise<never>((_, reject) => {
+      rejectOnAbort = () => reject(signal.reason)
+    })
     try {
-      const result = await this.inner.generate({ ...request, disclosure: { providerMode: this.mode, externalDisclosureConfirmed: this.confirmed } })
+      signal.addEventListener('abort', rejectOnAbort, { once: true })
+      const result = await Promise.race([
+        aborted,
+        this.inner.generate({ ...request, signal, disclosure: { providerMode: this.mode, externalDisclosureConfirmed: this.confirmed } }),
+      ])
+      if (performance.now() - this.started >= this.budget.maxElapsedMs) deadline.abort(expired)
+      signal.throwIfAborted()
       this.attempts.push({ task: request.task, status: 'passed', elapsedMs: performance.now() - start })
       return result
     } catch (error) {
-      this.attempts.push({ task: request.task, status: 'failed', elapsedMs: performance.now() - start, error: error instanceof StructuredModelError ? `${error.category}: ${error.message}` : String(error) })
-      throw error
+      const failure = deadline.signal.aborted ? expired : error
+      this.attempts.push({ task: request.task, status: 'failed', elapsedMs: performance.now() - start, error: failure instanceof StructuredModelError ? `${failure.category}: ${failure.message}` : String(failure) })
+      throw failure
+    } finally {
+      signal.removeEventListener('abort', rejectOnAbort)
+      clearTimeout(timer)
     }
   }
 

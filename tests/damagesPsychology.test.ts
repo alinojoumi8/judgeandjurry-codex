@@ -208,34 +208,48 @@ describe('the study: effects are recovered when planted and reported as null whe
 // numeracy trait. This scans the types, the code and a saved result for any name that is a protected characteristic.
 const protectedWords = ['age', 'gender', 'sex', 'race', 'racial', 'ethnicity', 'ethnic', 'religion', 'religious', 'nationality', 'disability', 'ancestry', 'maritalstatus', 'sexualorientation', 'birthyear', 'skincolour', 'skincolor']
 
+function protectedIdentifiers(names: Iterable<string>): string[] {
+  return [...names].filter((name) => {
+    const words = name.replace(/([A-Z])([A-Z][a-z])/g, '$1_$2').replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase().split(/[^a-z]+/)
+    return protectedWords.some((word) => words.includes(word)
+      || words.some((part, i) => word === part + words[i + 1]))
+  })
+}
+
 function keysOf(value: unknown, found = new Set<string>()): Set<string> {
   if (Array.isArray(value)) value.forEach((item) => keysOf(item, found))
-  else if (value && typeof value === 'object') for (const [key, child] of Object.entries(value)) { found.add(key.toLowerCase()); keysOf(child, found) }
+  else if (value && typeof value === 'object') for (const [key, child] of Object.entries(value)) { found.add(key); keysOf(child, found) }
   return found
 }
 
 describe('no protected characteristic anywhere', () => {
+  it('detects compound characteristic names while allowing unrelated words', () => {
+    const keys = keysOf({ message: { usage: 1, jurorGender: '', claimantAge: 1, race_code: '', maritalStatus: '', skinColour: '' } })
+    expect(protectedIdentifiers(keys)).toEqual(['jurorGender', 'claimantAge', 'race_code', 'maritalStatus', 'skinColour'])
+  })
   it('has no protected characteristic among the keys of a saved result, however deep', async () => {
     const world = damagesWorld(stores)
     saveFullInputs(world)
     await runPsychologyStudy(world, { seeds: 5, conditions: ['fairness_framing'] })
     const keys = keysOf(JSON.parse(JSON.stringify(world.psychology.view(world.matterId).draft)))
     expect(keys.size).toBeGreaterThan(40)
-    expect(protectedWords.filter((word) => keys.has(word))).toEqual([])
+    expect(protectedIdentifiers(keys)).toEqual([])
     // The grouping variable is there, and it is a numeric trait.
-    expect([...keys].filter((key) => key.includes('numeracy')).length).toBeGreaterThan(0)
+    expect([...keys].filter((key) => key.toLowerCase().includes('numeracy')).length).toBeGreaterThan(0)
   }, slow)
 
   it('has no protected characteristic in the code and types of the damages and psychology analysis', () => {
     const files = [
       ...readdirSync('server/damages').map((name) => join('server/damages', name)),
       'server/forecast/damagesPsychology.ts', 'server/analysis/damagesPsychology.ts', 'server/analysis/damages.ts', 'server/analysis/damagesExport.ts', 'server/routes/damages.ts',
+      'src/components/analysis/Damages.tsx', 'src/components/analysis/DamagesPsychology.tsx',
+      'src/components/analysis/damagesHelpers.ts', 'src/components/analysis/damagesShared.tsx',
     ]
     for (const file of files) {
       // Comments and strings may name what is NOT used; only code identifiers count.
       const code = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '').replace(/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g, '""')
-      const identifiers = new Set(code.match(/[A-Za-z_][A-Za-z0-9_]*/g)?.map((name) => name.toLowerCase()) ?? [])
-      expect({ file, found: protectedWords.filter((word) => identifiers.has(word)) }).toEqual({ file, found: [] })
+      const identifiers = new Set(code.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? [])
+      expect({ file, found: protectedIdentifiers(identifiers) }).toEqual({ file, found: [] })
     }
   })
 

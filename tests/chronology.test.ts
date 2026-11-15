@@ -555,6 +555,22 @@ describe('F1 key facts and promotion', () => {
     expect(() => service.promoteKeyFact(world.matterId, conflicted[1].id, 'missing-model')).toThrow(/does not belong/)
   })
 
+  it('refreshes conflict links after a date edit and preserves event identity', async () => {
+    const { world, service, conflicted } = await approvedWorld()
+    const [first] = conflicted
+    const group = conflicted.filter((event) => first.conflictsWith.includes(event.id))
+    expect(group.length).toBeGreaterThan(0)
+    for (const event of group) service.review(world.matterId, event.id, { action: 'edit', patch: { when: first.when } })
+    const view = service.views(world.matterId).draft!
+    expect(view.content.items.find((event) => event.id === first.id)).toMatchObject({ when: first.when, conflictsWith: [] })
+    for (const event of group) {
+      expect(view.content.items.find((item) => item.id === event.id)).toMatchObject({ when: first.when, conflictsWith: [] })
+    }
+    expect(view.content.conflicts.some((conflict) => conflict.eventIds.includes(first.id))).toBe(false)
+    service.approve(world.matterId)
+    expect(service.keyFacts(world.matterId).find((fact) => fact.eventId === first.id)?.event.conflictsWith).toEqual([])
+  })
+
   it('marks a plain record fact as sourced, and an inference as inferred', async () => {
     const { world, service, plain } = await approvedWorld()
     const promoted = service.promoteKeyFact(world.matterId, plain.id)
@@ -604,6 +620,40 @@ describe('F1 juror-style readings: admitted material only', () => {
     })
     return { world, ...run, readingsRequests, admitted, excluded, redacted, hidden, saveLedger, secret }
   }
+
+  it('preserves a review saved while readings are pending', async () => {
+    const { world, service, admitted, saveLedger } = await setup()
+    saveLedger({})
+    const provider = routedClient(() => ({ readings: [
+      { lens: 'plain_language', text: 'Plain reading.' }, { lens: 'likely_question', text: 'A question.' },
+      { lens: 'which_way_it_cuts', text: 'Unclear.', cutsToward: 'unclear' },
+    ] }))
+    let reviewId: string | undefined
+    const result = service.generateReadings(world.matterId, {
+      client: {
+        async generate(request) {
+          const reply = await provider.generate(request)
+          reviewId ??= service.review(world.matterId, admitted.id, { action: 'reject', note: 'Saved during readings.' }).artifact.id
+          return reply
+        },
+      },
+    })
+    await expect(result).rejects.toThrow(/changed while readings were being written/)
+    expect(reviewId).toBeDefined()
+    expect(service.views(world.matterId).draft?.artifact.id).toBe(reviewId)
+    expect(service.views(world.matterId).draft?.content.reviewLog.at(-1)).toMatchObject({ eventId: admitted.id, action: 'reject', note: 'Saved during readings.' })
+  })
+
+  it('refuses to write approved readings into a draft with different events under the same IDs', async () => {
+    const { world, service, admitted, saveLedger } = await setup()
+    saveLedger({})
+    const changed = service.review(world.matterId, admitted.id, { action: 'edit', patch: { description: 'A different event under the same ID.' } })
+    expect(changed.content.items.find((event) => event.id === admitted.id)?.description).not.toBe(admitted.description)
+    const client = routedClient(() => { throw new Error('No reading should be generated.') })
+    await expect(service.generateReadings(world.matterId, { client })).rejects.toThrow(/changes an approved key fact/)
+    expect(client.calls).toHaveLength(0)
+    expect(service.views(world.matterId).draft?.artifact.id).toBe(changed.artifact.id)
+  })
 
   it('needs an admission ledger: with none, nothing is admitted', async () => {
     const { world, service } = await setup()

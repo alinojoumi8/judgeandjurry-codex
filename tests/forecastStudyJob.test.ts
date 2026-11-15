@@ -128,6 +128,23 @@ describe('forecast study: what is stored and pinned', () => {
     expect(again.contentHash).toBe(first.artifact.contentHash)
   })
 
+  it('rejects incompatible completed runs before resuming or saving a forecast', async () => {
+    const world = forecastWorld(stores, { evidence: [strongExhibit] })
+    const { job, params } = await runStudy(world, { runs: 2 })
+    expect(job.status).toBe('succeeded')
+    const calls = world.scripted.count
+    const changeMode = { ...params, mode: 'full' as const }
+    expect(world.forecast.plan(world.matterId, changeMode)).toMatchObject({
+      existingRuns: 0, blockers: [expect.stringMatching(/different settings/)],
+    })
+    expect(() => world.forecast.computeAndSave(world.matterId, changeMode)).toThrow(/different settings/)
+    expect(() => world.forecast.computeAndSave(world.matterId, { ...params, ballotContractV2: true })).toThrow(/different settings/)
+    const resumed = await runStudy(world, changeMode)
+    expect(resumed.job.status).toBe('failed')
+    expect(world.scripted.count).toBe(calls)
+    expect(contentOf(world)).toMatchObject({ mode: 'screen', completedRuns: 2 })
+  })
+
   it('reproduces from the seed alone: a new matter with the same inputs and seed gives the same numbers', async () => {
     const a = forecastWorld(stores, { evidence: [strongExhibit] })
     const b = forecastWorld(stores, { evidence: [strongExhibit] })

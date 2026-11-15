@@ -2,9 +2,9 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ScriptedStructuredClient, type StructuredRequest } from '../server/analysis/structured'
+import { ScriptedStructuredClient, type StructuredModelClient, type StructuredRequest } from '../server/analysis/structured'
 import type { ModelProviderConfig } from '../server/minimax'
 import {
   assertLiveAllowed, buildLiveClient, BudgetedStructuredClient, evaluate, liveBudgetFromEnv, loadThresholds, runExtractionSuite, runFalseConflictProbe, sameRef,
@@ -18,6 +18,7 @@ import { buildCivilWorld, intelligenceRouter, routedClient } from './intelligenc
 // passes, a deliberately wrong one fails every family of metrics, and the live path refuses before any request.
 
 const slow = 120_000
+const probeRequest = { task: 'x', promptVersion: 'x', schema: { safeParse: (value: unknown) => ({ success: true, data: value }) }, instructions: 'x', inputs: [{ id: 'a', text: 'b' }] } as unknown as StructuredRequest<unknown>
 const roots: string[] = []
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }) })
 
@@ -215,12 +216,49 @@ describe('live gating (nothing here makes a request)', () => {
     expect(() => liveBudgetFromEnv(thresholds, { EVAL_MAX_CALLS: '0' })).toThrow(/positive/)
   })
 
+  it('counts only the calls made by the live suite when using a fake provider', async () => {
+    const inner = routedClient(() => ({}), 300)
+    const client = new BudgetedStructuredClient(inner, { ...thresholds.live, maxCalls: 4 }, 'local', false)
+    await client.generate(probeRequest)
+    const outcome = await runExtractionSuite({ kind: 'live', thresholds, liveClient: client })
+    expect(client.usage().structuredCalls).toBe(4)
+    expect(outcome.modelCalls).toBe(3)
+  })
+
+  it('aborts an active request when the remaining evaluation time expires', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(0)
+    try {
+      const signals: AbortSignal[] = []
+      const inner: StructuredModelClient = {
+        generate(request) {
+          signals.push(request.signal!)
+          return new Promise(() => {})
+        },
+      }
+      const client = new BudgetedStructuredClient(inner, { ...thresholds.live, maxElapsedMs: 100 }, 'local', false)
+      clock.mockReturnValue(90)
+      const request = client.generate(probeRequest)
+      const assertion = expect(request).rejects.toThrow(/elapsed-time limit/)
+      vi.advanceTimersByTime(9)
+      expect(signals[0]?.aborted).toBe(false)
+      clock.mockReturnValue(100)
+      vi.advanceTimersByTime(1)
+      await assertion
+      expect(signals[0]?.aborted).toBe(true)
+      await expect(client.generate(probeRequest)).rejects.toThrow(/no provider call was made/)
+      expect(client.attempts.map((attempt) => attempt.status)).toEqual(['failed', 'budget_stopped'])
+    } finally {
+      clock.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
   it('stops at the call budget before the inner client is reached, and records the stop', async () => {
     const inner = new ScriptedStructuredClient([() => ({ ok: true })])
     const budgeted = new BudgetedStructuredClient(inner, { ...thresholds.live, maxCalls: 1 }, 'local', false)
-    const request = { task: 'x', promptVersion: 'x', schema: { safeParse: (value: unknown) => ({ success: true, data: value }) }, instructions: 'x', inputs: [{ id: 'a', text: 'b' }] } as unknown as StructuredRequest<unknown>
-    await budgeted.generate(request)
-    await expect(budgeted.generate(request)).rejects.toThrow(/resource limit reached; no provider call was made/)
+    await budgeted.generate(probeRequest)
+    await expect(budgeted.generate(probeRequest)).rejects.toThrow(/resource limit reached; no provider call was made/)
     expect(inner.calls).toHaveLength(1)
     expect(budgeted.attempts.map((attempt) => attempt.status)).toEqual(['passed', 'budget_stopped'])
   })

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { canonicalJson } from './hash'
 import type { CaseStore } from '../db'
 import type { CaseWorkflowService } from '../caseWorkflow'
 import { normalize, sourceParagraphs } from '../grounding'
@@ -272,7 +273,11 @@ function sameEventKey(a: string | undefined, b: string | undefined): boolean {
 // Flags events that look like one event but carry different dates. Ids are
 // assigned here in date order, so the same input always gives the same ids.
 export function flagConflicts(drafts: readonly Draft[]): { events: ChronologyEvent[]; conflicts: ChronologyConflict[] } {
-  const events: ChronologyEvent[] = drafts.map((draft, index) => ({ ...draft, id: `evt-${String(index + 1).padStart(3, '0')}`, conflictsWith: [] }))
+  return refreshConflicts(drafts.map((draft, index) => ({ ...draft, id: `evt-${String(index + 1).padStart(3, '0')}`, conflictsWith: [] })))
+}
+
+function refreshConflicts(items: readonly ChronologyEvent[]): ReturnType<typeof flagConflicts> {
+  const events: ChronologyEvent[] = items.map((event) => ({ ...event, conflictsWith: [] }))
   const parent = events.map((_, index) => index)
   const find = (index: number): number => (parent[index] === index ? index : (parent[index] = find(parent[index])))
   for (let i = 0; i < events.length; i += 1) {
@@ -529,9 +534,10 @@ export class ChronologyService {
       next = { ...event, review: input.action === 'accept' ? 'accepted' : input.action === 'reject' ? 'rejected' : 'proposed' }
     }
     const items = content.items.map((candidate, position) => (position === index ? next : candidate))
+    const recomputed = input.action === 'edit' ? refreshConflicts(items) : { events: items, conflicts: content.conflicts }
     const saved = this.analysis.saveDraft<ChronologyContent>({
       matterId, kind: 'chronology', caseModelId: latest.caseModelId, inputManifest: latest.inputManifest,
-      content: { ...content, items, reviewLog: [...content.reviewLog, { eventId, action: input.action, ...(input.note ? { note: input.note } : {}) }] },
+      content: { ...content, items: recomputed.events, conflicts: recomputed.conflicts, reviewLog: [...content.reviewLog, { eventId, action: input.action, ...(input.note ? { note: input.note } : {}) }] },
       rejected: latest.rejected,
     })
     return this.viewOf(matterId, saved)
@@ -546,8 +552,11 @@ export class ChronologyService {
   // The only way later features read events: accepted events of the approved
   // chronology, through the approved-artifact read path.
   acceptedEvents(matterId: string): ChronologyEvent[] {
-    const approved = this.analysis.approvedFor({ role: 'owner' }, matterId, 'chronology')[0] as AnalysisArtifact<ChronologyContent> | undefined
-    return (approved?.content.items ?? []).filter((event) => event.review === 'accepted')
+    return (this.approvedChronology(matterId)?.content.items ?? []).filter((event) => event.review === 'accepted')
+  }
+
+  private approvedChronology(matterId: string): AnalysisArtifact<ChronologyContent> | undefined {
+    return this.analysis.approvedFor({ role: 'owner' }, matterId, 'chronology')[0] as AnalysisArtifact<ChronologyContent> | undefined
   }
 
   keyFacts(matterId: string, limit = 10): KeyFact[] {
@@ -594,8 +603,13 @@ export class ChronologyService {
     if (!latest) throw new ChronologyError('There is no chronology to add readings to.', 404)
     const ledger = matterLedger(this.store, matterId)
     if (!ledger) throw new ChronologyError('Save the matter\'s admission (source-use) settings first. With no ruling on record, nothing is admitted and there is nothing to base a juror reading on.', 409)
-    const facts = this.keyFacts(matterId, options.maxFacts ?? 10)
+    const approved = this.approvedChronology(matterId)
+    const facts = rankKeyFacts((approved?.content.items ?? []).filter((event) => event.review === 'accepted'), options.maxFacts ?? 10)
     if (!facts.length) throw new ChronologyError('There are no accepted key facts in an approved chronology to write readings for.', 409)
+    const draftEvents = new Map(latest.content.items.map((event) => [event.id, event]))
+    if (facts.some(({ event }) => canonicalJson(draftEvents.get(event.id)) !== canonicalJson(event))) {
+      throw new ChronologyError('The latest chronology draft changes an approved key fact. Review and approve the draft before writing readings.', 409)
+    }
     const visible = jurorVisibleEvidence(this.store, matterId, ledger)
     const profile = this.analysis.approvedFor({ role: 'owner' }, matterId, 'jury_profile')[0]
     const lenses = profile && Array.isArray((profile.content as { lenses?: unknown })?.lenses)
@@ -630,6 +644,10 @@ export class ChronologyService {
     const readings: ReadingsContent = {
       admissionLedgerId: ledger.id, basis: lenses.length ? 'venue-based' : 'not venue-based',
       ...(lenses.length && profile ? { juryProfileHash: profile.contentHash } : {}), label: readingsLabel, items, skipped, failed,
+    }
+    const current = artifactViews<ChronologyContent>(this.analysis, matterId, 'chronology')
+    if (current.latest?.id !== latest.id || this.approvedChronology(matterId)?.id !== approved?.id) {
+      throw new ChronologyError('The chronology changed while readings were being written. Review the latest chronology and try again.', 409)
     }
     return this.analysis.saveDraft<ChronologyContent>({
       matterId, kind: 'chronology', caseModelId: latest.caseModelId, inputManifest: latest.inputManifest,
