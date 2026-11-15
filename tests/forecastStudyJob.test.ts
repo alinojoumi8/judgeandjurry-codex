@@ -336,4 +336,3 @@ describe('forecast study: archives', () => {
     expect(copy.label).toBe(forecastLabel)
   })
 })
-

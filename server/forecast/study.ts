@@ -298,4 +298,3 @@ export function computeForecast(input: StudyInput): ForecastContent {
     notes,
   }
 }
-

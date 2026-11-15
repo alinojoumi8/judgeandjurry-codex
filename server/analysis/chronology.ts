@@ -708,4 +708,3 @@ function readingsInstructions(profileLenses: readonly string[], restrictions: re
     'Each reading is an object {lens, text, cutsToward?}. Return {"readings": [...]}.',
   ].filter(Boolean).join('\n')
 }
-

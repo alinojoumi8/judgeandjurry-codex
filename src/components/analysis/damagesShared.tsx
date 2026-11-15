@@ -67,4 +67,3 @@ export function StudyCost(props: StudyCostProps) {
     </div>
   </div>
 }
-

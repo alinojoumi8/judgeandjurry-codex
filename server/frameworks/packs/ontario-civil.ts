@@ -138,4 +138,3 @@ export const ontarioCivilPack: JurisdictionRulePack = {
     ),
   },
 }
-

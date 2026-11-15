@@ -410,4 +410,3 @@ export function damagesPreview(service: DamagesService, jobs: AnalysisJobService
   const job = jobs.preview(matterId, { kind: 'damages_study', params: { ...params }, ...controls })
   return { label: damagesLabel, params, plan, job }
 }
-

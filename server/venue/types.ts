@@ -268,4 +268,3 @@ export interface JuryProfileState {
   eligibilityNow: EligibilityRuleSnapshot
   minimums: { verdictObservations: number; awards: number; surveyRespondents: number }
 }
-

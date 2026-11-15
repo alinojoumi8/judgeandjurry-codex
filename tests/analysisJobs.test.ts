@@ -569,4 +569,3 @@ describe('storage', () => {
     expect(Object.keys(world.store.exportMatterSnapshot(world.matterId))).not.toContain('analysisJobs')
   })
 })
-

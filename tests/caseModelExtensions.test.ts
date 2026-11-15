@@ -215,4 +215,3 @@ describe('validation', () => {
     await request(app).post(`/api/case-models/${model.id}/versions`).send({ witnesses: [{ ...witness, kind: 'robot' }] }).expect(400)
   })
 })
-

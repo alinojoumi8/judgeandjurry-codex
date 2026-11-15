@@ -376,4 +376,3 @@ export function forecastPreview(service: ForecastService, jobs: AnalysisJobServi
   const job = jobs.preview(matterId, { kind: 'forecast', params: { ...params }, ...controls })
   return { label: forecastLabel, params, plan, job }
 }
-
