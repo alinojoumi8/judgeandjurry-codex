@@ -850,7 +850,7 @@ try {
     const forecast = group.getByRole('checkbox', { name: /Deliberation forecast/ })
     assert.equal(await cognition.isChecked(), false)
     assert.equal(await forecast.isChecked(), false)
-    const expectedCalls = async () => Number((await page.locator('.summary-grid div', { hasText: 'Expected model calls' }).locator('strong').innerText()).replace(/\D/g, ''))
+    const expectedCalls = async () => Number((await page.locator('.summary-grid div', { hasText: 'Estimated calls before retries' }).locator('strong').innerText()).replace(/\D/g, ''))
     const off = await expectedCalls()
     await cognition.check()
     const withCognition = await expectedCalls()
