@@ -66,6 +66,8 @@ export interface JobContext {
   signal: AbortSignal
   // Record what a call used, right after it. Reaching the cap aborts the signal.
   recordUsage(calls: number, tokens: number): JobBudget
+  // Stop when the budget cannot cover the next unit of work.
+  stopAtCap(): void
   // Keep a partial or final result now, so it survives an interruption.
   addResultArtifact(artifactId: string): void
 }
@@ -333,8 +335,14 @@ export class AnalysisJobService {
       repository.finish(job.id, 'stopped_at_cap', `The job had already used its cap of ${job.cap.maxCalls} calls.`)
       return
     }
+    const stopAtCap = () => {
+      if (run.capReached) return
+      run.capReached = true
+      run.controller.abort(new JobCapReached())
+    }
     const context: JobContext = {
       job,
+      stopAtCap,
       signal: run.controller.signal,
       recordUsage: (calls, tokens) => {
         if (![calls, tokens].every((value) => Number.isFinite(value) && value >= 0)) throw new Error('Usage must be non-negative numbers.')
@@ -342,10 +350,7 @@ export class AnalysisJobService {
         const remainingCalls = Math.max(0, job.cap.maxCalls - usage.calls)
         const remainingTokens = Math.max(0, job.cap.maxTokens - usage.tokens)
         const capReached = remainingCalls === 0 || remainingTokens === 0
-        if (capReached && !run.capReached) {
-          run.capReached = true
-          run.controller.abort(new JobCapReached())
-        }
+        if (capReached) stopAtCap()
         return { usage, remainingCalls, remainingTokens, capReached }
       },
       addResultArtifact: (artifactId) => repository.addResultArtifact(job.id, artifactId),

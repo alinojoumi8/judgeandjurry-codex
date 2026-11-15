@@ -99,6 +99,17 @@ describe('F1 checkWhen: a date must be supported by the cited passage', () => {
     expect(result.when.precision).toBe('unknown')
   })
 
+  it('checks both endpoint times and preserves the supported dates of a range', () => {
+    const original = 'March 3, 2023 through March 4, 2023'
+    const range = { precision: 'range' as const, start: '2023-03-03T10:12', end: '2023-03-04T23:59', original }
+    const startsAt = evidenceOf(`The review ran ${original}. It started at 10:12.`)
+    const bothTimes = evidenceOf(`The review ran ${original}. It started at 10:12 and ended at 23:59.`)
+    const checked = checkWhen(range, [{ item: startsAt, ref: ref(startsAt, startsAt.text) }])
+    expect(checked.when).toEqual({ ...range, end: '2023-03-04' })
+    expect(checked.warnings[0]).toMatch(/time of day was dropped/)
+    expect(checkWhen(range, [{ item: bothTimes, ref: ref(bothTimes, bothTimes.text) }])).toEqual({ when: range, warnings: [] })
+  })
+
   it('downgrades a malformed date and never accepts a start on an unknown date', () => {
     expect(checkWhen({ precision: 'day', start: '2023-3-3', original: 'March 3, 2023' }, cited('Report completed: March 3, 2023.')).when.precision).toBe('unknown')
     expect(checkWhen({ precision: 'unknown', start: '2023-03-03', original: 'sometime' }, cited('Report completed: March 3, 2023.')).when).toEqual({ precision: 'unknown', original: 'sometime' })
@@ -181,6 +192,25 @@ describe('F1 merge and conflicts', () => {
     expect(mergeDrafts([draft('Plaintiff attends physician for knee pain', day('2025-01-13')), draft('Plaintiff attends physician for knee pain', day('2025-01-14'))])).toHaveLength(2)
     expect(mergeDrafts([draft('Plaintiff fell on ice at the entrance', day('2025-01-14')), draft('Plaintiff fell on ice at the entrance', day('2025-01-14'), { assertion: 'allegation' })])).toHaveLength(2)
     expect(mergeDrafts([draft('Plaintiff fell on ice at the entrance', day('2025-01-14')), draft('Surgery performed on the left tibial plateau', day('2025-01-14'))])).toHaveLength(2)
+  })
+
+  it.each([
+    ['Plaintiff fell on ice at the entrance', 'Plaintiff did not fall on ice at the entrance'],
+    ['Plaintiff can walk independently after surgery', 'Plaintiff cannot walk independently after surgery'],
+    ['Plaintiff was able to walk independently', 'Plaintiff was unable to walk independently'],
+  ])('keeps %s separate from a same-date denial', (affirmativeText, denialText) => {
+    const sameDay = day('2025-01-14')
+    const affirmative = draft(affirmativeText, sameDay, { assertion: 'testimony' })
+    const denial = draft(denialText, sameDay, {
+      assertion: 'testimony', sources: [{ evidenceId: 'b', paragraph: 1, quote: denialText }],
+    })
+    const merged = mergeDrafts([affirmative, denial])
+    expect(merged).toHaveLength(2)
+    for (const input of [affirmative, denial]) {
+      expect(merged.find((event) => event.description === input.description)?.sources).toEqual(input.sources)
+    }
+    expect(mergeDrafts([denial, { ...denial, sources: [{ evidenceId: 'c', paragraph: 1, quote: 'another identical denial' }] }])[0].sources).toHaveLength(2)
+    expect(mergeDrafts([affirmative, { ...affirmative, sources: [{ evidenceId: 'd', paragraph: 1, quote: 'another affirmative account' }] }])[0].sources).toHaveLength(2)
   })
 
   it('never merges two events whose dates are unknown', () => {
@@ -555,6 +585,37 @@ describe('F1 key facts and promotion', () => {
     expect(() => service.promoteKeyFact(world.matterId, conflicted[1].id, 'missing-model')).toThrow(/does not belong/)
   })
 
+  it('refreshes conflict links after a date edit and preserves event identity', async () => {
+    const { world, service, conflicted } = await approvedWorld()
+    const [first] = conflicted
+    const group = conflicted.filter((event) => first.conflictsWith.includes(event.id))
+    expect(group.length).toBeGreaterThan(0)
+    for (const event of group) service.review(world.matterId, event.id, { action: 'edit', patch: { when: first.when } })
+    const view = service.views(world.matterId).draft!
+    expect(view.content.items.find((event) => event.id === first.id)).toMatchObject({ when: first.when, conflictsWith: [] })
+    for (const event of group) {
+      expect(view.content.items.find((item) => item.id === event.id)).toMatchObject({ when: first.when, conflictsWith: [] })
+    }
+    expect(view.content.conflicts.some((conflict) => conflict.eventIds.includes(first.id))).toBe(false)
+    service.approve(world.matterId)
+    expect(service.keyFacts(world.matterId).find((fact) => fact.eventId === first.id)?.event.conflictsWith).toEqual([])
+  })
+
+  it.each(['allegation', 'testimony'] as const)('keeps a promoted %s unresolved with its source attached', async (assertion) => {
+    const { world, service, content, plain } = await approvedWorld()
+    const event = assertion === 'allegation'
+      ? content.items.find((item) => item.assertion === assertion && item.conflictsWith.length === 0)!
+      : plain
+    expect(event).toBeDefined()
+    if (assertion === 'testimony') service.review(world.matterId, event.id, { action: 'edit', patch: { assertion } })
+    service.review(world.matterId, event.id, { action: 'accept' })
+    service.approve(world.matterId)
+    const model = service.promoteKeyFact(world.matterId, event.id)
+    expect(model.disputedFacts.find((fact) => fact.id === `fact-${event.id}`)).toMatchObject({
+      attribution: 'unresolved', supporting: expect.arrayContaining([expect.objectContaining({ quote: event.sources[0].quote })]),
+    })
+  })
+
   it('marks a plain record fact as sourced, and an inference as inferred', async () => {
     const { world, service, plain } = await approvedWorld()
     const promoted = service.promoteKeyFact(world.matterId, plain.id)
@@ -604,6 +665,72 @@ describe('F1 juror-style readings: admitted material only', () => {
     })
     return { world, ...run, readingsRequests, admitted, excluded, redacted, hidden, saveLedger, secret }
   }
+
+  it('preserves a review saved while readings are pending', async () => {
+    const { world, service, admitted, saveLedger } = await setup()
+    saveLedger({})
+    const provider = routedClient(() => ({ readings: [
+      { lens: 'plain_language', text: 'Plain reading.' }, { lens: 'likely_question', text: 'A question.' },
+      { lens: 'which_way_it_cuts', text: 'Unclear.', cutsToward: 'unclear' },
+    ] }))
+    let reviewId: string | undefined
+    const result = service.generateReadings(world.matterId, {
+      client: {
+        async generate(request) {
+          const reply = await provider.generate(request)
+          reviewId ??= service.review(world.matterId, admitted.id, { action: 'reject', note: 'Saved during readings.' }).artifact.id
+          return reply
+        },
+      },
+    })
+    await expect(result).rejects.toThrow(/changed while readings were being written/)
+    expect(reviewId).toBeDefined()
+    expect(service.views(world.matterId).draft?.artifact.id).toBe(reviewId)
+    expect(service.views(world.matterId).draft?.content.reviewLog.at(-1)).toMatchObject({ eventId: admitted.id, action: 'reject', note: 'Saved during readings.' })
+  })
+
+  it('stops before sending more facts when admission rules change during the first request', async () => {
+    const { world, service, saveLedger } = await setup()
+    saveLedger({})
+    const client = routedClient(() => {
+      saveLedger({ '15-discovery-excerpt-plaintiff.txt': { status: 'excluded' } })
+      return { readings: [
+        { lens: 'plain_language', text: 'Plain reading.' }, { lens: 'likely_question', text: 'A question.' },
+        { lens: 'which_way_it_cuts', text: 'Unclear.', cutsToward: 'unclear' },
+      ] }
+    })
+    await expect(service.generateReadings(world.matterId, { client })).rejects.toThrow(/admission settings changed/)
+    expect(client.calls).toHaveLength(1)
+    expect(service.views(world.matterId).draft).toBeUndefined()
+  })
+
+  it('refuses to write approved readings into a draft with different events under the same IDs', async () => {
+    const { world, service, admitted, saveLedger } = await setup()
+    saveLedger({})
+    const changed = service.review(world.matterId, admitted.id, { action: 'edit', patch: { description: 'A different event under the same ID.' } })
+    expect(changed.content.items.find((event) => event.id === admitted.id)?.description).not.toBe(admitted.description)
+    const client = routedClient(() => { throw new Error('No reading should be generated.') })
+    await expect(service.generateReadings(world.matterId, { client })).rejects.toThrow(/changes an approved key fact/)
+    expect(client.calls).toHaveLength(0)
+    expect(service.views(world.matterId).draft?.artifact.id).toBe(changed.artifact.id)
+  })
+
+  it('removes only the edited event’s readings from a new revision', async () => {
+    const { world, service, admitted, saveLedger } = await setup()
+    saveLedger({})
+    const client = routedClient(() => ({ readings: [
+      { lens: 'plain_language', text: 'Plain reading.' }, { lens: 'likely_question', text: 'A question.' },
+      { lens: 'which_way_it_cuts', text: 'Unclear.', cutsToward: 'unclear' },
+    ] }))
+    const saved = await service.generateReadings(world.matterId, { client })
+    expect(saved.content.readings?.items).toEqual(expect.arrayContaining([expect.objectContaining({ eventId: admitted.id })]))
+    const edited = service.review(world.matterId, admitted.id, { action: 'edit', patch: { description: 'Revised fictional event.' } })
+    expect(edited.content.readings?.items.map((item) => item.eventId)).toEqual(
+      saved.content.readings?.items.filter((item) => item.eventId !== admitted.id).map((item) => item.eventId),
+    )
+    const original = world.service.get(world.matterId, saved.id).content as ChronologyContent
+    expect(original.readings).toEqual(saved.content.readings)
+  })
 
   it('needs an admission ledger: with none, nothing is admitted', async () => {
     const { world, service } = await setup()

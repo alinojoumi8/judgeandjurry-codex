@@ -27,11 +27,16 @@ const decide = (ballots: IssueBallot[], pinned?: JuryFramework, discharged: stri
   adapter.decide(modelWith(issues), ballots, config(pinned), { dischargedJurorIds: discharged })[0]
 
 describe('civil decision function', () => {
-  it('keeps five of six when no court rules are pinned, and ignores any discharge', () => {
+  it('keeps five of six for an intact panel when no court rules are pinned', () => {
     expect(decide(jurors('claim', ['proved', 'proved', 'proved', 'proved', 'proved', 'not_proved']))).toMatchObject({ outcome: 'proved', complete: true, rule: '5 of 6' })
     expect(decide(jurors('claim', ['proved', 'proved', 'proved', 'proved', 'not_proved', 'not_proved']))).toMatchObject({ outcome: 'no_decision', complete: false })
-    // Not pinned: a discharge is not modelled, exactly as before.
-    expect(decide(jurors('claim', ['proved', 'proved', 'proved', 'proved', 'proved']), undefined, ['juror-06'])).toMatchObject({ complete: false, rule: '5 of 6' })
+  })
+
+  it('blocks an unpinned reduced panel even when all original ballots are present', () => {
+    const ballots = jurors('claim', ['proved', 'proved', 'proved', 'proved', 'not_proved', 'proved'])
+    const reduced = decide(ballots, undefined, ['juror-06'])
+    expect(reduced).toMatchObject({ complete: false, outcome: 'no_decision', rule: 'Blocked', voteCounts: {} })
+    expect(reduced.warnings[0]).toMatch(/no pinned reduced-panel rule/)
   })
 
   it('takes the panel and threshold from the pinned rules, and the seed pack gives the same answer as today', () => {
