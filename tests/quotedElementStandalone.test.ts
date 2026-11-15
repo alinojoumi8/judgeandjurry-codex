@@ -54,6 +54,21 @@ describe('standalone quoted approved threshold labels', () => {
   ])('does not exempt a different label, attributed claim or factual payment: %s', content => {
     expect(check(content).status).toBe('failed')
   })
+  const ordinalCaption = `Fifth, “${label}”: the supplied figures do not establish that connection beyond a reasonable doubt (E-001).`
+  it.each([ordinalCaption, ordinalCaption.replace('Fifth', 'first').replaceAll('“', '"').replaceAll('”', '"')])(
+    'accepts an exact approved label in an ordinal caption: %s',
+    content => { expect(check(content).errors).toEqual([]) },
+  )
+  it.each([
+    ordinalCaption.replace('$1,500', '$1,600'),
+    ordinalCaption.replace('$1,500', 'USD $1,500'),
+    `The report states the following; ${ordinalCaption}`,
+    `In the previous instruction; ${ordinalCaption}`,
+    ordinalCaption + ' Arin received $1,500 (E-001).',
+  ])('retains grounding checks around an ordinal caption: %s', content => {
+    expect(check(content).status).toBe('failed')
+  })
+
   it('requires unique usable current approval and retains independent rejection', () => {
     expect(check(text, { approved: [] }).status).toBe('failed')
     expect(check(text, { approved: [...approved, { ...approved[0], issueId: 'other' }] }).status).toBe('failed')

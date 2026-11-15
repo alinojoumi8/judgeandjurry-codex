@@ -68,6 +68,7 @@ export function approvedElementLabelReferences(text: string, labels: string[]) {
       new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)(?:Finally,\s+)?for\s+(?:(?:the\s+)?(?:approved|supplied|exercise)\s+element\s+)?(${literal})\s*(?=[,:])`, 'giu'),
       new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)(?:Finally,\s+)?([“"]${literal}[”"])(?=\s+requires?\s+(?:proof\b|an?\s+established\s+(?:matching\s+)?amount\b))`, 'giu'),
       new RegExp(String.raw`([“"]${literal}[,.]?[”"])`, 'giu'),
+      new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth),\s+([“"]${literal}[”"])(?=\s*:)`, 'giu'),
     ]
     for (const [kind, reference] of references.entries()) factualText = factualText.replace(reference, (statement: string, supplied: string, offset: number, input: string) => {
       if ([...input.matchAll(quoted)].some(quote => offset >= quote.index && offset < quote.index + quote[0].length && (offset !== quote.index || statement !== quote[0]))) return statement
