@@ -1,12 +1,17 @@
 import { Check, ChevronRight, FileArchive, FolderOpen, Gavel, Loader2, Play, RefreshCw, Scale, ShieldAlert } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import type { ProviderStatus } from '../types'
+import type { ProviderStatus, Matter, EvidenceItem } from '../types'
+import { areaForStep, type CaseArea } from '../caseWorkspace'
+import { CaseOverview, type CaseDetailsInput } from './CaseOverview'
+import { CaseDocuments } from './CaseDocuments'
+import { CaseResults } from './CaseResults'
+import { SourceInspectorProvider } from './SourceInspector'
 import { AdmissionEditor, CaseModelEditor, RecordCoverage } from './WorkflowEditors'
 import { GroundingAudit } from './GroundingAudit'
 import { ParticipantMemoryPanel } from './ParticipantMemoryPanel'
 import { LegalReadinessPanel } from './LegalReadinessPanel'
 import { CourtroomPanel } from './CourtroomPanel'
-import { DecisionTracePanel, ScenarioComparisonPanel } from './EvidenceDecisionWorkspace'
+import { ScenarioComparisonPanel } from './EvidenceDecisionWorkspace'
 import { PartialTrialResults } from './PartialTrialResults'
 import { canResumeTrial, trialRunStatus } from '../trialRunStatus'
 
@@ -60,12 +65,24 @@ const steps = [
 interface Props {
   matterId: string
   matterTitle: string
+  matter: Matter
+  evidence: EvidenceItem[]
+  area: CaseArea
+  onAreaChange: (area: CaseArea) => void
+  onSaveMatter: (input: CaseDetailsInput) => Promise<void>
+  onEditState: (dirty: boolean, saving: boolean) => void
+  onUploadEvidence: (file: File) => Promise<void>
   onEvidenceImported: () => Promise<void>
   provider: ProviderStatus | null
 }
 
-export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImported, provider }: Props) {
-  const [step, setStep] = useState(() => storedStep(matterId))
+export function FullWorkflowWorkspace({ matterId, matterTitle, matter, evidence, area, onAreaChange, onSaveMatter, onEditState, onUploadEvidence, onEvidenceImported, provider }: Props) {
+  const [step, setStepValue] = useState(() => storedStep(matterId))
+  const setStep = (next: number) => { setStepValue(next); onAreaChange(areaForStep(next)) }
+  useEffect(() => {
+    if (area === 'Overview' || areaForStep(step) === area) return
+    setStepValue(area === 'Documents' ? 0 : area === 'Results' ? 8 : 2)
+  }, [area, step])
   const [folderPath, setFolderPath] = useState('')
   const [preview, setPreview] = useState<CorpusPreview | null>(null)
   const [job, setJob] = useState<CorpusJob | null>(null)
@@ -82,6 +99,7 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
   const [trial, setTrial] = useState<TrialRunView | null>(null)
   const [runs, setRuns] = useState<TrialRun[]>([])
   const [sources, setSources] = useState<WorkflowSource[]>([])
+  useEffect(() => { setSources(evidence.map(item => ({ id: item.id, exhibitId: item.exhibitId, name: item.name, sha256: item.sha256 ?? null, ingestionStatus: item.ingestionStatus ?? 'stored', extractionWarning: item.extractionWarning ?? null }))) }, [evidence])
   const [restoring, setRestoring] = useState(true)
   const [useWitnesses, setUseWitnesses] = useState(false)
   const [courtroomProtocol, setCourtroomProtocol] = useState(false)
@@ -168,14 +186,14 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
   }, [step, trial?.run.id, trial?.run.parentRunId])
 
   const estimate = useMemo(() => {
-    const files = preview?.fileCount ?? manifest.length
+    const files = sources.length
     const issues = Math.max(1, caseModel?.decisionIssues.length ?? 1)
     const panel = adapter === 'ontario_criminal_jury_v1' ? 12 : adapter === 'ontario_capital_markets_v1' ? 3 : civilDecisionMaker === 'jury' ? 6 : 1
     const calls = caseModel
       ? panel * issues * 2 + panel * 3 + caseModel.parties.length * 2 + motions.filter((motion) => motion.status === 'approved').length * 3
       : 0
       return { files, calls: calls * 2, minutes: calls ? `${Math.max(2, Math.ceil(calls / 3))}–${Math.max(5, Math.ceil(calls))}` : 'not yet available' }
-  }, [adapter, caseModel, civilDecisionMaker, manifest.length, motions, preview?.fileCount])
+  }, [adapter, caseModel, civilDecisionMaker, sources.length, motions])
 
   const run = async (work: () => Promise<void>) => {
     setBusy(true)
@@ -249,36 +267,28 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
 
   if (restoring) return <section className="workflow-restoring" aria-live="polite">Restoring saved proceeding…</section>
 
+  const tools = area === 'Documents' ? [0, 1, 6] : area === 'Results' ? [8, 9] : [2, 7]
+  const toolLabels = ['Documents', 'Extraction review', 'Review case', 'Private theories', 'Disclosure issues', 'Motion docket', 'Document use', 'Run simulation', 'Decision', 'Audit', 'Scenario comparisons']
   return (
-    <>
-      <section className={`provider-banner provider-banner--${displayedProvider?.mode ?? 'local'}`} aria-label="Provider and privacy status">
-        <div className="provider-banner__status"><Scale size={18} /><div><strong>{displayedProvider?.mode === 'external' ? 'External provider mode' : 'Local provider mode'}</strong><span>{displayedProvider ? `${displayedProvider.model} via ${displayedProvider.name}` : 'Loading provider details'}</span></div></div>
-        <div className="provider-banner__meta"><span>{panel}</span><span>Full proceeding</span><span>{trial ? trialRunStatus(trial).label : 'Setup'}</span>{displayedProvider?.mode === 'external' && <span className={consent ? 'safe' : 'risk'}>{consent ? 'Disclosure confirmed' : 'Needs confirmation'}</span>}</div>
-        <button type="button" onClick={() => setStep(7)}>Run settings</button>
-      </section>
-    <section className="full-workflow">
-      <aside className="workflow-steps" aria-label="Full proceeding workflow">
-        <div className="workflow-title">
-          <Scale size={18} />
-          <div><strong>Trial Engine v2</strong><span>{matterTitle}</span></div>
-        </div>
-        {steps.map((label, index) => (
-          <button key={label} type="button" className={step === index ? 'active' : ''} onClick={() => setStep(index)}>
-            <span>{index + 1}</span>{label}<ChevronRight size={14} />
-          </button>
-        ))}
-      </aside>
-
+    <SourceInspectorProvider matterId={matterId} scope={`${area}:${trial?.run.id ?? 'setup'}`}>
+    <section className="guided-workflow" data-area={area}>
       <div className="workflow-panel">
-        <header>
-          <div><span className="eyebrow">Step {step + 1} of {steps.length}</span><h2>{steps[step]}</h2></div>
-          {busy && <Loader2 className="spin" size={20} />}
-        </header>
-        {error && <div className="error-banner">{error}</div>}
-          {runs.length > 0 && <label className="saved-proceeding">Saved proceeding<select aria-label="Saved proceeding" value={trial?.run.id ?? ''} disabled={busy} onChange={(event) => void run(() => openSavedRun(event.target.value))}><option value="" disabled>Select a proceeding</option>{runs.map((item) => <option key={item.id} value={item.id}>{new Date(item.createdAt).toLocaleString()} · {trial?.run.id === item.id ? trialRunStatus(trial).label : item.status} · {item.id.slice(0, 8)}</option>)}</select></label>}
-
+        <header className="case-view-heading"><div><h1>{area === 'Overview' || area === 'Results' ? matterTitle : area}</h1>{area !== 'Results' && <p className="case-muted">{area === 'Overview' ? 'Prepare, explore and inspect your case.' : matterTitle}</p>}</div>{busy && <span role="status"><Loader2 className="spin" size={20} /> Working…</span>}</header>
+        {error && <div className="error-banner" role="alert">{error}</div>}
+        <div hidden={area !== 'Overview'}><CaseOverview matter={matter} model={caseModel} documentCount={sources.length} trial={trial} onSave={onSaveMatter} onEditState={onEditState} onNext={setStep} /></div>
+        {area !== 'Overview' && <nav className="case-tools" aria-label="Case tools">{tools.map(index => <button key={index} type="button" aria-current={step === index ? 'page' : undefined} onClick={() => setStep(index)}>{toolLabels[index]}</button>)}
+          {area === 'Simulation' && <details className="case-more-tools"><summary>Advanced preparation</summary>{[3, 4, 5, 10].map(index => <button type="button" key={index} aria-current={step === index ? 'page' : undefined} onClick={() => setStep(index)}>{toolLabels[index]}</button>)}</details>}
+        </nav>}
+        {area === 'Simulation' && <section className={`provider-banner provider-banner--${displayedProvider?.mode ?? 'local'}`} aria-label="Provider and privacy status">
+          <div className="provider-banner__status"><Scale size={18} /><div><strong>{displayedProvider?.mode === 'external' ? 'External provider mode' : 'Local provider mode'}</strong><span>{displayedProvider ? `${displayedProvider.model} via ${displayedProvider.name}` : 'Loading provider details'}</span></div></div>
+          <div className="provider-banner__meta"><span>{panel}</span><span>{trial ? trialRunStatus(trial).label : 'Setup'}</span>{displayedProvider?.mode === 'external' && <span className={consent ? 'safe' : 'risk'}>{consent ? 'Disclosure confirmed' : 'Needs confirmation'}</span>}</div>
+        </section>}
+        {(area === 'Simulation' || area === 'Results') && runs.length > 0 && <label className="saved-proceeding">Saved attempt<select aria-label="Saved proceeding" value={trial?.run.id ?? ''} disabled={busy} onChange={event => void run(() => openSavedRun(event.target.value))}><option value="" disabled>Select a proceeding</option>{runs.map((item, index) => <option key={item.id} value={item.id}>Attempt {runs.length - index} · {trial?.run.id === item.id ? trialRunStatus(trial).label : item.status} · {new Date(item.createdAt).toLocaleString()}</option>)}</select></label>}
+        <div hidden={area === 'Overview'}>
         {step === 0 && (
           <div className="workflow-stack">
+            <CaseDocuments matterId={matterId} evidence={evidence} onUpload={onUploadEvidence} onReview={() => setStep(2)} />
+            <details className="case-detail"><summary>Import a ZIP or local folder</summary>
             <p>Preview a loopback-only folder or a portable ZIP. Previewing reads and hashes sources but does not alter them or send content to a model.</p>
             <div className="workflow-row">
               <input value={folderPath} onChange={(event) => setFolderPath(event.target.value)} placeholder="C:\Disclosure\Matter folder" />
@@ -299,6 +309,7 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
                 })}><Check size={16} /> Confirm and preserve corpus</button>
               </>
             )}
+            </details>
           </div>
         )}
 
@@ -310,7 +321,7 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
               ['External disclosure', job?.externalDisclosureConfirmed ? 'Confirmed' : 'Not confirmed'],
             ]} />
             <div className="manifest-list">{manifest.map((entry) => <article key={entry.id}><div><strong>{entry.relativePath}</strong><span>{entry.mimeType} · {formatBytes(entry.size)}</span></div><span className={`status-pill status-${entry.status}`}>{entry.status}</span>{entry.warning && <p>{entry.warning}</p>}</article>)}</div>
-            {job?.status === 'completed' && <button className="primary-action" type="button" onClick={() => setStep(2)}>Continue to neutral model <ChevronRight size={16} /></button>}
+            {job?.status === 'completed' && <button className="primary-action" type="button" onClick={() => setStep(2)}>Continue to review case <ChevronRight size={16} /></button>}
           </div>
         )}
 
@@ -338,6 +349,7 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
                 setTheories(briefs); setTheoryText(Object.fromEntries(briefs.map((brief) => [brief.partyId, brief.narrative])))
               })} /></details>}
             {caseModel?.status === 'draft' && <button className="primary-action" type="button" onClick={() => void run(async () => setCaseModel(await approveCaseModel(caseModel.id)))}><Check size={16} /> Approve model version {caseModel.version}</button>}
+            {caseModel?.status === 'approved' && <button className="primary-action" type="button" onClick={() => setStep(6)}>Review document use <ChevronRight size={16} /></button>}
           </div>
         )}
 
@@ -374,7 +386,7 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
             <div className="workflow-stack"><p>Excluded, reserved, and role-hidden material is filtered before each actor call. Saving new settings preserves earlier versions.</p>{activeLedger && <div className="notice-card"><strong>Admission ledger v{activeLedger.version}</strong><span>{activeLedger.reason}</span></div>}<RecordCoverage scope={trial?.recordCoverage?.scope ?? caseModel?.recordScope} sources={trial?.recordCoverage?.sources ?? sources} ledger={activeLedger} warnings={trial?.recordCoverage?.warnings} /><AdmissionEditor key={`${settingsLedger?.id ?? 'new'}:${sources.length}`} sources={sources} ledger={settingsLedger} busy={busy} onSave={(evidenceUses, reason) => run(async () => {
               const saved = await saveAdmissionLedger(matterId, { parentVersionId: settingsLedger?.id, reason, evidenceUses })
               setLedgers((current) => [saved, ...current])
-            })} /></div>
+            })} /><button className="primary-action" type="button" disabled={!settingsLedger} onClick={() => setStep(7)}>Continue to simulation <ChevronRight size={16} /></button></div>
         )}
 
         {step === 7 && (
@@ -392,7 +404,7 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
             <button type="button" disabled={busy || !caseModel || !settingsLedger} onClick={() => void run(async () => { await checkSourceSize() })}>Check source size</button>
             {sourceSize && <div className="notice-card" role="status"><strong>{sourceSize.historyReserveCharacters === undefined ? 'Selected source context' : 'Projected context'}: {sourceSize.characters.toLocaleString()} / {sourceSize.characterBudget.toLocaleString()} characters</strong><p>{sourceSize.message}</p>{sourceSize.sourceCharacters !== undefined && sourceSize.historyReserveCharacters !== undefined && sourceSize.headroomCharacters !== undefined ? <small>Sources: {sourceSize.sourceCharacters.toLocaleString()} · planned history reserve: {sourceSize.historyReserveCharacters.toLocaleString()} · estimated headroom: {sourceSize.headroomCharacters.toLocaleString()} characters. Actual actor context is checked before each request.</small> : <small>History projection is unavailable from this server response. Actual actor context is checked before each request.</small>}<small>Largest source contributions: {sourceSize.sources.slice(0, 5).map(source => `${source.exhibitId}: ${source.characters.toLocaleString()}`).join(' · ')}</small>{!sourceSize.fits && <button type="button" onClick={() => setStep(6)}>Choose documents and paragraphs</button>}</div>}
               <button className="primary-action" type="button" disabled={busy || !caseModel || caseModel.status !== 'approved' || !settingsLedger || trial?.run.status === 'running'} onClick={() => void run(createAndStartTrial)}><Play size={16} /> Create and run full proceeding</button>
-            {trial && <RunStatus trial={trial} />}
+            {trial && <><RunStatus trial={trial} /><button type="button" onClick={() => setStep(8)}>Inspect saved results <ChevronRight size={16} /></button></>}
             {trial?.run.config.courtroomProtocol && caseModel && <CourtroomPanel trial={trial} model={caseModel} sources={sources} motions={motions} onChanged={setTrial} />}
             {trial && canResumeTrial(trial) && <button type="button" disabled={busy} onClick={() => void run(async () => setTrial(await startAutonomousTrial(trial.run.id)))}><Play size={16} /> Resume saved proceeding</button>}
             {trial?.run.status === 'checkpoint' && <button type="button" onClick={() => void run(async () => {
@@ -405,11 +417,9 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
         {trial && [8, 9].includes(step) && <RunStatus trial={trial} />}
         {trial && [7, 8, 9].includes(step) && !['ready', 'running', 'checkpoint'].includes(trial.run.status) && <PartialTrialResults trial={trial} issueLabels={Object.fromEntries(caseModel?.decisionIssues.map(issue => [issue.id, issue.label]) ?? [])} />}
 
-        {step === 8 && (
-              <div className="workflow-stack">{trial && trialRunStatus(trial).message && <p role="status">{trialRunStatus(trial).message}</p>}{trial?.decisionSheet ? <>{trial.decisionSheet.decisions.map((decision) => <article className="decision-card" key={decision.issueId}><span>{caseModel?.decisionIssues.find((issue) => issue.id === decision.issueId)?.label ?? decision.issueId}</span><strong>{decision.outcome.replaceAll('_', ' ')}</strong><p>Required decision rule: {decision.rule}{decision.voteCounts ? ` · ${Object.entries(decision.voteCounts).map(([choice, count]) => `${choice}: ${count}`).join(', ')}` : ''}</p><p>Valid final ballots: {trial.ballots.filter(ballot => ballot.round === 'final' && ballot.valid && ballot.issueId === decision.issueId).length}</p>{decision.warnings.map((warning) => <small key={warning}>{warning}</small>)}<DecisionTracePanel matterId={matterId} trace={decision.trace} /></article>)}<RecordCoverage scope={trial?.recordCoverage?.scope ?? caseModel?.recordScope} sources={trial?.recordCoverage?.sources ?? sources} ledger={activeLedger} warnings={trial?.recordCoverage?.warnings} /></> : <p>No decision sheet yet.</p>}</div>
-        )}
+        {step === 8 && <CaseResults matterId={matterId} trial={trial} model={caseModel} onSimulation={() => setStep(7)} />}
 
-            {(step === 8 || step === 9) && <GroundingAudit trial={trial} matterId={matterId} />}
+            {(step === 8 || step === 9) && <details className="case-detail"><summary>Source-check audit</summary><GroundingAudit trial={trial} matterId={matterId} /></details>}
             {trial && (step === 7 || step === 9) && <ParticipantMemoryPanel runId={trial.run.id} actors={(trial.events.find(e => e.type === 'run_created')?.payload.actors ?? []) as Array<{ id: string; role: string }>} />}
           {step === 9 && (
           <div className="workflow-stack"><SummaryGrid items={[["Events", String(trial?.events.length ?? 0)], ["Juror profiles", String(trial?.jurorProfiles.length ?? 0)], ["Initial ballots", String(trial?.ballots.filter((ballot) => ballot.round === 'initial').length ?? 0)], ["Final ballots", String(trial?.ballots.filter((ballot) => ballot.round === 'final').length ?? 0)]]} /><div className="event-audit">{trial?.events.map((event) => <div key={event.id}><span>#{event.sequence}</span><strong>{event.type.replaceAll('_', ' ')}</strong><small>{event.actorId ?? 'system'} · {event.phase}</small></div>)}</div></div>
@@ -426,9 +436,10 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, onEvidenceImporte
               {robustness && <><p className="disclaimer">{robustness.disclaimer}</p>{robustness.scenarioSensitivity.map((item) => <article className="decision-card" key={item.issueId}><strong>{caseModel?.decisionIssues.find((issue) => issue.id === item.issueId)?.label ?? item.issueId}</strong><span>{robustness.completeRuns < 2 ? 'More completed variants needed' : item.sensitive ? 'Sensitive to scenario' : 'Stable across completed variants'}</span><p>{Object.entries(item.outcomes).map(([outcome, count]) => `${outcome}: ${count}`).join(' · ') || 'Variants still running'}</p></article>)}<ScenarioComparisonPanel report={robustness} model={caseModel} onOpenRun={(id) => void run(() => openSavedRun(id))} />{robustness.recurringProofGaps.length > 0 && <div><h3>Recurring warnings</h3><ul>{robustness.recurringProofGaps.map((warning) => <li key={warning}>{warning}</li>)}</ul></div>}</>}
           </div>
         )}
+        </div>
       </div>
     </section>
-    </>
+    </SourceInspectorProvider>
   )
 }
 
@@ -447,7 +458,7 @@ function CaseModelCard({ model }: { model: CaseModel }) {
 
 function RunStatus({ trial }: { trial: TrialRunView }) {
   const status = trialRunStatus(trial)
-  return <article className="run-status"><div><strong>{trial.run.phase.replaceAll('_', ' ')}</strong><span className="status-pill">{status.label}</span></div>{status.message && <p role="status">{status.message}</p>}<progress aria-label="Recorded proceeding phases" max={12} value={Math.min(12, new Set(trial.events.map((event) => event.phase)).size)} /><small>{trial.events.length} ordered events recorded</small></article>
+  return <article className="run-status"><div><strong>{trial.run.phase.replaceAll('_', ' ')}</strong><span className="status-pill">{status.label}</span></div>{status.message ? <p role="status">{status.message}</p> : <p>Progress is saved as events complete.</p>}<small>{trial.events.length} ordered events recorded</small></article>
 }
 
 function SummaryGrid({ items }: { items: Array<[string, string]> }) {
