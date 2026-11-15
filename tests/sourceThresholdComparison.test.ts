@@ -7,6 +7,40 @@ function check(text: string, sourceText = 'The report records a total of $8,000.
   return parseGroundingReview(JSON.stringify({ findings: [{ unitId: 'content:1', status, explanation: 'A numerical comparison does not prove the remaining elements.', citations: [{ exhibitId: 'E-001', paragraph: 1 }] }] }), [{ id: 'content:1', text }], [{ ...supportedOpeningSource, exhibitId: 'E-001', sourcePages: [41], text: sourceText }], '', undefined, { packet: '', actorRoles: [], partyRoles: [], events })
 }
 describe('source-backed threshold comparisons', () => {
+  describe('currency attribution to the selected amount', () => {
+    const claim = 'Neither passage states the currency of the $12,000 figure, so the comparison must wait.'
+    const stock = 'The report lists a subscription for $3,000 US dollars.'
+    const withdrawal = 'The withdrawal request for $12,000 was not completed.'
+    const explanation = 'One of the two cited passages expressly states US dollars.'
+    function review(first = stock, second = withdrawal, reason = explanation) {
+      const source = { ...supportedOpeningSource, exhibitId: 'E-001', text: [first, second].filter(Boolean).join('\n\n') }
+      const row = {
+        status: 'contradicted', supportTypes: ['source'], explanation: reason,
+        citations: (second ? [1, 2] : [1]).map(paragraph => ({ exhibitId: 'E-001', paragraph })), recordCitations: [],
+      }
+      return parseGroundingReview(JSON.stringify({ findings: { 'content:1': row } }), [{ id: 'content:1', text: claim }], [source])
+    }
+    it.each([stock, 'The report lists a subscription for $3,000 US.'])('preserves the rejection while rechecking %s', first => {
+      const result = review(first, 'The report did not give the $12,000 us back.')
+      expect(result.status).toBe('failed')
+      expect(result.scopeValidationUnitIds).toContain('content:1')
+      expect(result.validationErrors?.join(' ')).toContain('checker currency attribution')
+      expect(result.findings[0]).toMatchObject({ status: 'contradicted', explanation })
+      expect(result.findings[0].citations.map(citation => citation.paragraph)).toEqual([1, 2])
+    })
+    it.each([
+      [stock, withdrawal.replace('$12,000', 'USD $12,000'), explanation],
+      [stock, withdrawal.replace('$12,000', '$12,000 US'), explanation],
+      [stock, withdrawal.replace('$12,000', '$15,000'), explanation],
+      [stock.replace(' US dollars', ''), withdrawal, explanation],
+      [withdrawal, '', explanation],
+      [stock, withdrawal, 'The account owner is misidentified.'],
+    ])('leaves independent or unverified currency rejections substantive', (first, second, reason) => {
+      const result = review(first, second, reason)
+      expect(result.status).toBe('failed')
+      expect(result.scopeValidationUnitIds ?? []).not.toContain('content:1')
+    })
+  })
   it('permits a faithful quantified allegation comparison without establishing occurrence truth', () => {
     const events = [{ ...instruction, payload: { ...instruction.payload, issueInstructions: [{ elements: [{ label: 'The value exceeds CAD $5,000' }] }] } }]
     const source = 'The report quotes the complaint: “Arin defrauded Mara of CAD $8,000.”'

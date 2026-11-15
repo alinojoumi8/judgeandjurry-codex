@@ -134,6 +134,26 @@ function dollarAmounts(text: string): number[] {
     .map((match) => Number(match[1].replaceAll(',', '')) * ({ million: 1e6, billion: 1e9, thousand: 1e3, m: 1e6, b: 1e9, k: 1e3 }[match[2]?.trim().toLowerCase() ?? ''] ?? 1))
 }
 
+function checkerCurrencyScopeMismatch(finding: GroundingFinding): boolean {
+  if (finding.status !== 'contradicted' || finding.citations.length < 2) return false
+  const stated = finding.text.match(/^\s*Neither (?:cited )?passage states the currency of the (\$\s*\d[\d,]*(?:\.\d+)?) (?:figure|amount)\b/i)?.[1]
+  const reason = finding.explanation.match(/\b(?:expressly|explicitly) (?:states?|specifies?)\s+(.+)/i)?.[1]
+  if (!stated || !reason) return false
+  const usd = /\b(?:USD|(?:U\.?S\.?|United States) dollars?)\b|\bUS\$/i
+  const cad = /\b(?:CAD|CDN|Canadian dollars?)\b|\b(?:CA|Cdn)\$/i
+  const currencies = [usd, cad]
+  const reported = currencies.find(currency => reason.search(currency) === 0)
+  if (!reported) return false
+  const mentionsCurrency = (currency: RegExp, text: string) =>
+    currency.test(text) || (currency === usd && /\$\s*\d[\d,]*(?:\.\d+)?[ \t]+(?:US|U\.S\.)(?![A-Za-z])/.test(text))
+  const [target] = dollarAmounts(stated)
+  const selected = finding.citations.map(({ quote }) => ({ quote, amounts: dollarAmounts(quote) }))
+  const sameAmount = selected.filter(passage => passage.amounts.includes(target))
+  return sameAmount.length > 0 &&
+    sameAmount.every(passage => !currencies.some(currency => mentionsCurrency(currency, passage.quote))) &&
+    selected.some(passage => passage.amounts.length > 0 && !passage.amounts.includes(target) && mentionsCurrency(reported, passage.quote))
+}
+
 // A negated proof assessment may mention an exercise's value threshold without
 // claiming a transaction of that amount. Only the latest, unambiguous supplied
 // issue instruction can establish that threshold; its words are not evidence.
@@ -3119,6 +3139,10 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
       finding.explanation = typeof original.explanation === 'string' ? original.explanation : ''
       scopeValidationUnitIds.push(finding.unitId)
       invalid(`${finding.unitId}: deterministic scope analysis cannot replace an explicit ${original.status} judgment. Recheck the SAME draft independently against the actual supplied source and record; acceptance requires a new valid checker judgment. Preserve all separate failures.`)
+    }
+    if (original?.status === 'contradicted' && checkerCurrencyScopeMismatch(finding)) {
+      scopeValidationUnitIds.push(finding.unitId)
+      invalid(`${finding.unitId}: checker currency attribution may have used a different transaction. The named currency is in a selected passage with a different amount. Recheck the SAME draft using currency only if the source attaches it to the amount and transaction at issue. Preserve all separate failures; acceptance requires a valid fresh finding.`)
     }
     const omission = incompleteRejections.get(finding.unitId)
     if (omission) finding.status = omission.status
