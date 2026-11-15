@@ -194,11 +194,15 @@ describe('F1 merge and conflicts', () => {
     expect(mergeDrafts([draft('Plaintiff fell on ice at the entrance', day('2025-01-14')), draft('Surgery performed on the left tibial plateau', day('2025-01-14'))])).toHaveLength(2)
   })
 
-  it('keeps an affirmative account separate from a same-date denial', () => {
+  it.each([
+    ['Plaintiff fell on ice at the entrance', 'Plaintiff did not fall on ice at the entrance'],
+    ['Plaintiff can walk independently after surgery', 'Plaintiff cannot walk independently after surgery'],
+    ['Plaintiff was able to walk independently', 'Plaintiff was unable to walk independently'],
+  ])('keeps %s separate from a same-date denial', (affirmativeText, denialText) => {
     const sameDay = day('2025-01-14')
-    const affirmative = draft('Plaintiff fell on ice at the entrance', sameDay, { assertion: 'testimony' })
-    const denial = draft('Plaintiff did not fall on ice at the entrance', sameDay, {
-      assertion: 'testimony', sources: [{ evidenceId: 'b', paragraph: 1, quote: 'I did not fall on the ice' }],
+    const affirmative = draft(affirmativeText, sameDay, { assertion: 'testimony' })
+    const denial = draft(denialText, sameDay, {
+      assertion: 'testimony', sources: [{ evidenceId: 'b', paragraph: 1, quote: denialText }],
     })
     const merged = mergeDrafts([affirmative, denial])
     expect(merged).toHaveLength(2)
@@ -206,6 +210,7 @@ describe('F1 merge and conflicts', () => {
       expect(merged.find((event) => event.description === input.description)?.sources).toEqual(input.sources)
     }
     expect(mergeDrafts([denial, { ...denial, sources: [{ evidenceId: 'c', paragraph: 1, quote: 'another identical denial' }] }])[0].sources).toHaveLength(2)
+    expect(mergeDrafts([affirmative, { ...affirmative, sources: [{ evidenceId: 'd', paragraph: 1, quote: 'another affirmative account' }] }])[0].sources).toHaveLength(2)
   })
 
   it('never merges two events whose dates are unknown', () => {

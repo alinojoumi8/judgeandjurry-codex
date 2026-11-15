@@ -224,7 +224,7 @@ export function descriptionOverlap(a: string, b: string): { ratio: number; share
 }
 
 const mergeRatio = 0.6
-const explicitNegation = /\b(?:no|not|never|neither|nor|without|deny|denies|denied)\b|n['’]t\b/i
+const explicitNegation = /\b(?:no|not|never|neither|nor|without|cannot|unable|deny|denies|denied)\b|n['’]t\b/i
 const conflictRatio = 0.6
 
 // Similar words can carry opposite claims. Require the same wording if either
