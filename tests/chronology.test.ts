@@ -582,6 +582,21 @@ describe('F1 key facts and promotion', () => {
     expect(service.keyFacts(world.matterId).find((fact) => fact.eventId === first.id)?.event.conflictsWith).toEqual([])
   })
 
+  it.each(['allegation', 'testimony'] as const)('keeps a promoted %s unresolved with its source attached', async (assertion) => {
+    const { world, service, content, plain } = await approvedWorld()
+    const event = assertion === 'allegation'
+      ? content.items.find((item) => item.assertion === assertion && item.conflictsWith.length === 0)!
+      : plain
+    expect(event).toBeDefined()
+    if (assertion === 'testimony') service.review(world.matterId, event.id, { action: 'edit', patch: { assertion } })
+    service.review(world.matterId, event.id, { action: 'accept' })
+    service.approve(world.matterId)
+    const model = service.promoteKeyFact(world.matterId, event.id)
+    expect(model.disputedFacts.find((fact) => fact.id === `fact-${event.id}`)).toMatchObject({
+      attribution: 'unresolved', supporting: expect.arrayContaining([expect.objectContaining({ quote: event.sources[0].quote })]),
+    })
+  })
+
   it('marks a plain record fact as sourced, and an inference as inferred', async () => {
     const { world, service, plain } = await approvedWorld()
     const promoted = service.promoteKeyFact(world.matterId, plain.id)

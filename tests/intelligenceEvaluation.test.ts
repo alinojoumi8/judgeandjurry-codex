@@ -170,6 +170,20 @@ describe('the refusal of an unsourced event stays visible', () => {
 })
 
 describe('the whole evaluation', () => {
+  it('keeps the scripted key results separate from live-mode totals with a fake provider', async () => {
+    const budget = { ...thresholds.live, maxCalls: 3 }
+    const client = new BudgetedStructuredClient(routedClient(() => ({}), 300), budget, 'local', false)
+    const report = await evaluate({ live: { client, provider: { name: 'fake', model: 'fixture', mode: 'local' }, budget } })
+    const liveMetrics = report.runs.find((run) => run.id === 'live')!.metrics
+    expect(report.runs.find((run) => run.id === 'key')?.allTargetsMet).toBe(true)
+    expect(liveMetrics.some((item) => !item.passed)).toBe(true)
+    expect(report.counts).toMatchObject({
+      metricsEvaluated: liveMetrics.length,
+      metricsPassed: liveMetrics.filter((item) => item.passed).length,
+      metricsFailed: liveMetrics.filter((item) => !item.passed).length,
+    })
+  }, slow)
+
   it('reports provider mode scripted, the exact settings, counts, the standing sentence, and passes', async () => {
     const report = await evaluate({ now: () => '2026-11-09T00:00:00.000Z' })
     expect(report).toMatchObject({ providerMode: 'scripted', provider: { name: 'injected-fixture', model: 'scripted' }, standingStatement: STANDING_STATEMENT, passed: true, failures: [] })

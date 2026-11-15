@@ -591,8 +591,9 @@ export class ChronologyService {
       issueIds: event.issueIds.filter((id) => base.decisionIssues.some((issue) => issue.id === id)),
       supporting: event.sources.map(refOf),
       contradicting: opposing.flatMap((other) => other.sources.map(refOf)),
-      // A conflict means the record does not settle it. A statement of what was alleged or said is not a fact either.
-      attribution: event.conflictsWith.length ? 'unresolved' : event.assertion === 'inference' ? 'inferred' : 'source',
+      // Checked sources preserve what was alleged or said. The proposition remains disputed.
+      attribution: event.conflictsWith.length || event.assertion === 'allegation' || event.assertion === 'testimony'
+        ? 'unresolved' : event.assertion === 'inference' ? 'inferred' : 'source',
     }
     return this.workflow.reviseCaseModel(base.id, { disputedFacts: [...base.disputedFacts, fact] })
   }

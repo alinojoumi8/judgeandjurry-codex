@@ -237,14 +237,17 @@ export class ForecastService {
   }
 
   // The job handler. Runs one simulated panel at a time, in seed order. A finished run is kept and never repeated, so a study
-  // that was interrupted, capped or failed continues from where it stopped. Usage is counted at the cost-preview figure after each
-  // run, so the cap holds even for a provider that reports no usage.
+  // that was interrupted, capped or failed continues from where it stopped. Every attempted run is counted at the cost-preview figure
+  // and starts only when the remaining budget covers that estimate.
   async runStudy(context: JobContext, engine: TrialEngineService, tokensPerCall: number): Promise<{ completed: boolean }> {
     const { matterId } = context.job
     const params = forecastJobParamsSchema.parse(context.job.params)
     const resolved = this.resolve(matterId, params)
     if (resolved.blockers.length || !resolved.model || !resolved.framework) throw new ForecastError(resolved.blockers.join(' '))
-    const { model, framework } = resolved
+    const { model, framework, callsPerRun } = resolved
+    const tokensPerRun = callsPerRun * tokensPerCall
+    let remainingCalls = context.job.cap.maxCalls - context.job.usage.calls
+    let remainingTokens = context.job.cap.maxTokens - context.job.usage.tokens
     const earlier = new Map(this.studyRuns(matterId, model, framework, params).map((run) => [run.seed, run]))
     let ledgerId = [...earlier.values()].find((run) => run.admissionLedgerId)?.admissionLedgerId
       ?? this.store.workflow.listAdmissionLedgers(matterId).find((ledger) => !ledger.trialRunId)?.id
@@ -256,6 +259,11 @@ export class ForecastService {
       const seed = studySeedOf(params, index)
       let run = earlier.get(seed)
       if (run?.status === 'completed') continue
+      if (remainingCalls < callsPerRun || remainingTokens < tokensPerRun) {
+        context.stopAtCap()
+        completed = false
+        break
+      }
       if (!run) {
         const created = engine.createRun({ matterId, caseModelId: model.id, config: this.configFor(model, params, seed), admissionLedgerId: ledgerId })
         run = created.run
@@ -269,8 +277,11 @@ export class ForecastService {
         const status = this.store.workflow.getTrialRun(run.id).status
         if (status !== 'completed' && status !== 'failed') this.store.workflow.updateTrialRun(run.id, { status: 'failed', error: error instanceof Error ? error.message : 'The run failed.' })
         throw error
+      } finally {
+        const budget = context.recordUsage(callsPerRun, tokensPerRun)
+        remainingCalls = budget.remainingCalls
+        remainingTokens = budget.remainingTokens
       }
-      context.recordUsage(resolved.callsPerRun, resolved.callsPerRun * tokensPerCall)
     }
     // A cancelled study saves nothing. A study stopped by its cap keeps what it finished, as a draft marked incomplete.
     const reason: unknown = context.signal.reason

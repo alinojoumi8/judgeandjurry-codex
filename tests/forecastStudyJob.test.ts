@@ -201,7 +201,7 @@ describe('forecast study: resumes after an interruption', () => {
       if (providerDown && runs === 3 && request.stage !== 'juror_ballot') throw new Error('The scripted provider went away.')
     }
     const { job, params } = await runStudy(world, { runs: 5 })
-    expect(job).toMatchObject({ status: 'failed', usage: { calls: 2 * 68 } })
+    expect(job).toMatchObject({ status: 'failed', usage: { calls: 3 * 68, tokens: 3 * 6800 } })
     expect(job.error).toMatch(/scripted provider went away/)
     const afterFailure = world.store.workflow.listTrialRuns(world.matterId)
     expect(afterFailure.map((run) => run.status).sort()).toEqual(['completed', 'completed', 'failed'])
@@ -210,7 +210,16 @@ describe('forecast study: resumes after an interruption', () => {
     expect(world.forecast.view(world.matterId).current).toBeNull()
 
     providerDown = false
-    const resumed = world.jobs.resume(world.matterId, job.id)
+    const callsAfterFailure = world.scripted.count
+    world.jobs.resume(world.matterId, job.id, { maxCalls: 4 * 68 - 1 })
+    await world.jobs.whenIdle()
+    expect(world.jobs.get(world.matterId, job.id)).toMatchObject({
+      status: 'stopped_at_cap', usage: { calls: 3 * 68 },
+    })
+    expect(world.scripted.count).toBe(callsAfterFailure)
+    expect(contentOf(world)).toMatchObject({ completedRuns: 2, complete: false })
+
+    const resumed = world.jobs.resume(world.matterId, job.id, { maxCalls: 6 * 68 })
     expect(['queued', 'running']).toContain(resumed.status)
     await world.jobs.whenIdle()
     const done = world.jobs.get(world.matterId, job.id)
@@ -223,7 +232,7 @@ describe('forecast study: resumes after an interruption', () => {
     const content = contentOf(world)
     expect(content).toMatchObject({ completedRuns: 5, requestedRuns: 5, complete: true })
     expect(content.runs.map((run) => run.seed)).toEqual(Array.from({ length: 5 }, (_, index) => `${params.seed}:run-00${index + 1}`))
-    expect(done.usage.calls).toBe(5 * 68)
+    expect(done.usage.calls).toBe(6 * 68)
   }, slow)
 
   it('refuses to start a second study on a seed that is already waiting or running', async () => {

@@ -739,8 +739,7 @@ export async function evaluate(options: {
   const invariants = await runInvariants()
   for (const item of invariants.filter((candidate) => !candidate.passed)) failures.push(`${item.id} failed: ${item.checks.filter((check) => !check.passed).map((check) => check.name).join('; ')}`)
 
-  const scoredRuns = runs.filter((run) => run.expectedToPass)
-  const metricRows = scoredRuns.flatMap((run) => run.metrics)
+  const metricRows = runs.find((run) => run.id === (options.live ? 'live' : 'key'))?.metrics ?? []
   return {
     schemaVersion: 1,
     createdAt: (options.now ?? (() => new Date().toISOString()))(),
