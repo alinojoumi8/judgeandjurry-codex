@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-export const currentSchemaVersion = 9
+export const currentSchemaVersion = 14
 
 export function applySchemaMigrations(db: DatabaseSync): void {
   createBaseSchema(db)
@@ -21,6 +21,11 @@ export function applySchemaMigrations(db: DatabaseSync): void {
     db => ensureColumn(db, 'evidence_uses', 'scope_json', 'TEXT'),
     db => ensureColumn(db, 'corpus_manifest_entries', 'preview_sha256', 'TEXT'),
     db => ensureColumn(db, 'evidence', 'private_note', "TEXT NOT NULL DEFAULT ''"),
+    migrateAnalysisArtifacts,
+    migrateAnalysisJobs,
+    migrateCourtRules,
+    migrateVenueDatasets,
+    migrateBallotContractV2,
   ]
   for (let version = current + 1; version <= currentSchemaVersion; version += 1) {
     db.exec('BEGIN IMMEDIATE')
@@ -38,6 +43,120 @@ export function applySchemaMigrations(db: DatabaseSync): void {
 function databaseVersion(db: DatabaseSync): number {
   const row = db.prepare('PRAGMA user_version').get() as { user_version: number }
   return Number(row.user_version ?? 0)
+}
+
+// Versioned, private analysis results. Every JSON column keeps the `_json`
+// suffix because archive import remaps references in columns with that suffix.
+function migrateAnalysisArtifacts(db: DatabaseSync): void {
+  db.exec(`
+    CREATE TABLE analysis_artifacts (
+      id TEXT PRIMARY KEY,
+      matter_id TEXT NOT NULL REFERENCES matters(id) ON DELETE CASCADE,
+      case_model_id TEXT REFERENCES case_model_versions(id) ON DELETE SET NULL,
+      kind TEXT NOT NULL,
+      subject_key TEXT NOT NULL DEFAULT '',
+      version INTEGER NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('draft', 'approved', 'superseded', 'failed')),
+      schema_version INTEGER NOT NULL,
+      audience TEXT NOT NULL CHECK (audience IN ('owner', 'party')),
+      input_manifest_json TEXT NOT NULL,
+      content_json TEXT NOT NULL,
+      content_hash TEXT NOT NULL,
+      rejected_json TEXT NOT NULL DEFAULT '[]',
+      import_provenance_json TEXT,
+      created_at TEXT NOT NULL,
+      approved_at TEXT,
+      UNIQUE (matter_id, kind, subject_key, version)
+    );
+
+    CREATE INDEX analysis_artifacts_lookup_idx ON analysis_artifacts(matter_id, kind, subject_key, status);
+  `)
+}
+
+// Queued, resumable analysis jobs. Operational records only: they are not part
+// of a matter archive. The `_json` suffix is kept for consistency.
+function migrateAnalysisJobs(db: DatabaseSync): void {
+  db.exec(`
+    CREATE TABLE analysis_jobs (
+      id TEXT PRIMARY KEY,
+      matter_id TEXT NOT NULL REFERENCES matters(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled', 'interrupted', 'stopped_at_cap')),
+      params_json TEXT NOT NULL,
+      estimate_json TEXT NOT NULL,
+      cap_json TEXT NOT NULL,
+      usage_json TEXT NOT NULL,
+      result_artifact_ids_json TEXT NOT NULL DEFAULT '[]',
+      error TEXT,
+      created_at TEXT NOT NULL,
+      started_at TEXT,
+      finished_at TEXT
+    );
+
+    CREATE INDEX analysis_jobs_matter_idx ON analysis_jobs(matter_id, created_at);
+  `)
+}
+
+// Court rules: a matter's chosen rule pack with its recorded overrides, and
+// lawyer attestations to exact pack hashes. Packs themselves live in code.
+// Overrides and history are `_json` columns so archive import remaps them.
+function migrateCourtRules(db: DatabaseSync): void {
+  db.exec(`
+    CREATE TABLE matter_frameworks (
+      id TEXT PRIMARY KEY,
+      matter_id TEXT NOT NULL UNIQUE REFERENCES matters(id) ON DELETE CASCADE,
+      pack_id TEXT NOT NULL,
+      pack_hash TEXT NOT NULL,
+      overrides_json TEXT NOT NULL,
+      history_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE framework_attestations (
+      id TEXT PRIMARY KEY,
+      pack_id TEXT NOT NULL,
+      pack_hash TEXT NOT NULL,
+      reviewer_name TEXT NOT NULL CHECK (length(trim(reviewer_name)) > 0),
+      reviewed_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE (pack_id, pack_hash, reviewer_name)
+    );
+  `)
+}
+
+// Imported research datasets for the local jury profile. Each belongs to one
+// matter, is immutable once imported and is archived with the matter. The rows
+// column keeps the `_json` suffix, which archive import expects.
+function migrateVenueDatasets(db: DatabaseSync): void {
+  db.exec(`
+    CREATE TABLE venue_datasets (
+      id TEXT PRIMARY KEY,
+      matter_id TEXT NOT NULL REFERENCES matters(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL CHECK (kind IN ('population_table', 'attitude_survey', 'focus_group', 'verdict_observations')),
+      name TEXT NOT NULL,
+      source TEXT NOT NULL CHECK (length(trim(source)) > 0),
+      retrieved_at TEXT NOT NULL,
+      licence TEXT NOT NULL CHECK (length(trim(licence)) > 0),
+      dataset_hash TEXT NOT NULL,
+      row_count INTEGER NOT NULL,
+      rows_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE (matter_id, dataset_hash)
+    );
+
+    CREATE INDEX venue_datasets_matter_idx ON venue_datasets(matter_id, created_at);
+  `)
+}
+
+// Ballot contract v2: element findings, amounts and apportionment on a ballot.
+// Columns only, all nullable, so every earlier ballot stays as it was. Straw
+// polls and juror appraisals are trial events and need no table. The `round`
+// check on issue_ballots (two values) is untouched on purpose.
+function migrateBallotContractV2(db: DatabaseSync): void {
+  ensureColumn(db, 'issue_ballots', 'element_findings_json', 'TEXT')
+  ensureColumn(db, 'issue_ballots', 'amounts_json', 'TEXT')
+  ensureColumn(db, 'issue_ballots', 'apportionment_json', 'TEXT')
 }
 
 function migrateCourtroomProtocol(db: DatabaseSync): void {

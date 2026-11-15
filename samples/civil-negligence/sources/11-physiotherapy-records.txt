@@ -1,0 +1,7 @@
+FICTIONAL TEST SOURCE: Alder Creek Physiotherapy treatment records
+Patient: Jordan Ellery
+2025-02-24: Initial assessment after left tibial plateau fixation.
+2025-03-31: Range of motion improving. Pain with stairs.
+Records for treatment from 2025-04-02 to 2025-07-28 were held by another clinic and have not been received.
+2025-08-05: Treatment resumed. Quadriceps weakness persists.
+2025-10-09: Tolerates standing for 30 minutes.

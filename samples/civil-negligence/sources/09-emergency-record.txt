@@ -1,0 +1,8 @@
+FICTIONAL TEST SOURCE: Port Alder General Hospital emergency and surgical summary
+Patient: Jordan Ellery
+Age: 47
+Triage 10:12: Fell approx 0900 per patient on ice in parking area.
+Chief complaint: left knee pain and inability to bear weight.
+Diagnosis: left lateral tibial plateau fracture, confirmed on CT.
+Open reduction and internal fixation performed January 16, 2025.
+Discharged January 19, 2025.

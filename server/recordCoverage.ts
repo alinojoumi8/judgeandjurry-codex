@@ -5,7 +5,10 @@ export function buildRecordCoverage(model: CaseModelV1, evidence: EvidenceItem[]
   const selected = ledger ? evidence.filter((item) => ledger.evidenceUses.some((use) => use.evidenceId === item.id)) : evidence
   const documents = selected.map((item) => {
     const description = model.recordScope?.documents.find((doc) => doc.evidenceId === item.id)
-    return { evidenceId: item.id, kind: description?.kind ?? 'unclassified', coverage: description?.coverage ?? 'unknown', note: description?.note ?? '' } as RecordScope['documents'][number]
+    return {
+      evidenceId: item.id, kind: description?.kind ?? 'unclassified', coverage: description?.coverage ?? 'unknown', note: description?.note ?? '',
+      ...(description?.documentType ? { documentType: description.documentType } : {}),
+    } as RecordScope['documents'][number]
   })
   const visible = documents.filter((doc) => {
     const use = ledger?.evidenceUses.find((item) => item.evidenceId === doc.evidenceId)

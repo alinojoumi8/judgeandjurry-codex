@@ -25,6 +25,7 @@ for (const authority of uniqueLinks) {
       signal: controller.signal,
       headers: { 'User-Agent': 'Judge-Jury-Authority-Link-Check/1.0' },
     })
+    await response.body?.cancel()
     if (!response.ok) {
       failures.push(`${authority.id}: HTTP ${response.status} ${authority.sourceUrl}`)
     } else {

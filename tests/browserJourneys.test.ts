@@ -7,4 +7,5 @@ it.skipIf(process.env.RUN_BROWSER_COVERAGE !== '1')('executes evidence-to-decisi
   await import('../e2e/courtroom')
   await import('../e2e/smoke')
   await import('../e2e/mareva')
-}, 300_000)
+  await import('../e2e/case-intelligence')
+}, 600_000)

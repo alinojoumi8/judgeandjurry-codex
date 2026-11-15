@@ -1,4 +1,4 @@
-import { BarChart3, FileText, FolderOpen, LayoutList, Play, Plus, Settings, Trash2 } from 'lucide-react'
+import { BarChart3, Compass, FileSearch, FileText, FolderOpen, LayoutList, Network, Play, Plus, Settings, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { BrandMark } from './BrandMark'
 import type { Matter } from '../types'
@@ -10,7 +10,7 @@ interface SidebarProps {
   onAreaChange: (area: CaseArea) => void; onModeChange: (mode: 'decision' | 'trialforge' | 'workflow') => void; onSettings: () => void; onImport: () => void
 }
 
-const icons = { Overview: LayoutList, Documents: FileText, Simulation: Play, Results: BarChart3 }
+const icons = { Overview: LayoutList, Documents: FileText, 'Case Map': Network, 'Facts & Evidence': FileSearch, Simulation: Play, Results: BarChart3, Strategy: Compass }
 
 export function Sidebar({ matters, activeMatterId, area, mode, onSelectMatter, onCreateMatter, onDeleteMatter, onAreaChange, onModeChange, onSettings, onImport }: SidebarProps) {
   const [casesOpen, setCasesOpen] = useState(false)

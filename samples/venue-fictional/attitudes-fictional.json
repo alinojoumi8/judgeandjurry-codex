@@ -1,0 +1,84 @@
+{
+  "name": "FICTIONAL attitude survey (sample)",
+  "kind": "attitude_survey",
+  "source": "Fictional sample data written for TrialLens tests. Not real. Not from any survey, census, court or publication.",
+  "retrievedAt": "2026-11-08",
+  "licence": "CC0-1.0 (fictional test data)",
+  "rows": [
+    {
+      "dimension": "damages_skepticism",
+      "level": "low",
+      "respondents": 30
+    },
+    {
+      "dimension": "damages_skepticism",
+      "level": "medium",
+      "respondents": 50
+    },
+    {
+      "dimension": "damages_skepticism",
+      "level": "high",
+      "respondents": 40
+    },
+    {
+      "dimension": "corporate_skepticism",
+      "level": "low",
+      "respondents": 20
+    },
+    {
+      "dimension": "corporate_skepticism",
+      "level": "medium",
+      "respondents": 45
+    },
+    {
+      "dimension": "corporate_skepticism",
+      "level": "high",
+      "respondents": 55
+    },
+    {
+      "dimension": "litigation_experience",
+      "level": "low",
+      "respondents": 70
+    },
+    {
+      "dimension": "litigation_experience",
+      "level": "medium",
+      "respondents": 35
+    },
+    {
+      "dimension": "litigation_experience",
+      "level": "high",
+      "respondents": 15
+    },
+    {
+      "dimension": "numeracy",
+      "level": "low",
+      "respondents": 25
+    },
+    {
+      "dimension": "numeracy",
+      "level": "medium",
+      "respondents": 55
+    },
+    {
+      "dimension": "numeracy",
+      "level": "high",
+      "respondents": 40
+    },
+    {
+      "dimension": "trust_in_experts",
+      "level": "low",
+      "respondents": 6
+    },
+    {
+      "dimension": "trust_in_experts",
+      "level": "medium",
+      "respondents": 10
+    },
+    {
+      "dimension": "trust_in_experts",
+      "level": "high",
+      "respondents": 8
+    }
+  ]
+}

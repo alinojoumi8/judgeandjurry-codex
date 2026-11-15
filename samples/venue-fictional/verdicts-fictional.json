@@ -1,0 +1,459 @@
+{
+  "name": "FICTIONAL verdict observations (sample, enough to analyse)",
+  "kind": "verdict_observations",
+  "source": "Fictional sample data written for TrialLens tests. Not real. Not from any survey, census, court or publication.",
+  "retrievedAt": "2026-11-08",
+  "licence": "CC0-1.0 (fictional test data)",
+  "rows": [
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2016,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "defence",
+      "awardCents": null,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-037"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2024,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 6600000,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-005"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2018,
+      "claimType": "product defect (fictional)",
+      "outcome": "defence",
+      "awardCents": null,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-042"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2013,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 9850000,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-010"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2020,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "no_verdict",
+      "awardCents": null,
+      "sourceType": "media_report",
+      "citation": "Fictional record A-047"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2015,
+      "claimType": "product defect (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 13100000,
+      "sourceType": "media_report",
+      "citation": "Fictional record A-015"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2017,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 16350000,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-020"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2019,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 19600000,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-025"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2021,
+      "claimType": "product defect (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 22850000,
+      "sourceType": "media_report",
+      "citation": "Fictional record A-030"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2023,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "defence",
+      "awardCents": null,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-035"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2018,
+      "claimType": "product defect (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 5300000,
+      "sourceType": "media_report",
+      "citation": "Fictional record A-003"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2012,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "defence",
+      "awardCents": null,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-040"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2020,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 8550000,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-008"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2014,
+      "claimType": "product defect (fictional)",
+      "outcome": "no_verdict",
+      "awardCents": null,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-045"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2022,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 11800000,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-013"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2016,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "no_verdict",
+      "awardCents": null,
+      "sourceType": "media_report",
+      "citation": "Fictional record A-050"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2024,
+      "claimType": "product defect (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 15050000,
+      "sourceType": "media_report",
+      "citation": "Fictional record A-018"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2013,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 18300000,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-023"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2015,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 21550000,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-028"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2017,
+      "claimType": "product defect (fictional)",
+      "outcome": "defence",
+      "awardCents": null,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-033"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2012,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 4000000,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-001"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2019,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "defence",
+      "awardCents": null,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-038"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2014,
+      "claimType": "product defect (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 7250000,
+      "sourceType": "media_report",
+      "citation": "Fictional record A-006"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2021,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "defence",
+      "awardCents": null,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-043"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2016,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 10500000,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-011"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2023,
+      "claimType": "product defect (fictional)",
+      "outcome": "no_verdict",
+      "awardCents": null,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-048"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2018,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 13750000,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-016"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2020,
+      "claimType": "product defect (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 17000000,
+      "sourceType": "media_report",
+      "citation": "Fictional record A-021"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2022,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 20250000,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-026"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2024,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "defence",
+      "awardCents": null,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-031"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2013,
+      "claimType": "product defect (fictional)",
+      "outcome": "defence",
+      "awardCents": null,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-036"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2021,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 5950000,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-004"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2015,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "defence",
+      "awardCents": null,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-041"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2023,
+      "claimType": "product defect (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 9200000,
+      "sourceType": "media_report",
+      "citation": "Fictional record A-009"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2017,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "no_verdict",
+      "awardCents": null,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-046"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2012,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 12450000,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-014"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2014,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 15700000,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-019"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2016,
+      "claimType": "product defect (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 18950000,
+      "sourceType": "media_report",
+      "citation": "Fictional record A-024"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2018,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 22200000,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-029"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2020,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "defence",
+      "awardCents": null,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-034"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2015,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 4650000,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-002"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2022,
+      "claimType": "product defect (fictional)",
+      "outcome": "defence",
+      "awardCents": null,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-039"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2017,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 7900000,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-007"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2024,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "defence",
+      "awardCents": null,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-044"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2019,
+      "claimType": "product defect (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 11150000,
+      "sourceType": "media_report",
+      "citation": "Fictional record A-012"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2013,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "no_verdict",
+      "awardCents": null,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-049"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2021,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 14400000,
+      "sourceType": "court_record",
+      "citation": "Fictional record A-017"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2023,
+      "claimType": "motor vehicle negligence (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 17650000,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-022"
+    },
+    {
+      "court": "Fictional County Superior Court",
+      "year": 2012,
+      "claimType": "product defect (fictional)",
+      "outcome": "plaintiff",
+      "awardCents": 20900000,
+      "sourceType": "media_report",
+      "citation": "Fictional record A-027"
+    },
+    {
+      "court": "Fictional District Court",
+      "year": 2014,
+      "claimType": "slip and fall (fictional)",
+      "outcome": "defence",
+      "awardCents": null,
+      "sourceType": "legal_database",
+      "citation": "Fictional record A-032"
+    }
+  ]
+}

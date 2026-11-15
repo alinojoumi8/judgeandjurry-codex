@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "status": "Proposed targets. They are NOT verified against a live model: no live provider has been run. A scripted client that returns the answer key proves the scorer works and nothing more.",
+  "targets": {
+    "chronology.eventRecall": 0.9,
+    "chronology.eventPrecision": 0.9,
+    "chronology.dateAccuracy": 0.9,
+    "chronology.conflictRecall": 0.9,
+    "chronology.conflictPrecision": 0.9,
+    "caseMap.itemRecall": 0.9,
+    "caseMap.itemPrecision": 0.9,
+    "caseMap.kindAccuracy": 0.9,
+    "caseMap.partyAccuracy": 0.9,
+    "caseMap.crossclaimDirection": 0.9,
+    "evidenceIndex.recordGapRecall": 0.9,
+    "evidenceIndex.recordGapPrecision": 0.9,
+    "experts.weaknessRecall": 0.9,
+    "experts.opinionRecall": 0.9,
+    "experts.qualificationAccuracy": 0.9
+  },
+  "chronologyConflictScope": {
+    "keyConflictIds": ["C1"],
+    "reason": "The chronology compares dates and times only (tests/chronology.test.ts: 'flags the planted conflict about the time of the fall and nothing else'). The other nine key topics are disagreements about substance, not about when something happened. They are listed in every report as out of scope and are not scored here."
+  },
+  "live": {
+    "maxCalls": 120,
+    "maxInputCharacters": 900000,
+    "maxElapsedMs": 900000,
+    "requestTimeoutMs": 60000,
+    "maxRetries": 1
+  }
+}

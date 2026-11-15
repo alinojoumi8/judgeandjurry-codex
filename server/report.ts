@@ -191,7 +191,7 @@ function list(items: string[]): string {
   return items.length > 0 ? items.map((item) => `- ${item}`).join('\n') : '- None recorded.'
 }
 
-function markdownToReportHtml(markdown: string, title: string): string {
+export function markdownToReportHtml(markdown: string, title: string, documentLabel = 'Judge & Jury Report'): string {
   const lines = markdown.split('\n')
   const body = lines
     .map((line) => {
@@ -219,7 +219,7 @@ function markdownToReportHtml(markdown: string, title: string): string {
     '<html lang="en">',
     '<head>',
     '<meta charset="utf-8" />',
-    `<title>${escapeHtml(title)} - Judge & Jury Report</title>`,
+    `<title>${escapeHtml(`${title} - ${documentLabel}`)}</title>`,
     '<style>',
     'body{font-family:Inter,Segoe UI,Arial,sans-serif;color:#1f2328;line-height:1.55;max-width:920px;margin:40px auto;padding:0 28px}',
     'h1{font-size:30px;line-height:1.15;margin:0 0 18px;color:#111318}',
@@ -245,7 +245,7 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
-function safeFilename(value: string): string {
+export function safeFilename(value: string): string {
   return value.replace(/[^a-z0-9._-]+/gi, '-').replace(/-+/g, '-').toLowerCase()
 }
 
