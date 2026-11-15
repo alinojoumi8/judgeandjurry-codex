@@ -6,13 +6,15 @@ work recoverable and make the next Git action explicit.
 
 ## Establish the current state
 
-Run each command separately from the intended checkout. Replace REMOTE_NAME with the branch's configured upstream remote. If there is no upstream, use the remote you intend to push to.
+Run each command separately from the intended checkout. Replace `REMOTE_NAME` with
+the branch's configured upstream remote. If there is no upstream, use the
+confirmed push destination.
 
 ```powershell
 git status --short
 git branch --show-current
 git worktree list
-git fetch --prune REMOTE_NAME
+git fetch --no-prune --no-prune-tags REMOTE_NAME
 git branch -vv
 ```
 
@@ -38,7 +40,7 @@ worktrees and existing stashes.
 | A coherent task-owned change is implemented and checked | Commit the named files now, before starting another change. |
 | Local-only commits exist and the upstream-only count is zero | Review the outgoing commits for private data, then push to that branch after applicable checks. |
 | The upstream-only count is greater than zero, including divergence | Reconcile first using an authorized fast-forward, merge or rebase as appropriate. Preserve dirty work and avoid rewriting shared history; do not force-push to hide divergence. |
-| A feature branch has no upstream | Confirm the destination and create its own GitHub branch with `git push -u origin HEAD`. |
+| A feature branch has no upstream | Confirm the destination and create its own GitHub branch with `git push -u REMOTE_NAME HEAD`. |
 | Work needs review or still has failing/unfinished acceptance checks | Push an appropriate checkpoint only within authorization; keep its PR draft and record the exact blockers. |
 | Current-head checks and CodeRabbit pass, and the requested behavior is complete | Recommend merging the PR into main; use existing merge authorization or request it. |
 | A branch's work is already integrated and no open PR/worktree depends on it | Recommend deletion locally and on GitHub; execute when cleanup is authorized. |
@@ -82,9 +84,10 @@ Use a clean checkout based on current main for selected publishable changes.
 ## Remove finished branches safely
 
 After fetching, verify the exact local and remote tips. An ancestor of the
-current main is integrated. A squash/rebuilt branch needs stronger proof: an
-identical Git tree at a commit contained in main, or a reviewed comparison that
-accounts for every change. A closed PR or an old date alone is insufficient.
+current main proves the branch was incorporated. For a squash or rebuilt branch,
+look for an identical tree at a commit contained in main or review the comparison
+to account for every change. Before recommending deletion, confirm the work is
+still present in current main and account for later reversions.
 
 Record branch names, tip SHAs and the proof before deletion. Preserve a local
 recoverable bundle when removing rewritten history. Check for open dependent
