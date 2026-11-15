@@ -2,14 +2,15 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ScriptedStructuredClient, type StructuredRequest } from '../server/analysis/structured'
+import { ScriptedStructuredClient, type StructuredModelClient, type StructuredRequest } from '../server/analysis/structured'
 import type { ModelProviderConfig } from '../server/minimax'
 import {
   assertLiveAllowed, buildLiveClient, BudgetedStructuredClient, evaluate, liveBudgetFromEnv, loadThresholds, runExtractionSuite, runFalseConflictProbe, sameRef,
-  scoreChronology, scoreEvidenceIndex, STANDING_STATEMENT, summaryLine, type MetricResult,
+  scoreChronology, scoreEvidenceIndex, scoreExperts, STANDING_STATEMENT, summaryLine, type MetricResult,
 } from '../scripts/intelligenceEvaluation'
+import { ExpertAssessmentService, type ExpertAssessmentContent } from '../server/analysis/expertAssessment'
 import { CaseStore } from '../server/db'
 import { ChronologyService, type ChronologyContent } from '../server/analysis/chronology'
 import { buildCivilWorld, intelligenceRouter, routedClient } from './intelligenceFixtures'
@@ -18,6 +19,7 @@ import { buildCivilWorld, intelligenceRouter, routedClient } from './intelligenc
 // passes, a deliberately wrong one fails every family of metrics, and the live path refuses before any request.
 
 const slow = 120_000
+const probeRequest = { task: 'x', promptVersion: 'x', schema: { safeParse: (value: unknown) => ({ success: true, data: value }) }, instructions: 'x', inputs: [{ id: 'a', text: 'b' }] } as unknown as StructuredRequest<unknown>
 const roots: string[] = []
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }) })
 
@@ -53,6 +55,31 @@ describe('the scorers can fail', () => {
     expect(degraded.metrics.find((item) => item.id === 'chronology.dateAccuracy')!.score).toBeLessThan(0.5)
   }, slow)
 
+  it('scores opinions and weaknesses only inside the matching expert’s record', async () => {
+    const store = new CaseStore(':memory:')
+    try {
+      const world = buildCivilWorld({}, store)
+      const evidence = store.listEvidence(world.matterId)
+      const artifact = await new ExpertAssessmentService(store, world.service).generate(world.matterId, {
+        client: routedClient(intelligenceRouter(world), 80),
+      })
+      const content = artifact.content as unknown as ExpertAssessmentContent
+      const [first, second, ...other] = content.items
+      expect(first.record.opinions.length).toBeGreaterThan(0)
+      expect(second.record.opinions.length).toBeGreaterThan(0)
+      const swapped = { ...content, items: [
+        { ...first, indicators: second.indicators, findings: second.findings, record: { ...first.record, opinions: second.record.opinions } },
+        { ...second, indicators: first.indicators, findings: first.findings, record: { ...second.record, opinions: first.record.opinions } },
+        ...other,
+      ] }
+      const recall = (input: ExpertAssessmentContent) => scoreExperts(input, evidence, thresholds).filter((metric) => metric.id !== 'experts.qualificationAccuracy')
+      expect(recall(content).map((metric) => metric.score)).toEqual([1, 1])
+      expect(recall(swapped).map((metric) => metric.passed)).toEqual([false, false])
+    } finally {
+      store.close()
+    }
+  })
+
   it('scores an empty chronology and an empty set of record gaps as failures, never as passes', () => {
     const world = buildCivilWorld({}, new CaseStore(':memory:'))
     const evidence = world.store.listEvidence(world.matterId)
@@ -70,6 +97,19 @@ describe('the scorers can fail', () => {
     const control = scoreChronology(content, evidence, thresholds)
     expect(control.filter((item) => !item.passed)).toEqual([])
     const extra = { ...content.items[0], id: 'extra', sources: [{ evidenceId: content.items[0].sources[0].evidenceId, paragraph: 1, quote: 'FICTIONAL TEST SOURCE' }] }
+    const [correctConflict] = content.conflicts
+    const unrelated = content.items.find((event) => !correctConflict.eventIds.includes(event.id) && event.type !== 'incident')!
+    expect(unrelated).toBeDefined()
+    const contaminated = scoreChronology({
+      ...content, conflicts: [{ ...correctConflict, eventIds: [...correctConflict.eventIds, unrelated.id] }],
+    }, evidence, thresholds)
+    expect(contaminated.find((item) => item.id === 'chronology.conflictPrecision')).toMatchObject({ numerator: 0, passed: false })
+    const wrongTopic = scoreChronology({
+      ...content, items: content.items.map((event) => ({ ...event, description: 'Solar telescopes studied a distant nebula.' })),
+    }, evidence, thresholds)
+    expect(wrongTopic.find((item) => item.id === 'chronology.eventRecall')).toMatchObject({ numerator: 0, passed: false })
+    expect(wrongTopic.find((item) => item.id === 'chronology.eventPrecision')).toMatchObject({ numerator: 0, passed: false })
+    expect(wrongTopic.find((item) => item.id === 'chronology.conflictRecall')).toMatchObject({ numerator: 0, passed: false })
     const withExtra = scoreChronology({ ...content, items: [...content.items, ...Array.from({ length: 10 }, (_, index) => ({ ...extra, id: `extra-${index}` }))] }, evidence, thresholds)
     expect(withExtra.find((item) => item.id === 'chronology.eventPrecision')!.passed).toBe(false)
     const withoutHalf = scoreChronology({ ...content, items: content.items.filter((_, index) => index % 2 === 0) }, evidence, thresholds)
@@ -163,6 +203,20 @@ describe('the refusal of an unsourced event stays visible', () => {
 })
 
 describe('the whole evaluation', () => {
+  it('keeps the scripted key results separate from live-mode totals with a fake provider', async () => {
+    const budget = { ...thresholds.live, maxCalls: 3 }
+    const client = new BudgetedStructuredClient(routedClient(() => ({}), 300), budget, 'local', false)
+    const report = await evaluate({ live: { client, provider: { name: 'fake', model: 'fixture', mode: 'local' }, budget } })
+    const liveMetrics = report.runs.find((run) => run.id === 'live')!.metrics
+    expect(report.runs.find((run) => run.id === 'key')?.allTargetsMet).toBe(true)
+    expect(liveMetrics.some((item) => !item.passed)).toBe(true)
+    expect(report.counts).toMatchObject({
+      metricsEvaluated: liveMetrics.length,
+      metricsPassed: liveMetrics.filter((item) => item.passed).length,
+      metricsFailed: liveMetrics.filter((item) => !item.passed).length,
+    })
+  }, slow)
+
   it('reports provider mode scripted, the exact settings, counts, the standing sentence, and passes', async () => {
     const report = await evaluate({ now: () => '2026-11-09T00:00:00.000Z' })
     expect(report).toMatchObject({ providerMode: 'scripted', provider: { name: 'injected-fixture', model: 'scripted' }, standingStatement: STANDING_STATEMENT, passed: true, failures: [] })
@@ -215,12 +269,49 @@ describe('live gating (nothing here makes a request)', () => {
     expect(() => liveBudgetFromEnv(thresholds, { EVAL_MAX_CALLS: '0' })).toThrow(/positive/)
   })
 
+  it('counts only the calls made by the live suite when using a fake provider', async () => {
+    const inner = routedClient(() => ({}), 300)
+    const client = new BudgetedStructuredClient(inner, { ...thresholds.live, maxCalls: 4 }, 'local', false)
+    await client.generate(probeRequest)
+    const outcome = await runExtractionSuite({ kind: 'live', thresholds, liveClient: client })
+    expect(client.usage().structuredCalls).toBe(4)
+    expect(outcome.modelCalls).toBe(3)
+  })
+
+  it('aborts an active request when the remaining evaluation time expires', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(0)
+    try {
+      const signals: AbortSignal[] = []
+      const inner: StructuredModelClient = {
+        generate(request) {
+          signals.push(request.signal!)
+          return new Promise(() => {})
+        },
+      }
+      const client = new BudgetedStructuredClient(inner, { ...thresholds.live, maxElapsedMs: 100 }, 'local', false)
+      clock.mockReturnValue(90)
+      const request = client.generate(probeRequest)
+      const assertion = expect(request).rejects.toThrow(/elapsed-time limit/)
+      vi.advanceTimersByTime(9)
+      expect(signals[0]?.aborted).toBe(false)
+      clock.mockReturnValue(100)
+      vi.advanceTimersByTime(1)
+      await assertion
+      expect(signals[0]?.aborted).toBe(true)
+      await expect(client.generate(probeRequest)).rejects.toThrow(/no provider call was made/)
+      expect(client.attempts.map((attempt) => attempt.status)).toEqual(['failed', 'budget_stopped'])
+    } finally {
+      clock.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
   it('stops at the call budget before the inner client is reached, and records the stop', async () => {
     const inner = new ScriptedStructuredClient([() => ({ ok: true })])
     const budgeted = new BudgetedStructuredClient(inner, { ...thresholds.live, maxCalls: 1 }, 'local', false)
-    const request = { task: 'x', promptVersion: 'x', schema: { safeParse: (value: unknown) => ({ success: true, data: value }) }, instructions: 'x', inputs: [{ id: 'a', text: 'b' }] } as unknown as StructuredRequest<unknown>
-    await budgeted.generate(request)
-    await expect(budgeted.generate(request)).rejects.toThrow(/resource limit reached; no provider call was made/)
+    await budgeted.generate(probeRequest)
+    await expect(budgeted.generate(probeRequest)).rejects.toThrow(/resource limit reached; no provider call was made/)
     expect(inner.calls).toHaveLength(1)
     expect(budgeted.attempts.map((attempt) => attempt.status)).toEqual(['passed', 'budget_stopped'])
   })

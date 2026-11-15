@@ -188,7 +188,7 @@ describe('the table across runs', () => {
     { runId: 'b', seed: 'b', status: 'completed', jurorIds: jurors, issues: [issue], ballots: ballots([P, P, P, N, N, N], [P, P, P, N, N, N]), decisions: [{ issueId: 'claim', outcome: 'no_decision', complete: false, rule: '5 of 6' }] },
     { runId: 'c', seed: 'c', status: 'running', jurorIds: jurors, issues: [issue], ballots: [] },
   ])
-  const response: DeliberationTableResponse = { matterId: 'm', simulated: true, label: forecastLabel, algorithmVersion: deliberationAlgorithmVersion, filters: {}, runsRead: 3, runsWithStrawPolls: 1, table }
+  const response: DeliberationTableResponse = { matterId: 'm', simulated: true, label: forecastLabel, algorithmVersion: deliberationAlgorithmVersion, filters: {}, runsRead: 2, runsWithStrawPolls: 1, table }
 
   it('shows how initial splits turned into final outcomes and how often each final split occurred', async () => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
@@ -200,7 +200,7 @@ describe('the table across runs', () => {
     const [transitions, splits] = [...element.querySelectorAll('table')]
     expect(rows(transitions!)).toEqual([['3 of 6', '1', '0', '0', '1'], ['4 of 6', '1', '1', '0', '0']])
     expect(rows(splits!)).toEqual([['3 of 6', '1', '50%'], ['5 of 6', '1', '50%']])
-    expect(element.textContent).toMatch(/3 completed jury runs read \(1 with straw polls\)/)
+    expect(element.textContent).toMatch(/2 completed jury runs read \(1 with straw polls\)/)
     expect(element.textContent).toMatch(/Counts of simulated runs, not real verdict probabilities/)
     expect(element.textContent).toMatch(/1 left out/)
     expect(element.textContent).not.toMatch(/juror-0/)

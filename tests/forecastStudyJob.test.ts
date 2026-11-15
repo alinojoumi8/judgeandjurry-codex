@@ -7,6 +7,7 @@ import { forecastLabel, type ForecastContent } from '../server/analysis/forecast
 import { NOT_YET_TESTED_SENTENCE } from '../server/forecast/winRates'
 import { estimateRunCalls } from '../src/runEstimate'
 import type { CaseStore } from '../server/db'
+import { addSource } from './analysisFixtures'
 import { expectedJurorShare, forecastWorld, PlantedModel, runStudy, strongExhibit, weakExhibit, type ForecastWorld } from './forecastFixtures'
 
 const stores: CaseStore[] = []
@@ -128,6 +129,57 @@ describe('forecast study: what is stored and pinned', () => {
     expect(again.contentHash).toBe(first.artifact.contentHash)
   })
 
+  it('saves the original model when a different model is approved during the last run', async () => {
+    const world = forecastWorld(stores, { evidence: [strongExhibit] })
+    const workflow = new CaseWorkflowService(world.store)
+    let revised: ReturnType<CaseWorkflowService['approveCaseModel']> | undefined
+    world.scripted.beforeCall = () => {
+      if (!revised && world.store.workflow.listTrialRuns(world.matterId).length === 2) {
+        revised = workflow.approveCaseModel(workflow.reviseCaseModel(world.model.id, { unresolved: ['Approved while running.'] }).id)
+      }
+    }
+    const { job } = await runStudy(world, { runs: 2 })
+    expect(revised?.id).not.toBe(world.model.id)
+    expect(revised).toBeDefined()
+    expect(job.status).toBe('succeeded')
+    const draft = world.forecast.view(world.matterId).draft!
+    expect(job.resultArtifactIds).toEqual([draft.artifact.id])
+    expect(draft.artifact).toMatchObject({ caseModelId: world.model.id, inputManifest: { caseModelVersion: world.model.version } })
+    expect(draft.freshness.reasons.join(' ')).toMatch(/case model has changed/)
+    expect(draft.content.completedRuns).toBe(2)
+  })
+
+  it('keeps the completed runs’ evidence when later documents are added or earlier ones archived', async () => {
+    const world = forecastWorld(stores)
+    const original = addSource(world.store, world.matterId, strongExhibit.name, strongExhibit.text)
+    const { params } = await runStudy(world, { runs: 2 })
+    const baseline = world.forecast.view(world.matterId).draft!.artifact.inputManifest.evidenceHashes
+    expect(baseline).toEqual([original.sha256])
+    const later = addSource(world.store, world.matterId, 'later.txt', 'A fictional source that arrived afterward.')
+    world.store.archiveEvidence(original.id)
+    const artifact = world.forecast.computeAndSave(world.matterId, params)!
+    expect(artifact.inputManifest.evidenceHashes).toEqual(baseline)
+    expect(artifact.inputManifest.evidenceHashes).not.toContain(later.sha256)
+    expect(world.forecast.view(world.matterId).draft!.freshness.reasons.join(' ')).toMatch(/no longer current evidence.*added/)
+  })
+
+  it('rejects incompatible completed runs before resuming or saving a forecast', async () => {
+    const world = forecastWorld(stores, { evidence: [strongExhibit] })
+    const { job, params } = await runStudy(world, { runs: 2 })
+    expect(job.status).toBe('succeeded')
+    const calls = world.scripted.count
+    const changeMode = { ...params, mode: 'full' as const }
+    expect(world.forecast.plan(world.matterId, changeMode)).toMatchObject({
+      existingRuns: 0, blockers: [expect.stringMatching(/different settings/)],
+    })
+    expect(() => world.forecast.computeAndSave(world.matterId, changeMode)).toThrow(/different settings/)
+    expect(() => world.forecast.computeAndSave(world.matterId, { ...params, ballotContractV2: true })).toThrow(/different settings/)
+    const resumed = await runStudy(world, changeMode)
+    expect(resumed.job.status).toBe('failed')
+    expect(world.scripted.count).toBe(calls)
+    expect(contentOf(world)).toMatchObject({ mode: 'screen', completedRuns: 2 })
+  })
+
   it('reproduces from the seed alone: a new matter with the same inputs and seed gives the same numbers', async () => {
     const a = forecastWorld(stores, { evidence: [strongExhibit] })
     const b = forecastWorld(stores, { evidence: [strongExhibit] })
@@ -149,7 +201,7 @@ describe('forecast study: resumes after an interruption', () => {
       if (providerDown && runs === 3 && request.stage !== 'juror_ballot') throw new Error('The scripted provider went away.')
     }
     const { job, params } = await runStudy(world, { runs: 5 })
-    expect(job).toMatchObject({ status: 'failed', usage: { calls: 2 * 68 } })
+    expect(job).toMatchObject({ status: 'failed', usage: { calls: 3 * 68, tokens: 3 * 6800 } })
     expect(job.error).toMatch(/scripted provider went away/)
     const afterFailure = world.store.workflow.listTrialRuns(world.matterId)
     expect(afterFailure.map((run) => run.status).sort()).toEqual(['completed', 'completed', 'failed'])
@@ -158,7 +210,16 @@ describe('forecast study: resumes after an interruption', () => {
     expect(world.forecast.view(world.matterId).current).toBeNull()
 
     providerDown = false
-    const resumed = world.jobs.resume(world.matterId, job.id)
+    const callsAfterFailure = world.scripted.count
+    world.jobs.resume(world.matterId, job.id, { maxCalls: 4 * 68 - 1 })
+    await world.jobs.whenIdle()
+    expect(world.jobs.get(world.matterId, job.id)).toMatchObject({
+      status: 'stopped_at_cap', usage: { calls: 3 * 68 },
+    })
+    expect(world.scripted.count).toBe(callsAfterFailure)
+    expect(contentOf(world)).toMatchObject({ completedRuns: 2, complete: false })
+
+    const resumed = world.jobs.resume(world.matterId, job.id, { maxCalls: 6 * 68 })
     expect(['queued', 'running']).toContain(resumed.status)
     await world.jobs.whenIdle()
     const done = world.jobs.get(world.matterId, job.id)
@@ -171,8 +232,29 @@ describe('forecast study: resumes after an interruption', () => {
     const content = contentOf(world)
     expect(content).toMatchObject({ completedRuns: 5, requestedRuns: 5, complete: true })
     expect(content.runs.map((run) => run.seed)).toEqual(Array.from({ length: 5 }, (_, index) => `${params.seed}:run-00${index + 1}`))
-    expect(done.usage.calls).toBe(5 * 68)
+    expect(done.usage.calls).toBe(6 * 68)
   }, slow)
+
+  it('refuses additional panels when a resumed seed is pinned to an older model', async () => {
+    const world = forecastWorld(stores, { evidence: [strongExhibit] })
+    world.scripted.beforeCall = () => {
+      if (world.store.workflow.listTrialRuns(world.matterId).length === 2) throw new Error('Interrupted for the model change test.')
+    }
+    const { job } = await runStudy(world, { runs: 2 })
+    expect(job.status).toBe('failed')
+    const stored = world.store.workflow.listTrialRuns(world.matterId)
+    expect(stored.find((run) => run.status === 'completed')?.caseModelId).toBe(world.model.id)
+
+    const workflow = new CaseWorkflowService(world.store)
+    workflow.approveCaseModel(workflow.reviseCaseModel(world.model.id, { unresolved: ['Changed after interruption.'] }).id)
+    world.scripted.beforeCall = undefined
+    const calls = world.scripted.count
+    world.jobs.resume(world.matterId, job.id)
+    await world.jobs.whenIdle()
+    expect(world.jobs.get(world.matterId, job.id)).toMatchObject({ status: 'failed', error: expect.stringMatching(/pinned to a different case model/) })
+    expect(world.scripted.count).toBe(calls)
+    expect(world.store.workflow.listTrialRuns(world.matterId)).toEqual(stored)
+  })
 
   it('refuses to start a second study on a seed that is already waiting or running', async () => {
     const world = forecastWorld(stores)

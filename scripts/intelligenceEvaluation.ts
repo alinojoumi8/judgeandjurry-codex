@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { performance } from 'node:perf_hooks'
 
 import type { CaseMapContent } from '../server/analysis/caseMapTypes'
-import { ChronologyService, type ChronologyContent, type ChronologyEvent } from '../server/analysis/chronology'
+import { ChronologyService, canMatchDescriptions, descriptionOverlap, type ChronologyContent, type ChronologyEvent } from '../server/analysis/chronology'
 import { countsAsEvidence, entryTypes, EvidenceIndexService, evidenceAssertions, indexAssertions } from '../server/analysis/evidenceIndex'
 import { buildForecastReport } from '../server/analysis/forecastExport'
 import { forecastLabel } from '../server/analysis/forecastTypes'
@@ -26,7 +26,7 @@ import { caseMapRouter, caseMapWorld, pleadingKey, type Router as CaseMapRouter 
 import { forecastWorld, runStudy } from '../tests/forecastFixtures'
 import { runStyleStudy, styleWorld } from '../tests/styleFixtures'
 import { planClient, planWorld } from '../tests/improvementPlanFixtures'
-import { answerKey, buildCivilWorld, civilText, documentOf, intelligenceRouter, routedClient, type Router } from '../tests/intelligenceFixtures'
+import { answerKey, buildCivilWorld, civilText, documentOf, fallDescription, intelligenceRouter, routedClient, type Router } from '../tests/intelligenceFixtures'
 
 // Scripted evaluation of the case intelligence features. It scores what the REAL services produce from a scripted
 // structured client against the labelled answer key in samples/civil-negligence/answer-key.json. Fixtures establish
@@ -100,12 +100,26 @@ const refsOf = (evidence: readonly EvidenceItem[], sources: ReadonlyArray<{ evid
 export function scoreChronology(content: ChronologyContent, evidence: readonly EvidenceItem[], thresholds: Thresholds): MetricResult[] {
   const events = content.items.map((event: ChronologyEvent) => ({ event, refs: refsOf(evidence, event.sources) }))
   const keyRefs: Ref[][] = answerKey.chronology.map((entry) => entry.sources.map((source) => ({ file: source.file, quote: source.quote })))
-  // An output event is correct when it cites a passage the key lists, for an event or for a side of a key conflict.
-  const referenceRefs: Ref[] = [...keyRefs.flat(), ...answerKey.conflicts.flatMap((conflict) => conflict.sides.map((side) => ({ file: side.file, quote: side.quote })))]
-
-  const found = answerKey.chronology.map((entry, index) => ({ entry, matched: events.filter((candidate) => anyShared(candidate.refs, keyRefs[index])) }))
+  // Check the labelled event topic in addition to its citation. Token overlap is a fixture
+  // scoring rule for paraphrases and can only approximate proposition correctness.
+  const topicMatches = (actual: string, expected: string) => {
+    if (!canMatchDescriptions(actual, expected)) return false
+    const overlap = descriptionOverlap(actual, expected)
+    return norm(actual) === norm(expected) || (overlap.shared >= 2 && overlap.ratio >= 0.5)
+  }
+  const fallIds = new Set(['CH08', 'CH09', 'CH10'])
+  const found = answerKey.chronology.map((entry, index) => ({
+    entry,
+    matched: events.filter(({ event, refs }) => event.type === entry.type && anyShared(refs, keyRefs[index])
+      && (topicMatches(event.description, entry.description) || (fallIds.has(entry.id) && topicMatches(event.description, fallDescription)))),
+  }))
   const recalled = found.filter((item) => item.matched.length > 0)
-  const correct = events.filter((candidate) => anyShared(candidate.refs, referenceRefs))
+  const matchedEvents = new Set(found.flatMap((item) => item.matched))
+  const conflictTopicMatches = (event: ChronologyEvent, conflict: (typeof answerKey.conflicts)[number]) =>
+    conflict.id === 'C1' ? event.type === 'incident' && topicMatches(event.description, fallDescription)
+      : conflict.sides.some((side) => topicMatches(event.description, side.says))
+  const correct = events.filter((candidate) => matchedEvents.has(candidate) || answerKey.conflicts.some((conflict) =>
+    conflictTopicMatches(candidate.event, conflict) && anyShared(candidate.refs, conflict.sides)))
   const dateOk = recalled.filter(({ entry, matched }) => matched.some(({ event }) => {
     if (entry.when.precision === 'unknown') return event.when.precision === 'unknown' && event.when.start === undefined
     return event.when.precision === entry.when.precision && event.when.start === entry.when.start
@@ -117,8 +131,15 @@ export function scoreChronology(content: ChronologyContent, evidence: readonly E
   const byId = new Map(events.map((candidate) => [candidate.event.id, candidate]))
   // A flagged conflict matches a key conflict when its members cite the sides of that conflict in two different documents.
   const covers = (flagged: ChronologyContent['conflicts'][number], conflict: (typeof scoped)[number]) => {
-    const members = flagged.eventIds.flatMap((id) => byId.get(id)?.refs ?? [])
-    const files = new Set(conflictSideRefs(conflict).filter((side) => members.some((member) => sameRef(member, side))).map((side) => side.file))
+    const sides = conflictSideRefs(conflict)
+    const files = new Set<string>()
+    for (const id of flagged.eventIds) {
+      const member = byId.get(id)
+      if (!member || !conflictTopicMatches(member.event, conflict) || !anyShared(member.refs, sides)) return false
+      for (const side of sides) {
+        if (member.refs.some((ref) => sameRef(ref, side))) files.add(side.file)
+      }
+    }
     return files.size >= 2
   }
   const conflictsFound = scoped.filter((conflict) => content.conflicts.some((flagged) => covers(flagged, conflict)))
@@ -172,15 +193,19 @@ export function scoreEvidenceIndex(coverage: IndexInputs, evidence: readonly Evi
 }
 
 export function scoreExperts(content: ExpertAssessmentContent, evidence: readonly EvidenceItem[], thresholds: Thresholds): MetricResult[] {
-  const cited = content.items.flatMap((item) => [...item.indicators.flatMap((indicator) => indicator.basis), ...item.findings.flatMap((finding) => finding.basis)])
-  const citedRefs = refsOf(evidence, cited)
-  const weaknesses = answerKey.experts.flatMap((expert) => expert.plantedWeaknesses.map((weakness) => ({ expert: expert.id, weakness })))
-  const weaknessesFound = weaknesses.filter(({ weakness }) => citedRefs.some((ref) => sameRef(ref, { file: weakness.file, quote: weakness.quote })))
-  const opinionRefs = refsOf(evidence, content.items.flatMap((item) => item.record.opinions.flatMap((opinion) => opinion.sources)))
+  const matchedExperts = answerKey.experts.map((expert) => ({ expert, item: content.items.find((item) => item.record.name === expert.name) }))
+  const weaknesses = matchedExperts.flatMap(({ expert, item }) => {
+    const cited = item ? [...item.indicators.flatMap((indicator) => indicator.basis), ...item.findings.flatMap((finding) => finding.basis)] : []
+    const refs = refsOf(evidence, cited)
+    return expert.plantedWeaknesses.map((weakness) => ({ expert: expert.id, weakness, found: refs.some((ref) => sameRef(ref, weakness)) }))
+  })
+  const weaknessesFound = weaknesses.filter(({ found }) => found)
   const opinions = answerKey.experts.flatMap((expert) => expert.opinions)
-  const opinionsFound = opinions.filter((opinion) => opinionRefs.some((ref) => sameRef(ref, { file: opinion.file, quote: opinion.quote })))
-  const qualifications = answerKey.experts.map((expert) => ({ expert, record: content.items.find((item) => item.record.name === expert.name)?.record }))
-  const qualificationsOk = qualifications.filter((item) => item.record && item.record.qualificationsStated === item.expert.qualificationsStated)
+  const opinionsFound = matchedExperts.flatMap(({ expert, item }) => {
+    const refs = refsOf(evidence, item?.record.opinions.flatMap((opinion) => opinion.sources) ?? [])
+    return expert.opinions.filter((opinion) => refs.some((ref) => sameRef(ref, { file: opinion.file, quote: opinion.quote })))
+  })
+  const qualificationsOk = matchedExperts.filter(({ expert, item }) => item && item.record.qualificationsStated === expert.qualificationsStated)
   return [
     metric('experts.weaknessRecall', thresholds, weaknessesFound.length, weaknesses.length, `missed: ${weaknesses.filter((item) => !weaknessesFound.includes(item)).map((item) => `${item.expert}: ${item.weakness.description}`).join(' | ') || 'none'}`),
     metric('experts.opinionRecall', thresholds, opinionsFound.length, opinions.length),
@@ -281,13 +306,14 @@ export function degradedCaseMap(router: CaseMapRouter): CaseMapRouter {
 export async function runExtractionSuite(options: {
   kind: ClientKind
   thresholds: Thresholds
-  liveClient?: StructuredModelClient
+  liveClient?: BudgetedStructuredClient
 }): Promise<SuiteOutcome> {
   const { kind, thresholds } = options
   const failures: string[] = []
   const metrics: MetricResult[] = []
   const counts = { chronologyEvents: 0, chronologyConflicts: 0, caseMapItems: 0, recordGaps: 0, expertRecords: 0, rejected: 0 }
   let modelCalls = 0
+  const initialLiveCalls = options.liveClient?.usage().structuredCalls ?? 0
   const stores: CaseStore[] = []
   const open = (): CaseStore => { const store = new CaseStore(':memory:'); stores.push(store); return store }
   const step = async (name: string, action: () => Promise<void>) => {
@@ -343,6 +369,7 @@ export async function runExtractionSuite(options: {
   } finally {
     for (const store of stores) { try { store.close() } catch { /* already closed */ } }
   }
+  if (options.liveClient) modelCalls = options.liveClient.usage().structuredCalls - initialLiveCalls
   return { metrics, failures, modelCalls, counts }
 }
 
@@ -612,19 +639,39 @@ export class BudgetedStructuredClient implements StructuredModelClient {
 
   async generate<T>(request: StructuredRequest<T>): Promise<StructuredResult<T>> {
     const length = request.inputs.reduce((total, input) => total + input.text.length, 0) + request.instructions.length
-    if (this.calls >= this.budget.maxCalls || this.characters + length > this.budget.maxInputCharacters || performance.now() - this.started > this.budget.maxElapsedMs) {
+    const start = performance.now()
+    const remainingMs = this.budget.maxElapsedMs - (start - this.started)
+    if (this.calls >= this.budget.maxCalls || this.characters + length > this.budget.maxInputCharacters || remainingMs <= 0) {
       this.attempts.push({ task: request.task, status: 'budget_stopped', elapsedMs: 0, error: 'Evaluation resource limit reached.' })
       throw new Error('Evaluation resource limit reached; no provider call was made.')
     }
+    request.signal?.throwIfAborted()
     this.calls += 1; this.characters += length
-    const start = performance.now()
+    const deadline = new AbortController()
+    const expired = new Error('Evaluation elapsed-time limit reached during the provider call.')
+    const timer = setTimeout(() => deadline.abort(expired), Math.ceil(remainingMs))
+    const signal = request.signal ? AbortSignal.any([request.signal, deadline.signal]) : deadline.signal
+    let rejectOnAbort!: () => void
+    const aborted = new Promise<never>((_, reject) => {
+      rejectOnAbort = () => reject(signal.reason)
+    })
     try {
-      const result = await this.inner.generate({ ...request, disclosure: { providerMode: this.mode, externalDisclosureConfirmed: this.confirmed } })
+      signal.addEventListener('abort', rejectOnAbort, { once: true })
+      const result = await Promise.race([
+        aborted,
+        this.inner.generate({ ...request, signal, disclosure: { providerMode: this.mode, externalDisclosureConfirmed: this.confirmed } }),
+      ])
+      if (performance.now() - this.started >= this.budget.maxElapsedMs) deadline.abort(expired)
+      signal.throwIfAborted()
       this.attempts.push({ task: request.task, status: 'passed', elapsedMs: performance.now() - start })
       return result
     } catch (error) {
-      this.attempts.push({ task: request.task, status: 'failed', elapsedMs: performance.now() - start, error: error instanceof StructuredModelError ? `${error.category}: ${error.message}` : String(error) })
-      throw error
+      const failure = deadline.signal.aborted ? expired : error
+      this.attempts.push({ task: request.task, status: 'failed', elapsedMs: performance.now() - start, error: failure instanceof StructuredModelError ? `${failure.category}: ${failure.message}` : String(failure) })
+      throw failure
+    } finally {
+      signal.removeEventListener('abort', rejectOnAbort)
+      clearTimeout(timer)
     }
   }
 
@@ -701,8 +748,7 @@ export async function evaluate(options: {
   const invariants = await runInvariants()
   for (const item of invariants.filter((candidate) => !candidate.passed)) failures.push(`${item.id} failed: ${item.checks.filter((check) => !check.passed).map((check) => check.name).join('; ')}`)
 
-  const scoredRuns = runs.filter((run) => run.expectedToPass)
-  const metricRows = scoredRuns.flatMap((run) => run.metrics)
+  const metricRows = runs.find((run) => run.id === (options.live ? 'live' : 'key'))?.metrics ?? []
   return {
     schemaVersion: 1,
     createdAt: (options.now ?? (() => new Date().toISOString()))(),

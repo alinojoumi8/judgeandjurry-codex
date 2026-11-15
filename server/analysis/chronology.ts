@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { canonicalJson } from './hash'
 import type { CaseStore } from '../db'
 import type { CaseWorkflowService } from '../caseWorkflow'
 import { normalize, sourceParagraphs } from '../grounding'
@@ -184,11 +185,17 @@ export function checkWhen(when: ChronologyWhen, cited: readonly CitedSource[]): 
     return unknown('The date was left unknown because the cited passage does not state this date.')
   }
   const times = new Set(paragraphs.flatMap((text) => [...extractTimes(text)]))
-  if (when.start.length === 16 && !times.has(when.start.slice(11))) {
-    const day = when.start.slice(0, 10)
+  const supportedTime = (value: string) => value.length !== 16 || times.has(value.slice(11))
+  if (values.some((value) => !supportedTime(value))) {
+    const warnings = ['The time of day was dropped because the cited passage does not state it.']
+    if (when.precision === 'range') {
+      const [start, end] = values.map((value) => supportedTime(value) ? value : datePart(value))
+      // A day-only end on the same date must not sort before a time on that day.
+      return { when: { ...when, start: end < start ? datePart(start) : start, end }, warnings }
+    }
     return {
-      when: { precision: when.precision === 'approximate' ? 'approximate' : 'day', start: day, original: when.original },
-      warnings: ['The time of day was dropped because the cited passage does not state it.'],
+      when: { precision: when.precision === 'approximate' ? 'approximate' : 'day', start: datePart(when.start), original: when.original },
+      warnings,
     }
   }
   return { when: { ...when }, warnings: [] }
@@ -217,7 +224,14 @@ export function descriptionOverlap(a: string, b: string): { ratio: number; share
 }
 
 const mergeRatio = 0.6
+const explicitNegation = /\b(?:no|not|never|neither|nor|without|cannot|unable|deny|denies|denied)\b|n['’]t\b/i
 const conflictRatio = 0.6
+
+// Similar words can carry opposite claims. Require the same wording if either
+// description contains an explicit denial or negation.
+export function canMatchDescriptions(a: string, b: string): boolean {
+  return normalize(a) === normalize(b) || (!explicitNegation.test(a) && !explicitNegation.test(b))
+}
 
 type Draft = Omit<ChronologyEvent, 'id' | 'conflictsWith'>
 
@@ -236,6 +250,7 @@ export function mergeDrafts(drafts: readonly Draft[]): Draft[] {
     const key = dateKey(draft.when)
     const into = key === undefined ? undefined : merged.find((candidate) => {
       if (dateKey(candidate.when) !== key || candidate.assertion !== draft.assertion) return false
+      if (!canMatchDescriptions(candidate.description, draft.description)) return false
       const overlap = descriptionOverlap(candidate.description, draft.description)
       return overlap.ratio >= mergeRatio && overlap.shared >= 2
     })
@@ -272,7 +287,11 @@ function sameEventKey(a: string | undefined, b: string | undefined): boolean {
 // Flags events that look like one event but carry different dates. Ids are
 // assigned here in date order, so the same input always gives the same ids.
 export function flagConflicts(drafts: readonly Draft[]): { events: ChronologyEvent[]; conflicts: ChronologyConflict[] } {
-  const events: ChronologyEvent[] = drafts.map((draft, index) => ({ ...draft, id: `evt-${String(index + 1).padStart(3, '0')}`, conflictsWith: [] }))
+  return refreshConflicts(drafts.map((draft, index) => ({ ...draft, id: `evt-${String(index + 1).padStart(3, '0')}`, conflictsWith: [] })))
+}
+
+function refreshConflicts(items: readonly ChronologyEvent[]): ReturnType<typeof flagConflicts> {
+  const events: ChronologyEvent[] = items.map((event) => ({ ...event, conflictsWith: [] }))
   const parent = events.map((_, index) => index)
   const find = (index: number): number => (parent[index] === index ? index : (parent[index] = find(parent[index])))
   for (let i = 0; i < events.length; i += 1) {
@@ -529,9 +548,17 @@ export class ChronologyService {
       next = { ...event, review: input.action === 'accept' ? 'accepted' : input.action === 'reject' ? 'rejected' : 'proposed' }
     }
     const items = content.items.map((candidate, position) => (position === index ? next : candidate))
+    const recomputed = input.action === 'edit' ? refreshConflicts(items) : { events: items, conflicts: content.conflicts }
+    if (content.readings && (input.action === 'edit' || next.review !== event.review)) {
+      const { readings } = content
+      const items = readings.items.filter((item) => item.eventId !== eventId)
+      const skipped = readings.skipped.filter((item) => item.eventId !== eventId)
+      const failed = readings.failed.filter((item) => item.eventId !== eventId)
+      content.readings = items.length || skipped.length || failed.length ? { ...readings, items, skipped, failed } : undefined
+    }
     const saved = this.analysis.saveDraft<ChronologyContent>({
       matterId, kind: 'chronology', caseModelId: latest.caseModelId, inputManifest: latest.inputManifest,
-      content: { ...content, items, reviewLog: [...content.reviewLog, { eventId, action: input.action, ...(input.note ? { note: input.note } : {}) }] },
+      content: { ...content, items: recomputed.events, conflicts: recomputed.conflicts, reviewLog: [...content.reviewLog, { eventId, action: input.action, ...(input.note ? { note: input.note } : {}) }] },
       rejected: latest.rejected,
     })
     return this.viewOf(matterId, saved)
@@ -546,8 +573,11 @@ export class ChronologyService {
   // The only way later features read events: accepted events of the approved
   // chronology, through the approved-artifact read path.
   acceptedEvents(matterId: string): ChronologyEvent[] {
-    const approved = this.analysis.approvedFor({ role: 'owner' }, matterId, 'chronology')[0] as AnalysisArtifact<ChronologyContent> | undefined
-    return (approved?.content.items ?? []).filter((event) => event.review === 'accepted')
+    return (this.approvedChronology(matterId)?.content.items ?? []).filter((event) => event.review === 'accepted')
+  }
+
+  private approvedChronology(matterId: string): AnalysisArtifact<ChronologyContent> | undefined {
+    return this.analysis.approvedFor({ role: 'owner' }, matterId, 'chronology')[0] as AnalysisArtifact<ChronologyContent> | undefined
   }
 
   keyFacts(matterId: string, limit = 10): KeyFact[] {
@@ -576,8 +606,9 @@ export class ChronologyService {
       issueIds: event.issueIds.filter((id) => base.decisionIssues.some((issue) => issue.id === id)),
       supporting: event.sources.map(refOf),
       contradicting: opposing.flatMap((other) => other.sources.map(refOf)),
-      // A conflict means the record does not settle it. A statement of what was alleged or said is not a fact either.
-      attribution: event.conflictsWith.length ? 'unresolved' : event.assertion === 'inference' ? 'inferred' : 'source',
+      // Checked sources preserve what was alleged or said. The proposition remains disputed.
+      attribution: event.conflictsWith.length || event.assertion === 'allegation' || event.assertion === 'testimony'
+        ? 'unresolved' : event.assertion === 'inference' ? 'inferred' : 'source',
     }
     return this.workflow.reviseCaseModel(base.id, { disputedFacts: [...base.disputedFacts, fact] })
   }
@@ -594,9 +625,18 @@ export class ChronologyService {
     if (!latest) throw new ChronologyError('There is no chronology to add readings to.', 404)
     const ledger = matterLedger(this.store, matterId)
     if (!ledger) throw new ChronologyError('Save the matter\'s admission (source-use) settings first. With no ruling on record, nothing is admitted and there is nothing to base a juror reading on.', 409)
-    const facts = this.keyFacts(matterId, options.maxFacts ?? 10)
+    const approved = this.approvedChronology(matterId)
+    const facts = rankKeyFacts((approved?.content.items ?? []).filter((event) => event.review === 'accepted'), options.maxFacts ?? 10)
     if (!facts.length) throw new ChronologyError('There are no accepted key facts in an approved chronology to write readings for.', 409)
-    const visible = jurorVisibleEvidence(this.store, matterId, ledger)
+    const draftEvents = new Map(latest.content.items.map((event) => [event.id, event]))
+    if (facts.some(({ event }) => canonicalJson(draftEvents.get(event.id)) !== canonicalJson(event))) {
+      throw new ChronologyError('The latest chronology draft changes an approved key fact. Review and approve the draft before writing readings.', 409)
+    }
+    const assertCurrentLedger = () => {
+      if (matterLedger(this.store, matterId)?.id !== ledger.id) {
+        throw new ChronologyError('The admission settings changed while readings were being written. Review the new settings and try again.', 409)
+      }
+    }
     const profile = this.analysis.approvedFor({ role: 'owner' }, matterId, 'jury_profile')[0]
     const lenses = profile && Array.isArray((profile.content as { lenses?: unknown })?.lenses)
       ? ((profile.content as { lenses: unknown[] }).lenses.filter((lens): lens is string => typeof lens === 'string')) : []
@@ -605,6 +645,8 @@ export class ChronologyService {
     const skipped: ReadingsContent['skipped'] = []
     const failed: ReadingsContent['failed'] = []
     for (const fact of facts) {
+      assertCurrentLedger()
+      const visible = jurorVisibleEvidence(this.store, matterId, ledger)
       const passages = fact.event.sources.flatMap((ref) => {
         const admitted = visible.find((item) => item.id === ref.evidenceId)
         const part = admitted && sourceParagraphs(admitted).find((candidate) => candidate.paragraph === ref.paragraph)
@@ -627,9 +669,14 @@ export class ChronologyService {
         failed.push({ eventId: fact.eventId, reason: error instanceof StructuredModelError ? `The model step failed (${error.category}).` : 'The step failed unexpectedly.' })
       }
     }
+    assertCurrentLedger()
     const readings: ReadingsContent = {
       admissionLedgerId: ledger.id, basis: lenses.length ? 'venue-based' : 'not venue-based',
       ...(lenses.length && profile ? { juryProfileHash: profile.contentHash } : {}), label: readingsLabel, items, skipped, failed,
+    }
+    const current = artifactViews<ChronologyContent>(this.analysis, matterId, 'chronology')
+    if (current.latest?.id !== latest.id || this.approvedChronology(matterId)?.id !== approved?.id) {
+      throw new ChronologyError('The chronology changed while readings were being written. Review the latest chronology and try again.', 409)
     }
     return this.analysis.saveDraft<ChronologyContent>({
       matterId, kind: 'chronology', caseModelId: latest.caseModelId, inputManifest: latest.inputManifest,

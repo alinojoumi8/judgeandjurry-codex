@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 
+import { canonicalJson } from './hash'
 import type { CaseStore } from '../db'
 import type { FrameworkService } from '../frameworks/service'
 import { blockers as frameworkBlockers } from '../frameworks/schema'
@@ -165,7 +166,16 @@ export class ForecastService {
 
   plan(matterId: string, params: ForecastJobParams): ForecastPlan {
     const resolved = this.resolve(matterId, params)
-    const existing = resolved.model ? this.studyRuns(matterId, resolved.model.id, params).filter((run) => run.status === 'completed').length : 0
+    const { model, framework } = resolved
+    let existing = 0
+    if (model && framework) {
+      try {
+        existing = this.studyRuns(matterId, model, framework, params).filter((run) => run.status === 'completed').length
+      } catch (error) {
+        if (!(error instanceof ForecastError)) throw error
+        resolved.blockers.push(error.message)
+      }
+    }
     return {
       blockers: resolved.blockers, panelSize: resolved.framework?.panelSize ?? null, threshold: resolved.framework?.threshold ?? null,
       ruleText: resolved.framework?.ruleText ?? null,
@@ -189,9 +199,30 @@ export class ForecastService {
 
   // ---- Running a study ------------------------------------------------------
 
-  private studyRuns(matterId: string, caseModelId: string, params: ForecastJobParams): TrialRun[] {
+  private studyRuns(matterId: string, model: CaseModelV1, framework: ForecastFrameworkSnapshot, params: ForecastJobParams): TrialRun[] {
     const seeds = new Set(Array.from({ length: params.runs }, (_, index) => studySeedOf(params, index)))
-    return this.store.workflow.listTrialRuns(matterId).filter((run) => run.caseModelId === caseModelId && seeds.has(run.seed))
+    // Damages studies use the same numbered seeds and pin their own ballot and award settings.
+    const runs = this.store.workflow.listTrialRuns(matterId).filter((run) => seeds.has(run.seed) && !run.config.damagesAmounts)
+    if (runs.some((run) => run.caseModelId !== model.id)) {
+      throw new ForecastError('This study seed is pinned to a different case model version. Start a new study with a new seed.', 409)
+    }
+    const seen = new Set<string>()
+    for (const run of runs) {
+      const config = run.config
+      const expected = this.configFor(model, params, run.seed)
+      if (seen.has(run.seed) || run.mode !== expected.mode || config.mode !== expected.mode
+        || run.procedureAdapter !== expected.procedureAdapter || config.procedureAdapter !== expected.procedureAdapter
+        || config.seed !== expected.seed || config.civilDecisionMaker !== expected.civilDecisionMaker
+        || config.framework?.packHash !== framework.packHash || config.juryProfileHash !== expected.juryProfileHash
+        || config.ballotContract !== expected.ballotContract || canonicalJson(config.witnessPlan) !== canonicalJson(expected.witnessPlan)
+        || canonicalJson(config.deliberation) !== canonicalJson(expected.deliberation)
+        || canonicalJson(config.checkpointPolicy) !== canonicalJson(expected.checkpointPolicy)
+        || config.courtroomProtocol || config.deliberationForecast || config.jurorCognition || config.advocacy) {
+        throw new ForecastError('A run with this seed is ambiguous or has different settings or court rules. Start a new study with a new seed.', 409)
+      }
+      seen.add(run.seed)
+    }
+    return runs
   }
 
   private configFor(model: CaseModelV1, params: ForecastJobParams, seed: string): TrialRunConfig {
@@ -208,15 +239,18 @@ export class ForecastService {
   }
 
   // The job handler. Runs one simulated panel at a time, in seed order. A finished run is kept and never repeated, so a study
-  // that was interrupted, capped or failed continues from where it stopped. Usage is counted at the cost-preview figure after each
-  // run, so the cap holds even for a provider that reports no usage.
+  // that was interrupted, capped or failed continues from where it stopped. Every attempted run is counted at the cost-preview figure
+  // and starts only when the remaining budget covers that estimate.
   async runStudy(context: JobContext, engine: TrialEngineService, tokensPerCall: number): Promise<{ completed: boolean }> {
     const { matterId } = context.job
     const params = forecastJobParamsSchema.parse(context.job.params)
     const resolved = this.resolve(matterId, params)
     if (resolved.blockers.length || !resolved.model || !resolved.framework) throw new ForecastError(resolved.blockers.join(' '))
-    const { model, framework } = resolved
-    const earlier = new Map(this.studyRuns(matterId, model.id, params).map((run) => [run.seed, run]))
+    const { model, framework, callsPerRun } = resolved
+    const tokensPerRun = callsPerRun * tokensPerCall
+    let remainingCalls = context.job.cap.maxCalls - context.job.usage.calls
+    let remainingTokens = context.job.cap.maxTokens - context.job.usage.tokens
+    const earlier = new Map(this.studyRuns(matterId, model, framework, params).map((run) => [run.seed, run]))
     let ledgerId = [...earlier.values()].find((run) => run.admissionLedgerId)?.admissionLedgerId
       ?? this.store.workflow.listAdmissionLedgers(matterId).find((ledger) => !ledger.trialRunId)?.id
 
@@ -227,15 +261,15 @@ export class ForecastService {
       const seed = studySeedOf(params, index)
       let run = earlier.get(seed)
       if (run?.status === 'completed') continue
+      if (remainingCalls < callsPerRun || remainingTokens < tokensPerRun) {
+        context.stopAtCap()
+        completed = false
+        break
+      }
       if (!run) {
         const created = engine.createRun({ matterId, caseModelId: model.id, config: this.configFor(model, params, seed), admissionLedgerId: ledgerId })
         run = created.run
         ledgerId ??= run.admissionLedgerId
-      } else {
-        const settings = run.config
-        if (run.mode !== params.mode || settings.framework?.packHash !== framework.packHash || (settings.juryProfileHash ?? undefined) !== params.juryProfileHash) {
-          throw new ForecastError('A run with this seed already exists with different settings or court rules. Start a new study with a new seed.', 409)
-        }
       }
       try {
         const finished = await engine.runAutonomous(run.id)
@@ -245,13 +279,16 @@ export class ForecastService {
         const status = this.store.workflow.getTrialRun(run.id).status
         if (status !== 'completed' && status !== 'failed') this.store.workflow.updateTrialRun(run.id, { status: 'failed', error: error instanceof Error ? error.message : 'The run failed.' })
         throw error
+      } finally {
+        const budget = context.recordUsage(callsPerRun, tokensPerRun)
+        remainingCalls = budget.remainingCalls
+        remainingTokens = budget.remainingTokens
       }
-      context.recordUsage(resolved.callsPerRun, resolved.callsPerRun * tokensPerCall)
     }
     // A cancelled study saves nothing. A study stopped by its cap keeps what it finished, as a draft marked incomplete.
     const reason: unknown = context.signal.reason
     if (context.signal.aborted && !(reason instanceof Error && reason.name === 'JobCapReached')) return { completed: false }
-    const artifact = this.computeAndSave(matterId, params)
+    const artifact = this.saveStudy(matterId, params, { ...resolved, model, framework })
     if (artifact) context.addResultArtifact(artifact.id)
     return { completed }
   }
@@ -262,26 +299,30 @@ export class ForecastService {
   computeAndSave(matterId: string, params: ForecastJobParams): AnalysisArtifact<ForecastContent> | null {
     const resolved = this.resolve(matterId, params)
     if (resolved.blockers.length || !resolved.model || !resolved.framework) throw new ForecastError(resolved.blockers.join(' '))
+    return this.saveStudy(matterId, params, { ...resolved, model: resolved.model, framework: resolved.framework })
+  }
+
+  private saveStudy(matterId: string, params: ForecastJobParams, resolved: Resolved & {
+    model: CaseModelV1; framework: ForecastFrameworkSnapshot
+  }): AnalysisArtifact<ForecastContent> | null {
     const { model, framework } = resolved
-    const runs = this.studyRuns(matterId, model.id, params)
+    const runs = this.studyRuns(matterId, model, framework, params)
     if (!runs.some((run) => run.status === 'completed')) return null
     const inputs: RunInput[] = runs.map((run) => ({
       runId: run.id, seed: run.seed, status: run.status, ballots: this.store.workflow.listBallots(run.id), decisions: this.store.workflow.getDecisionSheet(run.id)?.decisions,
     }))
-    // The framework the runs actually pinned, not the one the matter holds today.
-    const pinnedHashes = new Set(runs.map((run) => run.config.framework?.packHash))
-    if (pinnedHashes.size !== 1 || !pinnedHashes.has(framework.packHash)) {
-      throw new ForecastError('The runs of this study did not all pin the current court rules, so they cannot be forecast together. Start a new study.', 409)
-    }
     const content = computeForecast({
       seed: params.seed, mode: params.mode, ballotContract: params.ballotContractV2 ? 'v2' : 'v1', requestedRuns: params.runs, runs: inputs,
       issues: resolved.issues, parties: model.parties.map((party) => ({ id: party.id, name: party.name, role: party.role })), framework,
       juryProfileHash: params.juryProfileHash,
     })
     const first = runs.find((run) => run.config.provider)?.config.provider
+    const ledgerIds = [...new Set(runs.flatMap((run) => run.admissionLedgerId ? [run.admissionLedgerId] : []))]
+    const evidenceIds = new Set(ledgerIds.flatMap((id) => this.store.workflow.getAdmissionLedger(id).evidenceUses.map((use) => use.evidenceId)))
+    const evidenceHashes = this.store.listEvidence(matterId, true).flatMap((item) => evidenceIds.has(item.id) && item.sha256 ? [item.sha256] : [])
     const manifest: AnalysisInputManifest = {
-      caseModelVersion: model.version, evidenceHashes: this.store.listEvidence(matterId).flatMap((item) => (item.sha256 ? [item.sha256] : [])),
-      ...(runs.find((run) => run.admissionLedgerId)?.admissionLedgerId ? { admissionLedgerId: runs.find((run) => run.admissionLedgerId)!.admissionLedgerId } : {}),
+      caseModelVersion: model.version, evidenceHashes,
+      ...(ledgerIds.length ? { admissionLedgerId: ledgerIds[0] } : {}),
       rulePackHash: framework.packHash, ...(params.juryProfileHash ? { juryProfileHash: params.juryProfileHash } : {}),
       runIds: runs.map((run) => run.id).sort(), algorithmVersion: forecastAlgorithmVersion, seed: params.seed,
       ...(first ? { provider: { name: first.name, model: first.model, mode: first.mode } } : {}),
@@ -294,6 +335,9 @@ export class ForecastService {
   private freshnessOf(artifact: AnalysisArtifact): AnalysisFreshness {
     const base = this.analysis.freshness(artifact)
     const reasons = [...base.reasons]
+    if (artifact.inputManifest.admissionLedgerId && !artifact.inputManifest.evidenceHashes.length && this.store.listEvidence(artifact.matterId).some((item) => item.sha256)) {
+      reasons.push('Source documents have been added since the runs pinned their evidence.')
+    }
     const notChecked = base.notChecked.filter((note) => !note.startsWith('Rule pack:'))
     const view = this.frameworks.getForMatter(artifact.matterId)
     const now = view.selected ? view.framework?.packHash : undefined
