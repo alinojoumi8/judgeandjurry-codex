@@ -14,6 +14,7 @@ import { GoldenModel, goldenCivilJury, goldenCriminalFull } from './engineGolden
 // reverted and the two files were byte-identical). A run that does not opt in
 // must reproduce it exactly. Do not regenerate it to make this test pass: a
 // difference here is a change to what jurors are told or how a decision is made.
+// The civil fixture records the reviewed authority update from PR #11.
 // Set UPDATE_ENGINE_GOLDEN=1 only for a deliberate, reviewed change.
 const goldenPath = 'tests/fixtures/engine-golden.json'
 const golden = () => JSON.parse(readFileSync(goldenPath, 'utf8')) as { civilJury: unknown; criminalFull: unknown }
