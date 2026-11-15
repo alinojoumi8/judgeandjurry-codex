@@ -106,7 +106,10 @@ export const procedureAdapters: Record<ProcedureAdapterId, ProcedureAdapter> = {
     permittedRelief: ['exclude', 'limited_use', 'redact', 'further_production', 'adjourn', 'voir_dire', 'curative_instruction', 'reserve'],
     legalSources: [
       source('Ontario Rules of Civil Procedure, Rules 47, 52, and 53', 'https://www.ontario.ca/laws/regulation/900194', '2026-07-18', 'The adapter stores the source and revision checkpoint; legal review remains required.'),
-      source('Ontario Superior Court civil jury guidance', 'https://www.ontariocourts.ca/scj/guides-and-service-resources/representing-yourself-guides-to-help-you/', '2026-07-18', 'Procedural orientation only; not a substitute for the Rules or legal advice.'),
+      {
+        ...source('Ontario Courts of Justice Act, section 108', 'https://www.ontario.ca/laws/statute/90c43', '2026-11-15', 'Statutory source for civil jury composition and agreement; legal review remains required.'),
+        checkedAt: '2026-11-15T00:00:00.000Z',
+      },
     ],
     instructionSections: [
       instruction('civil-burden', 'Issue-specific burden', 'Apply the burden and standard assigned to each approved civil issue. Decide only from admitted evidence and the tailored issue questions.', 'https://www.ontario.ca/laws/regulation/900194'),
