@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { analysisContentHash } from '../server/analysis/hash'
 import { ImprovementPlanService, type ImprovementPlanContent } from '../server/analysis/improvementPlan'
 import { AnalysisService } from '../server/analysis/service'
 import { createMatterArchive, importMatterArchive } from '../server/matterArchive'
@@ -140,6 +141,7 @@ describe('a plan survives export and import with its signals pointing at the imp
       }
     }
     expect(content.ideas[0].sources.every((source) => store.listEvidence(imported.id).some((item) => item.id === source.evidenceId))).toBe(true)
-    expect(dump(path, 'analysis_artifacts')).toContain(copy.contentHash)
+    expect(copy.contentHash).toBe(analysisContentHash(copy))
+    expect(copy.contentHash).not.toBe(plan.contentHash)
   }, 90_000)
 })

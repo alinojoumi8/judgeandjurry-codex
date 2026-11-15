@@ -478,7 +478,18 @@ export async function runInvariants(): Promise<InvariantResult[]> {
         const carrying = client.calls.filter((call) => call.request.inputs.some((input) => input.text.includes(INJECTION.line)))
         checks.check('the line reached the model inside a document input (control)', carrying.length >= 2, `${carrying.length} calls carried it`)
         checks.check('no system prompt or instruction contains the canary or the command', client.calls.every((call) => !call.prompt.system.includes(INJECTION.canary) && !call.request.instructions.includes(INJECTION.canary) && !/ignore your previous instructions/i.test(call.prompt.system)))
-        checks.check('every prompt places the line after the untrusted-document delimiter', carrying.every((call) => call.prompt.user.indexOf(INJECTION.line) > call.prompt.user.indexOf('<<<BEGIN UNTRUSTED DOCUMENT')))
+        const begin = '<<<BEGIN UNTRUSTED DOCUMENT'
+        const end = '<<<END UNTRUSTED DOCUMENT'
+        const lineWithinDocument = (prompt: string) => {
+          const lineAt = prompt.indexOf(INJECTION.line)
+          const beginAt = prompt.lastIndexOf(begin, lineAt)
+          const endAt = prompt.indexOf(end, beginAt)
+          return beginAt >= 0 && beginAt < lineAt && lineAt + INJECTION.line.length <= endAt
+        }
+        checks.check('every carrying prompt puts the line inside untrusted-document delimiters', carrying.every((call) => lineWithinDocument(call.prompt.user)))
+        const sample = carrying[0]?.prompt.user ?? ''
+        checks.check('control: a carrying prompt fails if either document delimiter is missing',
+          Boolean(sample) && !lineWithinDocument(sample.replaceAll(begin, '')) && !lineWithinDocument(sample.replaceAll(end, '')))
         const saved = JSON.stringify([chronology.content, chronology.rejected, index.content, index.rejected, experts.content, experts.rejected])
         checks.check('the canary appears in no saved output', !saved.includes(INJECTION.canary))
         checks.check('no saved output says the defendant has no liability', !/no liability/i.test(saved))
