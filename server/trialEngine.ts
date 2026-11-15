@@ -1703,7 +1703,7 @@ export class TrialEngineService {
       const controllingPacket = run.config.courtroomProtocol ? `\nPinned legal packet ${model.legalPacket!.contentHash}: ${JSON.stringify({ issues: model.legalPacket!.issues, instructions: model.legalPacket!.instructions })}\nApproved evidence plan: ${JSON.stringify(run.config.witnessPlan.map(p => ({ witnessId: p.witnessId, name: model.witnesses.find(w => w.id === p.witnessId)?.name, calledByPartyId: p.calledByPartyId, scope: 'Own approved passages only; no promise of facts outside that account.' })))}` : ''
     const request: StageRequest = {
       courtroomProtocol: Boolean(run.config.courtroomProtocol),
-      civilMotionHearing: Boolean(model.marevaHearing),
+      civilMotionHearing: model.marevaHearing ? true : undefined,
         approvedIssueInstructions: run.config.courtroomProtocol ? undefined : model.decisionIssues.map(issue => ({ issueId: issue.id, elements: issue.elements.map(element => ({ label: element.label })) })),
         approvedPartyRoles: model.parties.map(({ id, name, role }) => ({ id, name, role })),
         // The checker needs the same authorized public record as the author,
