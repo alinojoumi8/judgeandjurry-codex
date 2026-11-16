@@ -25,13 +25,15 @@ export function instructionElementDriftError(text: string, approved: Issue[] | u
   // Coordinated lists and restrictive relative clauses remain inside it.
   const subjectWord = String.raw`(?!(?:that|which|who|whose|where|when|and|or|must)\b)[\p{L}\p{N}'’-]+`
   const evidentialReliance = String.raw`(?:${subjectWord}\s+){0,6}reliance(?:\s+(?:on|upon|in)\s+(?:${subjectWord}\s+){0,9}${subjectWord})?\s+(?:supports?|shows?|suggests?|indicates?|bears? on|is (?:evidence|relevant))\b`
-  const boundaries = new RegExp(String.raw`(?<=[.!?;])\s+|\s+(?:but|yet|whereas|however)\s+|,\s*(?=(?:which|who|whose)\b)|,\s*and\s+(?=(?:the\s+)?Crown\b)|,\s*(?:and|or)\s+(?=(?:this|that|it)\s+(?:would|could|might)\b)|,\s*(?:and|or)\s+(?=${evidentialReliance})`, 'iu')
+  const independentModal = String.raw`(?:${subjectWord}\s+){1,8}(?:would|could|might)\b`
+  const boundaries = new RegExp(String.raw`(?<=[.!?;])\s+|\s+(?:but|yet|whereas|however)\s+|,\s*(?=(?:which|who|whose)\b)|,\s*and\s+(?=(?:the\s+)?Crown\b)|,\s*(?:and|or)\s+(?=(?:this|that|it)\s+(?:would|could|might)\b)|,\s*(?:and|or)\s+(?=${evidentialReliance})|,?\s+(?:and|or)\s+(?=${independentModal})`, 'iu')
   const required = unquoted.split(boundaries).some(sentence => {
     if (sentence.trim().endsWith('?') || /\b(?:if|would|could|might)\b/i.test(sentence) ||
         /\b(?:incorrect|not true) to say\b|\b(?:need not|does not need to|not required to|must not)\b/i.test(sentence)) return false
     // Remove only the reliance occurrence whose own predicate denies a
     // requirement. A separate positive requirement must still be checked.
-    const requirements = sentence.replace(/\breliance\b(?=\s+(?:(?:is|are|was|were|remains?)\s+)?(?:not|never)\s+(?:(?:an?|the)\s+)?(?:(?:listed|required|necessary|essential|separate)\s+)*(?:element|required|necessary|essential)\b)/gi, ' ')
+    const requirements = sentence.replace(/\b(?:not|rather than|instead of)\s+(?:investor\s+)?reliance\b/gi, ' ')
+      .replace(/\breliance\b(?=\s+(?:(?:is|are|was|were|remains?)\s+)?(?:not|never)\s+(?:(?:an?|the)\s+)?(?:(?:listed|required|necessary|essential|separate)\s+)*(?:element|required|necessary|essential)\b)/gi, ' ')
     return /\bCrown must (?:still |also )?(?:prove|establish)\b[^.!?;]{0,240}\breliance\b/i.test(requirements) ||
       /\breliance\b[^.!?;]{0,100}\b(?:required|necessary|essential|separate) element\b/i.test(requirements)
   })

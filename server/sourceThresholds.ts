@@ -19,11 +19,17 @@ export function sourceThresholdComparisons(text: string, citations: GroundingCit
     // Keep decimal amounts inside their source clause; real sentence and
     // semicolon boundaries must still prevent borrowing another attribution.
     const lead = text.slice(0, offset).split(/[;!?]|\.(?!\d)/).at(-1)!
-    if (sourceAmount && (!/\b(?:report|source|excerpt|table|record)\b.*\b(?:records|lists|reports)\b/i.test(lead) || /\b(?:proven|proved|loss|deprivation|principal|paid|received)\b/i.test(lead))) return statement
+    const subjectId = lead.match(/\b(E-\d+)\b(?:['’]s)?(?:\s+(?:accounting\s+)?(?:report|source|excerpt|table|record))?[\])]?[\t ]+(?:(?:expressly|specifically)\s+)?(?:records|lists|reports)\b[^,;.!?]*$/i)?.[1]?.toUpperCase()
+    if (sourceAmount && ((!subjectId && !/\b(?:report|source|excerpt|table|record)\b.*\b(?:records|lists|reports)\b/i.test(lead)) || /\b(?:proven|proved|loss|deprivation|principal|paid|received)\b/i.test(lead))) return statement
     const value = values(threshold)[0]
     const clause = lead + text.slice(offset).split(/;|(?<=[.!?])\s/)[0]
-    const ids = clause.match(/\bE-\d+\b/gi) ?? []
-    const selected = citations.filter(c => !ids.length || ids.some(id => id.toUpperCase() === c.exhibitId.toUpperCase()))
+    const idsIn = (value: string) => [...new Set((value.match(/\bE-\d+\b/gi) ?? []).map(id => id.toUpperCase()))]
+    const ids = idsIn(clause)
+    const amountIds = sourceAmount ? idsIn(statement) : []
+    const applicable = sourceAmount && subjectId ? [subjectId] : amountIds.length ? amountIds : ids
+    const selected = citations.filter(c => !applicable.length || applicable.includes(c.exhibitId.toUpperCase()))
+    const oneSource = new Set(selected.map(c => c.exhibitId.toUpperCase())).size === 1
+    const consistentAttribution = !subjectId || !amountIds.length || amountIds.includes(subjectId)
     const amounts = selected.flatMap(c => [...c.quote.matchAll(new RegExp(amount, 'gi'))].map(m => ({ value: values(m[0])[0], currency: currency(m[0]) })))
     const matchingLabels = labels.filter(label => {
       const supplied = label.match(new RegExp(String.raw`\b(?:value|amount)\b[^.!?]{0,90}\b(?:exceeds|over|greater than)\s*(${amount})`, 'i'))?.[1]
@@ -34,7 +40,8 @@ export function sourceThresholdComparisons(text: string, citations: GroundingCit
     // A proposed issue comparison only identifies a potentially relevant amount;
     // it supplies neither a matched loss nor proof of any remaining element.
     const valid = Number.isFinite(value) && (sourceAmount
-      ? currency(sourceAmount) === currency(threshold) && compare(values(sourceAmount)[0]) && compatible.some(a => a.value === values(sourceAmount)[0])
+      ? oneSource && consistentAttribution && applicable.length <= 1 && currency(sourceAmount) === currency(threshold)
+        && compare(values(sourceAmount)[0]) && compatible.some(a => a.value === values(sourceAmount)[0])
       : compatible.length > 0 && (issue ? /^(?:exceed|above|over|greater)/i.test(operator) && matchingLabels.length === 1 && compatible.some(a => compare(a.value)) : compatible.every(a => compare(a.value))) && amounts.every(a => a.currency === currency(threshold)))
     if (!valid) { errors.push('The threshold comparison needs matching source amounts, currency and inequality; an issue threshold also requires one matching supplied instruction. A fee, account flow or comparison does not establish principal loss or a charged element.'); return statement }
     const remainder = (text.slice(0, offset) + text.slice(offset + statement.length)).replace(/\[E-\d+\]|\(E-\d+\)/gi, '').trim()

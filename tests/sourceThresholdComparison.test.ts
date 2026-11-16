@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseGroundingReview } from '../server/grounding'
+import { sourceThresholdComparisons } from '../server/sourceThresholds'
 import { supportedOpeningSource } from '../samples/courtroom-realism/supported-opening'
 import type { GroundingRecordEvent } from '../server/groundingRecords'
 const instruction: GroundingRecordEvent = { eventId: 'instruction', type: 'judicial_instruction', payload: { text: 'Apply the proposed exercise threshold.', issueInstructions: [{ elements: [{ label: 'The value exceeds $5,000' }] }] } }
@@ -112,6 +113,17 @@ describe('source-backed threshold comparisons', () => {
     expect(check('The report records $8,000 (E-001); knowledge and deprivation over USD $5,000 remain unresolved.').status).toBe('failed')
   })
 
+  it('checks an explicitly named exhibit before borrowing a nearby citation’s amount', () => {
+    const citation = (exhibitId: string, quote: string) => ({ exhibitId, quote, paragraph: 1, startOffset: 0, endOffset: quote.length })
+    const sources = [citation('E-001', 'The report records $20,000.'), citation('E-002', 'The statement lists $10,000.')]
+    const amounts = (value: string) => [...value.matchAll(/[$](\d[\d,]*)/g)].map((match) => Number(match[1].replaceAll(',', '')))
+    const checkSource = (text: string) => sourceThresholdComparisons(text, sources, [], amounts)
+    const wrong = 'E-002 records $20,000 (E-001; E-002), above $15,000.'
+    expect(checkSource(wrong)).toMatchObject({ factualText: wrong, errors: [expect.stringMatching(/matching source amounts/)] })
+    expect(checkSource('E-001 records $20,000 (E-001; E-002), above $15,000.').errors).toEqual([])
+    expect(checkSource('The report records $20,000 (E-001; E-002), above $15,000.').errors).toHaveLength(1)
+    expect(checkSource('The report records $20,000 (E-001), above $15,000.').errors).toEqual([])
+  })
   it.each(['supported', 'analysis'])('checks an explicit source figure and its benchmark independently: %s', status => {
     expect(check('The report records a total of $18,293 (E-001, p. 41), above $5,000; knowledge remains unresolved for me.', 'The report records a total of $18,293 and fees of $40.', [instruction], status).errors).toEqual([])
     expect(check('The report records confirmed investors providing a total of $18,293 to Arin accounts (E-001, p. 41), above $5,000; knowledge remains unresolved for me.', 'The report records a total of $18,293.', [instruction], status).errors).toEqual([])

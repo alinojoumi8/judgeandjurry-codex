@@ -19,6 +19,12 @@ describe('negative source contents remain bounded by actual excerpt coverage', (
   it.each(['The supplied report excerpts do not trace each payment to a particular remitter (E-001).', 'The selected pages of E-001 do not include a repayment schedule.', 'E-001 does not establish my conclusion about intent.', 'The report does not resolve my doubts about repayment (E-001).'])('retains scoped source statements and assessments of weight: %s', text => {
     expect(check(text).status).toBe('passed')
   })
+  it('distinguishes rejecting a conclusion from asserting document-wide absence', () => {
+    const rejectedConclusion = 'We cannot conclude that no page of E-001 mentions repayment.'
+    expect(sourceAbsenceScopeError(rejectedConclusion, [], evidence, context)).toBeUndefined()
+    expect(sourceAbsenceScopeError('No page of E-001 mentions repayment.', [], evidence, context)).toContain('document-wide absence')
+    expect(sourceAbsenceScopeError(rejectedConclusion + ' E-001 contains no repayment schedule.', [], evidence, context)).toContain('document-wide absence')
+  })
   it('does not let a scoped sentence excuse another unqualified absence claim', () => {
     expect(check('The supplied report excerpts do not include repayment details (E-001). The report contains no repayment schedule (E-001).').status).toBe('failed')
     expect(check('The selected report excerpts do not include repayment details (E-001), but the report contains no repayment schedule (E-001).').status).toBe('failed')

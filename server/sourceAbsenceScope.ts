@@ -24,6 +24,8 @@ export function sourceAbsenceScopeError(text: string, citations: GroundingCitati
   for (const sentence of prose.split(/(?<=[.!?])\s+|;\s*|,?\s+\b(?:but|yet|while|and)\b\s+(?=(?:(?:the|this|that|a|an)\s+)?(?:(?:whole|entire|complete|accounting)\s+)*(?:report|interview|affidavit|document)\b|E-\d+\b)/i)) {
     const absence = sentence.match(/\b(?:does not|do not|doesn't|don't|contains? no|includes? no|lacks?|never)\s+(?:(?:itself|themselves)\s+)?(?:trac\w*|match\w*|map\w*|pair\w*|identify|identifies|includ\w*|contain\w*|record\w*|mention\w*|stat\w*|say\w*|report\w*|provid\w*|suppl\w*|link\w*|repayment|tracing|mapping)\b|\bis not in\b|\bno (?:passage|paragraph|page)\b[^.;!?]{0,100}\b(?:ties?|links?|connects?|records?|mentions?|states?|includes?|provides?)\b/i)
     if (!absence) continue
+    const lead = sentence.slice(0, absence.index)
+    if (/\b(?:cannot|can't|can not|do not|does not|don't|doesn't)\s+(?:infer|conclude|assume|say|determine)\s+that\s*(?:(?:E-\d+|(?:the\s+)?(?:report|interview|affidavit|document))\s*)?$/i.test(lead)) continue
     if (/\b(?:supplied|selected|provided|quoted|available)\b[^.;!?]{0,80}\b(?:excerpts?|extracts?|pages?|passages?|schedules?|paragraphs?)\b/i.test(sentence)) continue
     if (/\b(?:supplied|selected|provided|quoted|available)\s+(?:summary|summaries)\b/i.test(sentence.slice(0, absence.index))) continue
     const ids = sentence.match(/\bE-\d+\b/gi) ?? []

@@ -13,11 +13,13 @@ export function canResumeTrial(trial: TrialRunView): boolean {
 
 export function trialRunStatus(trial: TrialRunView): { label: string; message?: string } {
   const terminal = ['completed', 'failed', 'interrupted', 'cancelled'].includes(trial.run.status)
-  if (terminal && !trial.decisionSheet?.complete && (exhausted(trial.run.error) || trial.events.some(event => exhausted(event.modelAudit?.error)))) {
+  const currentError = trial.run.error
+  if (terminal && /actor context exceeds/i.test(currentError ?? '')) return { label: 'Incomplete — context limit', message: currentError }
+  const budgetError = currentError ? exhausted(currentError) : trial.events.some(event => exhausted(event.modelAudit?.error))
+  if (terminal && !trial.decisionSheet?.complete && budgetError) {
     return { label: 'Incomplete — budget exhausted', message: 'The declared run budget was exhausted before a complete decision. Unavailable ballots do not count as votes. Saved results and rejected checks remain available for review.' }
   }
-  if (terminal && /actor context exceeds/i.test(trial.run.error ?? '')) return { label: 'Incomplete — context limit', message: trial.run.error }
-  if (terminal && trial.run.error) return { label: trial.run.status, message: trial.run.error }
+  if (terminal && currentError) return { label: trial.run.status, message: currentError }
   if (trial.run.status === 'completed' && trial.decisionSheet?.complete === false) return { label: 'Incomplete decision', message: 'Execution ended without a complete decision. Review the valid ballots and warnings below.' }
   return { label: trial.run.status }
 }

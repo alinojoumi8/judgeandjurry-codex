@@ -7,6 +7,8 @@ describe('local reliance requirement negation', () => {
   it.each([
     'The Crown must prove deception and deprivation, and investor reliance is not a listed element.',
     'The Crown must prove deception and deprivation and reliance is not required.',
+    'The Crown must prove deprivation, not investor reliance.',
+    'The Crown must prove deprivation rather than investor reliance.',
     'The Crown must prove deception and deprivation; investor reliance is not a listed element.',
     'The Crown must prove deception, while reliance is never necessary.',
     'Reliance is not a required element.',
@@ -24,6 +26,8 @@ describe('local reliance requirement negation', () => {
 
   it.each([
     'The Crown must prove investor reliance.',
+    'The Crown must prove investor reliance and corroboration could help.',
+    'The Crown must prove investor reliance, not reliance on a different report.',
     'Reliance is a required element.',
     'The Crown must prove reliance, and investor reliance is not a listed element.',
     'The Crown must prove reliance and reliance is not required.',

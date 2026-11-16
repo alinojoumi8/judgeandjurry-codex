@@ -18,6 +18,15 @@ it('reports terminal budget exhaustion as incomplete without rewriting stored ex
   expect(trialRunStatus(trial).message).toContain('Unavailable ballots do not count as votes')
   expect(trial.run.status).toBe('completed')
 })
+it('shows the current failure even when an earlier event exhausted a budget', () => {
+  const trial = fixture('Request limit reached', 'failed')
+  trial.run.error = 'Actor context exceeds its character budget.'
+  expect(trialRunStatus(trial)).toEqual({ label: 'Incomplete — context limit', message: trial.run.error })
+  expect(canResumeTrial(trial)).toBe(false)
+  trial.run.error = 'The current source check was invalid.'
+  expect(trialRunStatus(trial)).toEqual({ label: 'failed', message: trial.run.error })
+})
+
 it('distinguishes budget-unavailable slots, rejected checks and other unchecked records', () => {
   const html = renderToStaticMarkup(createElement(GroundingAudit, { trial: fixture(), matterId: 'fictional' }))
   expect(html).toContain('1 source-checked outputs')
