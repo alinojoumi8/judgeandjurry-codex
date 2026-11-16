@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { projectParticipantMemory } from '../server/actorMemory'
 import { assembleActorContext } from '../server/actorContext'
+import { formatSourceRecord } from '../server/grounding'
 import type { EvidenceItem } from '../server/types'
 import type { TrialEvent, EvidenceUse } from '../server/trialEngineTypes'
 
@@ -15,7 +16,7 @@ describe('participant memory and context', () => {
   it('enforces separate source and history allocations without borrowing or truncation', () => {
     const args = { ...input([event(1, 'public_submission', { text: 'FULL_SUBMISSION' })]), roles: ['judge' as const] }
     const context = assembleActorContext(args, 5000, 1000)
-    const sources = JSON.stringify(context.evidence).length
+    const sources = formatSourceRecord(context.evidence).length
     const history = context.previousTurns.length
     expect(assembleActorContext(args, sources, history).manifest.omittedEventIds).toEqual([])
     expect(() => assembleActorContext(args, sources - 1, history + 1000)).toThrow(/source budget/)

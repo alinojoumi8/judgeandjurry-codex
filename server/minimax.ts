@@ -626,10 +626,12 @@ export class MiniMaxClient implements ModelClient {
       strictCorrection ||= this.config.provider === 'minimax' && checkerCorrectionNeeded
       // Repair the checker record without asking the advocate to change an
       // otherwise supported draft merely because its auditor misquoted a PDF.
-      // Keep anchored rows in the ordinary audit so a changed selection triggers
-      // an independent recheck. A focused response is never a full baseline.
+      // Recheck a quotation locator or multi-passage anchor in the full draft.
+      // A selected-passage response never becomes an ordinary baseline.
+      const needsFullSourceReview = Boolean(review.sourceLocatorValidationUnitIds?.length) ||
+        review.sourceCoverageAnchors.some(anchor => anchor.selectors.length > 1)
       const canScopeCorrection = !coverageFocus && !wasCoverageFocus &&
-        !review.sourceCoverageAnchors.length && this.config.provider === 'minimax'
+        !needsFullSourceReview && !priorReview && !changedJudgments.length && this.config.provider === 'minimax'
       verificationUnits = canScopeCorrection ? groundingCorrectionUnits(units, review, content) : units
       correctionBase = verificationUnits.length < units.length ? content : undefined
       if (correctionBase) this.logger.info('model.checker.correction_scope', {

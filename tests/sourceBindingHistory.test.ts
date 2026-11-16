@@ -12,7 +12,8 @@ function check(text: string, evidence = sources, citations = [{ exhibitId: 'E-00
 
 describe('quotation premises in local citation groups', () => {
   it.each(['(E-001, para. 3; E-002, para. 2)', '(E-001, paragraph 3; E-002, paragraph 2)', '(E-001, paragraph 3) (E-002, paragraph 2)'])('keeps all local references inside %s', references => {
-    expect(check(`Vale argues that Moss’s statement that “${quote}” supports review ${references}.`).status).toBe('passed')
+    const citations = [{ exhibitId: 'E-001', paragraph: 3 }, { exhibitId: 'E-002', paragraph: 2 }]
+    expect(check(`Vale argues that Moss’s statement that “${quote}” supports review ${references}.`, sources, citations).status).toBe('passed')
   })
   it('does not let an explicitly named wrong source borrow a second source', () => {
     expect(check(`E-001’s statement that “${quote}” supports review (E-001, paragraph 2; E-002, paragraph 2).`).status).toBe('failed')

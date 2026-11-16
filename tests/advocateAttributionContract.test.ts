@@ -101,7 +101,7 @@ describe('public advocate source and party attribution', () => {
 
   it('withholds a persistent source-speaker/party swap instead of promoting it through repair', async () => {
     const harness = repairClient(true), { store, engine, run } = fixture(harness.client)
-    await expect(engine.runAutonomous(run.id)).rejects.toThrow('Source verification rejected')
+    await expect(engine.runAutonomous(run.id)).rejects.toThrow('Source repair patch rejected: Repair leaves rejected unit unchanged')
     expect(harness.authorPrompts).toHaveLength(2)
     const events = store.workflow.listTrialEvents(run.id)
     expect(events.some(event => event.type === 'public_submission' && event.actorId === 'crown' && event.phase === 'closings')).toBe(false)
