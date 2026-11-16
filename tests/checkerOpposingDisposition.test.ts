@@ -42,6 +42,11 @@ describe('checker source premise uses the same disposition-comparison boundary a
     expect(review.verificationRetries).toBe(1)
     expect(sent[1].messages[1].content).toContain('checker source premise fails')
   })
+  it('distinguishes expressly qualified weight from an emphatic event-conflict claim', () => {
+    expect(compare('The accounts do conflict: in my current assessment of weight.')).toBe('passed')
+    expect(compare('The accounts do conflict: in my current assessment of weight, E-001 describes a handover and E-002 proves it could not occur.')).toBe('failed')
+    expect(compare('The accounts do conflict: E-001 describes Rowan handing the blue token to Ellis, while E-002 says Rowan left with the token still in their hand.')).toBe('failed')
+  })
   it('withholds repeated invalid judgments at the unchanged retry limit', async () => {
     const { client, sent } = harness([capture.checkerContent])
     const review = await client.reviewGrounding(capture.request, capture.result)
