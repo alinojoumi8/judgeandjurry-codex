@@ -53,6 +53,19 @@ describe('negative source contents remain bounded by actual excerpt coverage', (
     expect(sourceAbsenceScopeError(compoundText, [], compoundTitle, fullContext)).toBeUndefined()
     expect(sourceAbsenceScopeError(compoundText.replace('The report E-002', 'E-002'), [], compoundTitle, fullContext)).toBeUndefined()
   })
+  it('does not inherit an exhibit across a referenced title or an outer attribution', () => {
+    const fullContext = context + '\nE-002: primary; whole_document;'
+    const referenced = [
+      { ...evidence[0], name: 'Witness interview' },
+      { ...evidence[0], exhibitId: 'E-002', name: 'Report about witness interview E-001' },
+    ]
+    const title = 'E-002, although the interview does not mention repayment, does not record a transfer.'
+    expect(sourceAbsenceScopeError(title, [], referenced, fullContext)).toContain('E-001')
+
+    const outer = [...evidence, { ...evidence[0], exhibitId: 'E-002', name: 'Witness interview' }]
+    const attributed = 'The report states that E-002, although the report does not mention repayment, does not record a transfer.'
+    expect(sourceAbsenceScopeError(attributed, [], outer, fullContext)).toContain('E-001')
+  })
   it('retains an inherited excerpt subject but resets scope for an explicit new document subject', () => {
     expect(check('The supplied report excerpt lists a deposit but does not include a repayment schedule (E-001).').status).toBe('passed')
     expect(check('The supplied report excerpts list a deposit, and E-001 contains no repayment schedule.').status).toBe('failed')
