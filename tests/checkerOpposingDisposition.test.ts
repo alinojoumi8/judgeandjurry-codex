@@ -47,6 +47,14 @@ describe('checker source premise uses the same disposition-comparison boundary a
     expect(compare('The accounts do conflict: in my current assessment of weight, E-001 describes a handover and E-002 proves it could not occur.')).toBe('failed')
     expect(compare('The accounts do conflict: E-001 describes Rowan handing the blue token to Ellis, while E-002 says Rowan left with the token still in their hand.')).toBe('failed')
   })
+  it('does not mistake a denied contradiction for a current incompatibility', () => {
+    expect(compare('The contradiction is not established.')).toBe('passed')
+    expect(compare('The contradiction is established.')).toBe('failed')
+  })
+  it('retains an emphatic weight assessment with a pure present statement of doubt', () => {
+    expect(compare('The accounts do conflict: in my current assessment of weight, I retain doubt.')).toBe('passed')
+    expect(compare('The accounts do conflict: in my current assessment of weight, I retain doubt because E-002 proves no handover occurred.')).toBe('failed')
+  })
   it('withholds repeated invalid judgments at the unchanged retry limit', async () => {
     const { client, sent } = harness([capture.checkerContent])
     const review = await client.reviewGrounding(capture.request, capture.result)
