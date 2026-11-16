@@ -93,4 +93,3 @@ describe('attributed correction history in selected passages', () => {
     expect(check('Its statement that Rowan did not sign the acknowledgement supports a finding of non-signature (E-002, paragraph 2).').status).toBe('failed')
   })
 })
-

@@ -40,4 +40,3 @@ describe('local version-matched PDF decoding assets', () => {
     expect(assets.every(a=>a.source.length>0)).toBe(true)
   })
 })
-

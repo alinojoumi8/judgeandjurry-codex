@@ -128,4 +128,3 @@ describe('effective amount repair through the full client', () => {
     expect(bodies).toHaveLength(4)
   })
 })
-
