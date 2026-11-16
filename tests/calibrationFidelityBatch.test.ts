@@ -127,6 +127,17 @@ describe('consolidated V212 calibration fidelity diagnostics', () => {
     expect(sent).toHaveLength(2)
     expect(result.verificationRetries).toBe(1)
   })
+  it('supplies initial-position scope before the first checker request only when the history is empty', async () => {
+    const item = captured('false-visible-initial-scope')
+    const valid = correctedReview(item)
+    const initial = client([valid])
+    await initial.model.reviewGrounding(item.request, item.result)
+    expect(initial.sent[0].messages[1].content).toContain('Initial ballot, empty own history, no visible jury deliberation:')
+    const final = client([valid])
+    await final.model.reviewGrounding({ ...item.request, ballotRound: 'final' }, item.result)
+    expect(final.sent[0].messages[1].content).not.toContain('Initial ballot, empty own history, no visible jury deliberation:')
+  })
+
   it.each(['false-visible-initial-scope', 'false-default-classification-knowledge'])('accepts a valid first review of %s without extra calls', async id => {
     const item = captured(id)
     const { model, sent } = client([correctedReview(item)])

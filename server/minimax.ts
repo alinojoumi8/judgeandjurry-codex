@@ -4,7 +4,7 @@ import { checkerCorrectionFeedback, checkerSchemaFailure, groundingCorrectionCon
 import { negativeComparisonPolarityErrors } from './checkerPolarity'
 import { profileBandValidationUnits } from './checkerProfileConsistency'
 import { unsupportedCorrectionPremiseUnits } from './checkerSourcePremises'
-import { initialBallotContextValidationUnits } from './checkerInitialBallotContext'
+import { hasInitialBallotContext, initialBallotContextValidationUnits } from './checkerInitialBallotContext'
 import { currentJurorDraft, jurorInfluenceValidationUnits, jurorNegationValidationUnits, jurorStateValidationUnits } from './checkerJurorState'
 import { namedPeerReferenceCandidates, usablePeerContribution, visibleRecordReferences } from './groundingRecords'
 import { causalScopeValidationUnits } from './checkerCausalScope'
@@ -312,7 +312,10 @@ export class MiniMaxClient implements ModelClient {
       : ''
       const courtroomStatus = request.courtroomProtocol || request.courtroomActor ? `\nApproved current courtroom state: ${JSON.stringify(request.courtroomState ?? null)}\nApproved author's own prior assessments (positions, not proof): ${JSON.stringify(request.courtroomAssessments ?? null)}\nApproved current juror profile (assessment traits, not evidence): ${JSON.stringify(currentJurorProfile ?? null)}\nApproved current juror trait bands (0-100 scale; low <=30, high >=70, otherwise moderate; assessment traits, not evidence): ${JSON.stringify(currentTraitBands)}\nApproved current ballot round: ${JSON.stringify(request.ballotRound ?? null)}. A stable present assessment is not itself a claim about an earlier ballot; explicit historical claims still require the supplied prior assessments. Profiles cannot expand source purposes, supply facts or change the burden.` : ''
       const recordReferenceContext = `\nAllowed visible record references: ${JSON.stringify(visibleRecordReferences(request.courtroomEvents ?? []))}. Use the exact short reference in recordCitations.eventId; it selects the original event without copying a UUID. Failed-turn placeholders are not usable contributions. Judicial issueInstructions are approved instructions for this exercise, not verification of actual operative charges, admission status or factual premises.`
-      openingContext += courtroomStatus + currentDraftContext + recordReferenceContext
+      const initialScope = hasInitialBallotContext(request)
+        ? '\nInitial ballot, empty own history, no visible jury deliberation: a pure present statement that the initial position remains unchanged because no deliberation is visible describes the current initial assessment without a prior comparison. Audit any explicit historical claim or added factual premise independently.'
+        : ''
+      openingContext += courtroomStatus + currentDraftContext + initialScope + recordReferenceContext
       const proceedingContext = !request.courtroomProtocol && publicRecordContext ? `\nApproved public proceeding record (attribution only, not evidence):\n${publicRecordContext}${courtroomStatus}${currentDraftContext}${recordReferenceContext}` : ''
       let feedback: string | undefined
     const verificationFailures: NonNullable<GroundingReview['verificationFailures']> = []

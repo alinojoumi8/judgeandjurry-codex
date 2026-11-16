@@ -11,6 +11,11 @@ describe('post-sentence citation boundaries', () => {
     expect(units).toHaveLength(1)
     expect(units[0].text).toBe(text)
   })
+  it('keeps each post-quote citation with its own attributed statement', () => {
+    const first = 'Mira states: “I saw a handover.” (E-001)'
+    const second = 'Tavi states: “I did not see a handover.” (E-002)'
+    expect(groundingUnits(result(`${first} ${second}`)).map((unit) => unit.text)).toEqual([first, second])
+  })
   it('does not create a source-less assertion and a detached trailing reference', () => {
     expect(groundingUnits(result('The report records receipts. [E-001]'))).toEqual([{ id: 'content:1', text: 'The report records receipts. [E-001]' }])
   })
