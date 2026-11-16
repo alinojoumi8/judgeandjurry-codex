@@ -113,7 +113,10 @@ function supportedNestedAttribution(prose: string, match: RegExpMatchArray, cita
         return !quoted && unconditional(sentence)
       })
     }
-    if (selected.some(other => assertions(other.quote).some(sentence => endsClause(literal(sentence), 'i argue that ' + rationale)))) return true
+    if (selected.some(other => assertions(other.quote).some(sentence => {
+      const argument = literal(sentence)
+      return argument.startsWith('i argue that ') && endsClause(argument, 'i argue that ' + rationale)
+    }))) return true
     // Bounded negative-property rationale: the author's selected account must
     // explicitly state both the causal lack of assets and the jurisdictional
     // property statement. A connection, another speaker or a different province
@@ -134,7 +137,8 @@ function sourceSpeakerMatches(speaker: string, citation: GroundingCitation, sour
   if (!source) return false
   const introduction = normal(source.text.slice(0, Math.min(citation.startOffset, 3000)))
   const identities = [...introduction.matchAll(/\bi,\s*([\p{L} '-]+),.{0,600}?\bmake oath and say:/gu)].map(row => row[1].trim())
-  const named = introduction.match(/^(?:fictional )?([\p{L} '-]+) (?:states|says|reports):/u)?.[1]
+  const opening = normal(source.text.slice(0, 3000))
+  const named = opening.match(/^(?:fictional )?([\p{L} '-]+) (?:states|says|reports):/u)?.[1]
   if (named) identities.push(named)
   return identities.length === 1 && [identities[0], identities[0].split(' ').at(-1)].includes(speaker)
 }

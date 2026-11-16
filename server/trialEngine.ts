@@ -976,13 +976,25 @@ export class TrialEngineService {
       const theory = this.store.workflow.listTheoryBriefs(model.id).find(brief => brief.partyId === turn.actorId)
       const role = roleForParty(model, turn.actorId)
       const stage = turn.kind === 'moving' ? (role === 'plaintiff' ? 'crown_opening' : 'defence_opening') : (role === 'plaintiff' ? 'crown_rebuttal' : 'defence_rebuttal')
-      const generated = await this.generateModelStage(run, stage,
-        `${marevaPrompt(model, evidence)}\n${turn.instruction}\nOwn private preparation (not evidence, never quote or reveal it as a private document): ${theory?.narrative ?? 'None supplied.'}\nUse at most 700 words.`, evidence, turn.actorId)
-      this.store.workflow.appendTrialEvent({
-        trialRunId: run.id, phase: 'motions', type: eventType, actorId: turn.actorId,
-        visibleTo: ['public'], payload: { hearing: 'mareva', kind: turn.kind, title: generated.title, text: generated.content },
-        sourceRefs: citationsToRefs(generated.citations, evidence), modelAudit: generated.audit,
-      })
+      try {
+        const generated = await this.generateModelStage(run, stage,
+          `${marevaPrompt(model, evidence)}\n${turn.instruction}\nOwn private preparation (not evidence, never quote or reveal it as a private document): ${theory?.narrative ?? 'None supplied.'}\nUse at most 700 words.`, evidence, turn.actorId)
+        this.store.workflow.appendTrialEvent({
+          trialRunId: run.id, phase: 'motions', type: eventType, actorId: turn.actorId,
+          visibleTo: ['public'], payload: { hearing: 'mareva', kind: turn.kind, title: generated.title, text: generated.content },
+          sourceRefs: citationsToRefs(generated.citations, evidence), modelAudit: generated.audit,
+        })
+      } catch (error) {
+        // Grounding failures already have a private failure event from the model boundary.
+        if (error instanceof TrialActorError && !error.audit.grounding) {
+          this.store.workflow.appendTrialEvent({
+            trialRunId: run.id, phase: 'motions', type: 'motion_submission_failed', actorId: turn.actorId,
+            visibleTo: ['user', 'role:system'], payload: { hearing: 'mareva', kind: turn.kind, error: errorMessage(error) },
+            sourceRefs: [], modelAudit: failureAudit(run, turn.actorId, turn.kind, error, this.provider),
+          })
+        }
+        throw error
+      }
     }
   }
 

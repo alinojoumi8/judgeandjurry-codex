@@ -46,6 +46,7 @@ describe('nested source arguments', () => {
     ['I argue that the balance remains unresolved, and only after trial.', 'failed'],
     ['I argue that the balance remains unresolved only after trial.', 'failed'],
     ['It is false that I argue that the balance remains unresolved.', 'failed'],
+    ['It is not true that I argue that the balance remains unresolved.', 'failed'],
     ['If I argue that the balance remains unresolved, the issue changes.', 'failed'],
     ['Moss says: "I argue that the balance remains unresolved."', 'failed'],
     ['Moss says: "An earlier account. I argue that the balance remains unresolved. Another sentence."', 'failed'],
