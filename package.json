@@ -21,10 +21,12 @@
     "test:coverage": "vitest run --coverage",
     "coverage:all": "tsx scripts/coverage-all.ts",
     "eval:courtroom": "tsx scripts/evaluate-courtroom.ts",
+    "eval:intelligence": "tsx scripts/evaluate-case-intelligence.ts",
     "test:courtroom": "tsx e2e/courtroom.ts",
     "test:ui": "tsx e2e/smoke.ts",
     "test:sim": "tsx e2e/simulation.ts",
     "test:arguments": "tsx e2e/arguments.ts",
+    "test:intelligence": "tsx e2e/case-intelligence.ts",
     "test:v2:live": "tsx scripts/validate-trial-engine-v2-live.ts",
     "check:authorities": "tsx scripts/check-authority-links.ts",
     "preview": "vite preview"

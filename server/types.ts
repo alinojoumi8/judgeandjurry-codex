@@ -390,9 +390,21 @@ export interface StageResult {
     mindChangedBecause?: string
     changedByEventId?: string
     instructionEventId?: string
+    // Deliberation forecast only: how the turn relates to an earlier one.
+    stance?: string
+    replyToEventId?: string
     consistencyWarnings?: string[]
+    // Ballot contract v2 only. The juror names a permitted outcome directly, and
+    // cites exhibits by id (the engine turns them into source references).
+    outcome?: string
+    elementFindings?: Array<{ elementId: string; finding: string; confidence: number; citations: string[]; basis?: string }>
+    amounts?: Array<{ categoryId: string; amount: number; currency: string; basis: string }>
+    apportionment?: Array<{ partyId: string; percent: number }>
   }>
   verdict?: Omit<VerdictReport, 'disclaimer'>
+  // Juror cognition only (stage juror_appraisal): the juror's raw private
+  // appraisal, validated by the engine and never trusted as it arrives.
+  appraisal?: unknown
 }
 
 export interface SimulationStageState {

@@ -39,11 +39,23 @@ export interface DecisionIssue {
   elements: LegalElement[]
   permittedOutcomes: string[]
   sourceRefs: SourceSegmentRef[]
+  // Optional verdict-form fields. A model saved without them stays valid and
+  // behaves as before.
+  questionText?: string
+  decider?: 'jury' | 'judge'
+  answerType?: 'choice' | 'amount' | 'apportionment'
+  // Ids of decision issues whose answers this question depends on.
+  dependsOn?: string[]
+  // Position in the verdict form, counted from 0.
+  order?: number
 }
+
+export type WitnessKind = 'fact' | 'party' | 'expert'
 
 export interface CaseWitness {
   id: string
   name: string
+  kind?: WitnessKind
   calledByPartyId?: string
   sourceRefs: SourceSegmentRef[]
   approvedStatementRefs: SourceSegmentRef[]
@@ -139,11 +151,15 @@ export interface CaseModelV1 {
   approvedAt?: string
 }
 
+export type RecordDocumentType = 'pleading' | 'medical' | 'expert_report' | 'transcript' | 'correspondence' | 'financial' | 'other'
+
 export interface RecordScope {
   description: string
   documents: Array<{
     evidenceId: string
     kind: 'primary' | 'summary' | 'advocacy' | 'legal_authority' | 'unclassified'
+    // What the document is, separate from how much weight it can carry (`kind`).
+    documentType?: RecordDocumentType
     coverage: 'whole_document' | 'selected_extracts' | 'unknown'
     note: string
   }>
@@ -334,6 +350,58 @@ export interface TrialRunConfig {
   witnessPlan: Array<{ witnessId: string; calledByPartyId: string; order: number }>
   deliberation: { maxRounds: number; concurrency: number }
   civilDecisionMaker?: 'judge_alone' | 'jury'
+  // Court rules pinned by the server when a civil run is created. Absent on
+  // every run created before court rules existed, and then nothing changes.
+  framework?: import('./frameworks/framework').JuryFramework
+  // Optional pinned local jury profile (F4). The client asks with
+  // `juryProfileHash`; the server resolves it to the approved profile and pins
+  // `juryProfile`, which carries the strata so the run never consults the
+  // current profile again. Absent on every other run, and then juror traits
+  // are drawn exactly as before.
+  juryProfileHash?: string
+  juryProfile?: import('./venue/types').PinnedJuryProfile
+  // Ballot contract version, pinned per run (F8 prerequisite). Absent on every
+  // other run, and then jurors answer with a crown or defence leaning exactly as
+  // before. 'v2' has jurors name a permitted outcome and record element findings.
+  ballotContract?: 'v2'
+  // Opt-in juror cognition (F8): a private, simulated appraisal per juror after
+  // each opening, direct, cross and closing. Absent means off, and then no
+  // prompt, event or ballot differs from a run made before it existed.
+  jurorCognition?: true
+  // Opt-in deliberation forecast (F9): a straw poll after each round of
+  // discussion, a recorded reply target and stance for every turn, and speaking
+  // order and airtime weighted from the derived jury roles. Absent means off, and
+  // then no prompt, event or ballot differs from a run made before it existed.
+  deliberationForecast?: true
+  // With the forecast on: whether the jurors are told the straw-poll counts
+  // (what happens in a real room) or not. Pinned with the run; the server sets
+  // 'visible' when the client says nothing. Individual votes stay private either way.
+  strawPollCounts?: 'visible' | 'hidden'
+  // Opt-in damages amounts (F12). Needs ballotContract 'v2'. On a question that asks for
+  // money, every juror gives an amount for each category in BOTH ballot rounds, if the
+  // claim succeeded. The server pins the categories, the currency and what it left out
+  // (with the reason) from the court rules, so the run never consults the rules again.
+  // Absent means off, and then no prompt, event or ballot differs from a run made before it existed.
+  damagesAmounts?: true
+  damagesCategories?: Array<{ id: string; label: string; kind: import('./frameworks/schema').DamagesCategoryKind }>
+  damagesExcluded?: Array<{ id: string; label: string; reason: string }>
+  damagesCurrency?: string
+  // Opt-in damages condition (F13): a fixed, code-written submission on damages that is
+  // added to a party's closing argument. The client names the condition (and may give
+  // explicit anchor amounts); the server pins the finished text. Needs damagesAmounts.
+  damagesCondition?: {
+    id: Exclude<import('./forecast/damagesPsychology').ConditionId, 'none'>
+    anchors?: { low?: Array<{ categoryId: string; cents: number }>; central?: Array<{ categoryId: string; cents: number }>; high?: Array<{ categoryId: string; cents: number }> }
+    templateVersion?: string
+    plaintiffText?: string
+    defenceText?: string
+    inputsHash?: string
+  }
+  // Opt-in advocacy styles (F15): a fixed, code-written delivery style for one party's opening and
+  // closing arguments. The client names the party and the style (by id, from the catalogue); the
+  // server pins the catalogue version and the exact text. The text reaches only that party's
+  // advocacy requests. Absent means off, and then no prompt, event or ballot differs from a run made before it existed.
+  advocacy?: Array<{ partyId: string; id: import('./styles/catalogue').AdvocacyStyleId; catalogueVersion?: string; text?: string }>
   externalDisclosureConfirmed: boolean
 }
 
@@ -408,7 +476,32 @@ export interface JurorCognitiveProfile {
   createdAt: string
 }
 
+// Ballot contract v2 fields, present only on ballots cast under it.
+export interface ElementFinding {
+  elementId: string
+  finding: 'met' | 'not_met' | 'undecided'
+  // 0 to 1. A value outside that range makes the ballot invalid; it is never clamped.
+  confidence: number
+  sourceRefs: SourceSegmentRef[]
+}
+
+export interface BallotAmount {
+  categoryId: string
+  // Whole cents. Anything else makes the ballot invalid.
+  amount: number
+  currency: string
+  basis: string
+}
+
+export interface BallotApportionment {
+  partyId: string
+  percent: number
+}
+
 export interface IssueBallot {
+  elementFindings?: ElementFinding[]
+  amounts?: BallotAmount[]
+  apportionment?: BallotApportionment[]
   instructionEventId?: string
   id: string
   trialRunId: string

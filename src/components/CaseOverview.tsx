@@ -3,6 +3,8 @@ import { ArrowRight, Check, Save } from 'lucide-react'
 import type { Matter } from '../types'
 import type { CaseModel, TrialRunView } from '../trialEngineTypes'
 import { resultState } from '../caseWorkspace'
+import { FrameworkPanel } from './analysis/FrameworkPanel'
+import { JuryProfilePanel } from './analysis/JuryProfile'
 
 export type CaseDetailsInput = Pick<Matter, 'title' | 'narrative' | 'jurisdiction'>
 
@@ -44,6 +46,8 @@ export function CaseOverview({ matter, model, documentCount, trial, onSave, onEd
       <li className={trial?.run.status === 'completed' ? 'done' : ''}><span>4</span> Inspect results</li>
     </ol>
     <div className="case-facts"><p><strong>{documentCount}</strong> preserved document{documentCount === 1 ? '' : 's'}</p><p>{model ? `Case model v${model.version} · ${model.status}` : 'Case model awaiting review'}</p><p>{trial ? `Last selected attempt: ${trial.run.status}` : 'No simulation started'}</p></div>
+    <FrameworkPanel matterId={matter.id} />
+    <JuryProfilePanel matterId={matter.id} />
     <form className="case-details-form" onSubmit={event => {
       event.preventDefault(); setSaving(true); setError('')
       const submitted = { ...draft }

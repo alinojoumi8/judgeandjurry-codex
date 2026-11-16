@@ -1,0 +1,11 @@
+FICTIONAL TEST SOURCE: expert report on economic loss by P. Marchetti for Hollis Varga LLP
+Report dated May 11, 2026.
+Re: Jordan Ellery, income and care loss arising from the fall of January 14, 2025.
+Assumptions
+Annual income assumed: $84,000
+Assumed retirement age: 70
+Calculations
+Past income loss to April 30, 2026: $89,470
+Future income loss, present value: $612,000
+Future care costs, present value: $96,500
+Total: $797,970

@@ -1,0 +1,6 @@
+FICTIONAL TEST SOURCE: GPS dispatch export for truck G-2, supplied by Greyvale Grounds Ltd.
+Export range: 2025-01-13 20:00 to 2025-01-14 10:00
+2025-01-13 22:10 Arrive 410 Quayside Road
+2025-01-13 22:48 Depart 410 Quayside Road
+No stops at 410 Quayside Road between 2025-01-13 22:48 and 2025-01-14 09:14.
+2025-01-14 09:14 Arrive 410 Quayside Road

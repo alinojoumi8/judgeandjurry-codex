@@ -9,6 +9,7 @@ import { editableCaseModelSchema } from '../workflowSchemas'
 import { courtroomCommandSchema } from '../courtroomState'
 import { legalPacketSchema } from '../legalPacketSchema'
 import { packetContentHash } from '../legalPacket'
+import { advocacyStyleIds } from '../styles/catalogue'
 
 const adapterSchema = z.enum(['ontario_criminal_jury_v1', 'ontario_capital_markets_v1', 'ontario_civil_v1'])
 const caseModelDraftSchema = z.object({ procedureAdapter: adapterSchema, model: editableCaseModelSchema.optional() })
@@ -39,6 +40,7 @@ const rulingSchema = z.object({
   decidedAt: z.string().default(() => new Date().toISOString()),
   parentLedgerId: z.string().optional(),
 })
+const damagesAnchors = z.array(z.object({ categoryId: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/), cents: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER) }).strict()).min(1).max(20)
 const trialConfigSchema = z.object({
   courtroomProtocol: z.literal('courtroom_v1').optional(),
   mode: z.enum(['screen', 'full']), procedureAdapter: adapterSchema, seed: z.string().min(1),
@@ -49,6 +51,21 @@ const trialConfigSchema = z.object({
   witnessPlan: z.array(z.object({ witnessId: z.string(), calledByPartyId: z.string(), order: z.number().int() })),
   deliberation: z.object({ maxRounds: z.number().int().min(3).max(12), concurrency: z.number().int().min(1).max(8) }),
   civilDecisionMaker: z.enum(['judge_alone', 'jury']).optional(), externalDisclosureConfirmed: z.boolean(),
+  // Asks for the approved jury profile with this hash; the server pins it.
+  juryProfileHash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  // Opt-in run depth settings. The server pins them; anything else is refused.
+  ballotContract: z.literal('v2').optional(),
+  jurorCognition: z.boolean().optional(),
+  deliberationForecast: z.boolean().optional(),
+  strawPollCounts: z.enum(['visible', 'hidden']).optional(),
+  // Damages amounts (F12) and a damages condition (F13). The server resolves and pins what they mean; a client cannot set the pinned values.
+  damagesAmounts: z.boolean().optional(),
+  damagesCondition: z.object({
+    id: z.enum(['anchor_low', 'anchor_central', 'anchor_high', 'defence_counter_anchor', 'per_diem', 'lump_sum', 'fairness_framing']),
+    anchors: z.object({ low: damagesAnchors.optional(), central: damagesAnchors.optional(), high: damagesAnchors.optional() }).strict().optional(),
+  }).strict().optional(),
+  // Advocacy styles (F15): a party and a style id from the catalogue. The server pins the catalogue version and the text; a client cannot send text.
+  advocacy: z.array(z.object({ partyId: z.string().min(1).max(200), id: z.enum(advocacyStyleIds) }).strict()).max(10).optional(),
 })
 const createTrialSchema = z.object({ caseModelId: z.string().min(1), config: trialConfigSchema, admissionLedgerId: z.string().optional(), parentRunId: z.string().optional() })
 const commandSchema = z.discriminatedUnion('type', [
@@ -78,6 +95,10 @@ const commandSchema = z.discriminatedUnion('type', [
       sourceRefs: z.array(sourceRefSchema).max(100), changedByEventId: z.string().optional(),
       instructionEventId: z.string().optional(),
       valid: z.boolean(), error: z.string().max(4_000).optional(),
+      // Ballot contract v2 fields. Values out of range are not rejected here: the engine records such a ballot as invalid, with the reason.
+      elementFindings: z.array(z.object({ elementId: z.string().min(1), finding: z.enum(['met', 'not_met', 'undecided']), confidence: z.number(), sourceRefs: z.array(sourceRefSchema).max(100) })).max(100).optional(),
+      amounts: z.array(z.object({ categoryId: z.string(), amount: z.number(), currency: z.string(), basis: z.string() })).max(100).optional(),
+      apportionment: z.array(z.object({ partyId: z.string(), percent: z.number() })).max(100).optional(),
     }),
   }),
   z.object({ type: z.literal('complete_decision') }),
@@ -139,7 +160,9 @@ export function createWorkflowRouter(workflow: CaseWorkflowService, trials: Tria
   })
 
   router.post('/case-models/:modelId/motions/draft', (request, response) => {
-    response.status(201).json(workflow.draftMotionDocket(parameter(request, 'modelId')))
+    // An optional body names the party that moves; with none, the earlier default applies.
+    const { movingPartyId } = z.object({ movingPartyId: z.string().min(1).max(200).optional() }).strict().parse(request.body ?? {})
+    response.status(201).json(workflow.draftMotionDocket(parameter(request, 'modelId'), movingPartyId))
   })
 
   router.get('/matters/:matterId/motions', (request, response) => {

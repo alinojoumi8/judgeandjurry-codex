@@ -5,13 +5,18 @@ import type { CaseStore } from './db'
 import type { AppLogger } from './logger'
 import { noopLogger } from './logger'
 import { ModelProviderError, type ModelClient, type StageRequest } from './minimax'
-import { getProcedureAdapter } from './procedureAdapters'
+import { FrameworkService } from './frameworks/service'
+import { pinnedTraits } from './venue/panelSampler'
+import { VenueService } from './venue/service'
+import { frameworkInstructionSections, frameworkRuleText, getProcedureAdapter, isJudgeDecided } from './procedureAdapters'
 import { defaultRunConfig, getLegalTemplate } from './runConfig'
 import { nowIso } from './time'
 import type {
   ActorSnapshot,
   CaseModelV1,
+  DecisionIssue,
   DecisionSheet,
+  ElementFinding,
   EvidenceUse,
   IssueBallot,
   JurorCognitiveProfile,
@@ -26,9 +31,11 @@ import type {
   TrialRun,
   TrialRunConfig,
   RobustnessReport,
+  TheoryBrief,
 } from './trialEngineTypes'
 import type { EvidenceItem, JurorProfile, LegalTemplateId, ProviderMode, ProviderStatus } from './types'
 import { stableStateHash } from './workflowRepository'
+import { NOT_YET_TESTED_SENTENCE } from './forecast/winRates'
 import { buildRecordCoverage, recordScopePrompt } from './recordCoverage'
 import { buildDecisionTrace } from './decisionTrace'
 import { usablePeerContribution } from './groundingRecords'
@@ -40,6 +47,18 @@ import { courtroomState, commitCourtroomCommand } from './courtroom'
 import type { CourtroomCommand } from './courtroomState'
 import { legalPacketReadiness } from './legalPacket'
 import { courtroomAuditEvents } from './grounding'
+import { checkBallotV2, matchPermittedOutcome, normalizeOutcome as normalizeBallotOutcome } from './ballotV2'
+import { isAmountQuestion } from './damages/categories'
+import { damagesBallotPrompt, pinDamagesSettings } from './damages/runSettings'
+import { pinAdvocacySettings } from './styles/runSettings'
+import { jurorAppraisalStage } from './stages'
+import {
+  appraisalEventType, appraisalFailedEventType, appraisalSchema, attentionState, checkElementShifts, cognitionHeuristicVersion,
+  deriveJuryRoles, heardCharacters, rolesEventType, simulatedLabel, spokenText,
+  type DerivedJuryRole, type ObservedBehaviour, type SegmentKind,
+} from './jurorCognition'
+import { deliberationPlanVersion, planRound, type PlanJuror } from './deliberationPlan'
+import { isStance, planEventType, strawPollEventType, strawPollVoteEventType, forecastLabel, stances } from './deliberationAnalysis'
 export type { RobustnessReport } from './trialEngineTypes'
 
 // Jury-out: motion hearings are visible to the bench, counsel for every party,
@@ -146,16 +165,56 @@ export class TrialEngineService {
     if (model.matterId !== input.matterId) throw new Error('Case model does not belong to the selected matter.')
     if (model.procedureAdapter !== input.config.procedureAdapter) throw new Error('Run adapter must match the approved case model.')
     if (input.config.courtroomProtocol) {
+      if (model.procedureAdapter !== 'ontario_criminal_jury_v1') throw new Error('The courtroom protocol (courtroom_v1) is available for criminal jury proceedings only.')
       const readiness = legalPacketReadiness(model)
       if (!readiness.ready) throw new Error(readiness.errors.join(' '))
       if (input.config.mode !== 'full') throw new Error('Courtroom protocol requires a full proceeding.')
       const participantIds = [...model.parties.map(p => p.id), ...model.witnesses.map(w => w.id)]
       if (new Set(participantIds).size !== participantIds.length || participantIds.some(id => /^(?:system|user|judge-\d+|adjudicator-\d+|juror-\d+)$/.test(id))) throw new Error('Party and witness identities must be unique and cannot impersonate reserved courtroom actors.')
     }
+    this.assertRunDepthSettings(model, input.config)
+    // Court rules are pinned by the server, never taken from the client. A
+    // variant of an earlier run keeps that run's pinned rules; any other civil
+    // run pins the matter's current choice. No chosen rules, no framework.
+    const parentRun = input.parentRunId ? this.store.workflow.getTrialRun(input.parentRunId) : undefined
+    const framework = parentRun
+      ? parentRun.config.framework
+      : new FrameworkService(this.store).pinForRun(input.matterId, input.config)
+    // A jury profile is pinned the same way: a variant keeps its parent's, and
+    // any other run resolves the approved profile the client named.
+    const juryProfile = parentRun
+      ? parentRun.config.juryProfile
+      : input.config.juryProfileHash ? this.pinJuryProfile(input.matterId, input.config, model) : undefined
+    // Damages amounts and conditions are pinned the same way, from the court rules and the saved inputs.
+    // Anything the client sent for them is replaced below: only what the server resolved is kept.
+    const damages = pinDamagesSettings(this.store, {
+      matterId: input.matterId, model, config: input.config, framework,
+      hasJurors: actorRoster(model, input.config).some((actor) => actor.role === 'juror' || actor.role === 'foreperson'),
+      parentConfig: parentRun?.config,
+    })
+    // An advocacy style (F15) is pinned the same way: the server checks the party and the style id and keeps the catalogue's own text.
+    const advocacy = pinAdvocacySettings({
+      model, config: input.config, framework,
+      hasJurors: actorRoster(model, input.config).some((actor) => actor.role === 'juror' || actor.role === 'foreperson'),
+      parentConfig: parentRun?.config,
+    })
     // The server stamps its real provider onto the run; clients cannot pick one.
     const config: TrialRunConfig = {
       ...input.config,
+      framework,
+      juryProfileHash: juryProfile?.profileHash,
+      juryProfile,
       legalPacketHash: input.config.courtroomProtocol ? model.legalPacket!.contentHash : undefined,
+      // Opt-in run depth settings are pinned as the only values they can take, or
+      // left out, so a run that does not use them carries no trace of them.
+      ballotContract: input.config.ballotContract === 'v2' ? 'v2' : undefined,
+      jurorCognition: input.config.jurorCognition ? true : undefined,
+      // The forecast pins its straw-poll setting too, explicitly, so a saved run says whether its jurors saw the counts.
+      deliberationForecast: input.config.deliberationForecast ? true : undefined,
+      strawPollCounts: input.config.deliberationForecast ? (input.config.strawPollCounts === 'hidden' ? 'hidden' : 'visible') : undefined,
+      damagesAmounts: damages.damagesAmounts, damagesCategories: damages.damagesCategories, damagesExcluded: damages.damagesExcluded,
+      damagesCurrency: damages.damagesCurrency, damagesCondition: damages.damagesCondition,
+      advocacy,
       provider: this.provider
         ? { name: this.provider.name, model: this.provider.model, mode: this.provider.mode }
         : input.config.provider,
@@ -199,12 +258,34 @@ export class TrialEngineService {
         actors,
         initialAdmissionLedgerId: ledgerId,
         procedureAdapter: adapter.id,
-        decisionRule: adapter.decisionRule,
+        decisionRule: framework && config.civilDecisionMaker !== 'judge_alone' ? frameworkRuleText(framework) : adapter.decisionRule,
         legalSources: adapter.legalSources,
+        ...(framework ? { courtRules: { packId: framework.packId, packHash: framework.packHash, review: framework.review } } : {}),
       },
       sourceRefs: [],
     })
     return this.view(run.id)
+  }
+
+  // Ballot contract v2, juror cognition and the deliberation forecast change what
+  // jurors are asked, so they apply only where there are jurors, and not to the
+  // reviewed courtroom protocol.
+  private assertRunDepthSettings(model: CaseModelV1, config: TrialRunConfig): void {
+    if (config.ballotContract !== undefined && config.ballotContract !== 'v2') throw new Error(`Unknown ballot contract: ${String(config.ballotContract)}.`)
+    if (config.strawPollCounts !== undefined && config.strawPollCounts !== 'visible' && config.strawPollCounts !== 'hidden') throw new Error(`Unknown straw-poll setting: ${String(config.strawPollCounts)}.`)
+    if (config.strawPollCounts !== undefined && !config.deliberationForecast) throw new Error('The straw-poll setting applies only with the deliberation forecast.')
+    if (!config.ballotContract && !config.jurorCognition && !config.deliberationForecast) return
+    if (config.courtroomProtocol) throw new Error('Ballot contract v2, juror cognition and the deliberation forecast are not available with the courtroom protocol (courtroom_v1).')
+    if (!actorRoster(model, config).some((actor) => actor.role === 'juror' || actor.role === 'foreperson')) {
+      throw new Error('Ballot contract v2, juror cognition and the deliberation forecast apply only to runs with jurors.')
+    }
+  }
+
+  private pinJuryProfile(matterId: string, config: TrialRunConfig, model: CaseModelV1) {
+    if (!actorRoster(model, config).some((actor) => actor.role === 'juror' || actor.role === 'foreperson')) {
+      throw new Error('A jury profile applies only to runs with jurors.')
+    }
+    return new VenueService(this.store).resolvePin(matterId, config.juryProfileHash as string)
   }
 
   command(runId: string, command: TrialCommand): TrialRunView {
@@ -440,7 +521,7 @@ export class TrialEngineService {
       scenarioSensitivity,
       comparisons: records.map((record) => compareScenario(baseline, record, this.store.listEvidence(base.matterId, true))),
       recurringProofGaps: [...warningCounts.entries()].filter(([, count]) => count >= Math.max(2, Math.ceil(sheets.length / 2))).map(([warning]) => warning),
-      disclaimer: 'Scenario counts describe completed synthetic runs, not real verdict probabilities. Input and ruling differences accompany outcomes; they do not establish what caused an outcome. Actor labels identify synthetic roles, not matched people across seeds. Older runs may lack starting document-use records.',
+      disclaimer: `Scenario counts describe completed synthetic runs. ${NOT_YET_TESTED_SENTENCE} The counts depend on the assumptions of each run and are not a prediction of any real verdict. Input and ruling differences accompany outcomes; they do not establish what caused an outcome. Actor labels identify synthetic roles, not matched people across seeds. Older runs may lack starting document-use records.`,
     }
   }
 
@@ -469,6 +550,7 @@ export class TrialEngineService {
     if (run.phase === 'openings' || run.phase === 'closings') {
       for (const party of model.parties) {
         if (!this.hasPhaseEvent(run, 'public_submission', party.id)) await this.advocate(run, model, party.id, run.phase)
+        await this.appraiseAdvocacy(run, model, party.id)
       }
       await this.snapshotJurors(run, { after: run.phase })
       return
@@ -508,13 +590,14 @@ export class TrialEngineService {
           trialRunId: run.id, phase: run.phase, type: 'judicial_instruction', actorId: 'judge-1',
           visibleTo: ['public'], payload: {
             ...(run.config.courtroomProtocol ? { packetHash: run.config.legalPacketHash, reviewedInstructions: model.legalPacket!.instructions, reviewedIssues: model.legalPacket!.issues } : {}),
-            text: run.config.courtroomProtocol ? model.legalPacket!.instructions.map(i => i.text).join('\n') : adapter.decisionRule,
-            curatedSections: run.config.courtroomProtocol ? undefined : adapter.instructionSections,
-            issueInstructions: run.config.courtroomProtocol ? undefined : model.decisionIssues.map((issue) => ({ issueId: issue.id, elements: issue.elements, outcomes: issue.permittedOutcomes })),
+            text: run.config.courtroomProtocol ? model.legalPacket!.instructions.map(i => i.text).join('\n') : run.config.framework ? frameworkRuleText(run.config.framework) : adapter.decisionRule,
+            curatedSections: run.config.courtroomProtocol ? undefined : run.config.framework ? frameworkInstructionSections(run.config.framework) : adapter.instructionSections,
+            issueInstructions: run.config.courtroomProtocol ? undefined : model.decisionIssues.filter((issue) => !isJudgeDecided(issue, run.config.framework)).map((issue) => ({ issueId: issue.id, elements: issue.elements, outcomes: issue.permittedOutcomes })),
             sourceNotice: 'Instructions are deterministically assembled from source-linked adapter sections and the approved case model; they are not model-written law and still require lawyer review.',
           }, sourceRefs: run.config.courtroomProtocol ? [] : model.decisionIssues.flatMap((issue) => issue.sourceRefs),
         })
       }
+      this.deriveRoles(run, model)
       await this.snapshotJurors(run, { after: 'instructions' })
       await this.collectBallots(run, model, 'initial')
       return
@@ -525,22 +608,31 @@ export class TrialEngineService {
       // inventory turn, one review turn, and the remainder spent on challenges.
       const rounds = run.phase === 'deliberation_challenges' ? Math.max(1, run.config.deliberation.maxRounds - 2) : 1
       const evidence = this.visibleEvidence(run, 'juror').map((item) => item.evidence)
+      const forecast = Boolean(run.config.deliberationForecast)
       for (let round = 1; round <= rounds; round += 1) {
-        for (const [index, profile] of profiles.entries()) {
-          if (this.hasDeliberationTurn(run, profile.actorId, round)) continue
+        // Without the forecast: every juror once, in roster order, exactly as always.
+        // With it: a seeded order and airtime share, recorded for the audit view.
+        const speakers = forecast ? this.plannedSpeakers(run, model, profiles, round) : profiles.map((profile, index) => ({ profile, index }))
+        for (const { profile, index } of speakers) {
+          if (forecast ? this.hasForecastTurn(run, round, index + 1) : this.hasDeliberationTurn(run, profile.actorId, round)) continue
           let generated: Awaited<ReturnType<TrialEngineService['generateModelStage']>> | undefined
           let failureAudit: ModelAudit | undefined
           try {
             generated = await this.generateModelStage(
               run, 'jury_deliberation',
               `Private profile ${profile.actorId}. ${deliberationFocus(run.phase)} (round ${round} of ${rounds}). Discuss only the supplied evidence within its recorded permitted purposes; availability does not establish admission. Do not cast or alter another actor's ballot.`,
-              evidence, profile.actorId, cognitiveToLegacy(profile),
+              evidence, profile.actorId, cognitiveToLegacy(profile, Boolean(run.config.jurorCognition)),
+              forecast ? { deliberationContract: { version: 'v1' as const, stances } } : {},
             )
           } catch (error) {
             generated = undefined
             failureAudit = error instanceof TrialActorError ? error.audit : undefined
             this.logger.warn('trial_engine.deliberation_turn.failed', { runId: run.id, actorId: profile.actorId, round, error })
           }
+          // The reply target and stance are validated against what this juror could
+          // actually see. One that cannot be accepted is recorded as absent, with the
+          // reason: it is never repaired and never invented.
+          const structure = forecast ? this.turnStructure(run, profile.actorId, generated?.jurors?.[0], Boolean(generated)) : undefined
           this.store.workflow.appendTrialEvent({
             trialRunId: run.id, phase: run.phase, type: 'juror_deliberation_turn', actorId: profile.actorId,
             visibleTo: ['role:juror', 'role:system'], payload: {
@@ -552,9 +644,13 @@ export class TrialEngineService {
               mindChangedBecause: generated?.jurors?.[0]?.mindChangedBecause,
               changedByEventId: generated?.jurors?.[0]?.changedByEventId,
               forepersonControlsVote: false,
+              ...(structure ? { slot: index + 1, ...structure } : {}),
             }, sourceRefs: generated ? citationsToRefs(generated.citations, evidence) : [], modelAudit: generated?.audit ?? failureAudit,
           })
         }
+        // A straw poll after each round of challenges, never after the inventory
+        // or the review (the final ballot follows the review).
+        if (forecast && run.phase === 'deliberation_challenges') await this.strawPoll(run, model, round)
       }
       await this.snapshotJurors(run, { after: run.phase })
       if (run.phase === 'deliberation_review') await this.collectBallots(run, model, 'final')
@@ -564,6 +660,10 @@ export class TrialEngineService {
       if (run.procedureAdapter === 'ontario_capital_markets_v1') await this.collectAdjudicatorBallots(run, model)
       if (run.procedureAdapter === 'ontario_civil_v1' && run.config.civilDecisionMaker === 'judge_alone') {
         await this.collectJudgeBallots(run, model)
+      } else if (run.procedureAdapter === 'ontario_civil_v1') {
+        // In a jury trial the judge still answers the questions that are not the jury's.
+        const judgeIssues = model.decisionIssues.filter((issue) => isJudgeDecided(issue, run.config.framework))
+        if (judgeIssues.length) await this.collectJudgeBallots(run, model, judgeIssues)
       }
       if (this.store.workflow.getDecisionSheet(run.id)) return
       this.completeDecision(run, model)
@@ -617,6 +717,7 @@ export class TrialEngineService {
     if (!this.hasWitnessEvent(run, 'witness_answer', witness.id, 'direct')) {
       await this.answerAutonomously(run, witness, 'direct', evidence)
     }
+    await this.appraiseWitnessSegment(run, model, witness, 'direct')
     const crossExaminer = model.parties.find((party) => party.id !== calledByPartyId)?.id
     if (!crossExaminer) return
     if (!this.hasWitnessEvent(run, 'witness_question', witness.id, 'cross')) {
@@ -665,6 +766,7 @@ export class TrialEngineService {
     if (!this.hasWitnessEvent(run, 'witness_answer', witness.id, 'cross')) {
       await this.answerAutonomously(run, witness, 'cross', evidence)
     }
+    await this.appraiseWitnessSegment(run, model, witness, 'cross')
     this.markWitnessExaminationCompleted(run, witness.id)
   }
 
@@ -929,7 +1031,7 @@ export class TrialEngineService {
   }
 
   private async advocate(run: TrialRun, model: CaseModelV1, partyId: string, phase: 'openings' | 'closings'): Promise<void> {
-    const theory = this.store.workflow.listTheoryBriefs(model.id).find((brief) => brief.partyId === partyId)
+    const theory = newestTheoryBrief(this.store.workflow.listTheoryBriefs(model.id), partyId)
     // Public submissions must not introduce sources hidden from the decision
     // makers, even if the advocate can inspect them privately.
     const audience = run.procedureAdapter === 'ontario_capital_markets_v1' ? 'adjudicator' : run.procedureAdapter === 'ontario_civil_v1' && run.config.civilDecisionMaker === 'judge_alone' ? 'judge' : 'juror'
@@ -939,6 +1041,7 @@ export class TrialEngineService {
       `Private theory for this advocate only: ${theory?.narrative ?? 'No private theory was supplied.'}`,
       `Proof gaps: ${theory?.claims.flatMap((claim) => claim.proofGaps).join('; ') || 'None recorded.'}`,
     ].join('\n')
+    const style = run.config.advocacy?.find((entry) => entry.partyId === partyId)
     this.store.workflow.appendTrialEvent({
       trialRunId: run.id, phase: run.phase, type: 'private_strategy_selected', actorId: partyId,
       visibleTo: [partyId, 'role:system'], payload: { move: phase, claimIds: theory?.claims.map((claim) => claim.id) ?? [] }, sourceRefs: [],
@@ -947,10 +1050,23 @@ export class TrialEngineService {
     const stage = phase === 'openings'
       ? (role === 'crown' || role === 'staff' || role === 'plaintiff' ? 'crown_opening' : 'defence_opening')
       : (role === 'crown' || role === 'staff' || role === 'plaintiff' ? 'crown_rebuttal' : 'defence_rebuttal')
-    const result = await this.generateModelStage(run, stage, packet, visible.map((item) => item.evidence), partyId)
+    const styledPacket = style?.text ? `${packet}\nDelivery style for your ${phase === 'openings' ? 'opening' : 'closing'} argument (delivery only; the source rules above still apply): ${style.text}` : packet
+    const result = await this.generateModelStage(run, stage, styledPacket, visible.map((item) => item.evidence), partyId)
+    // Advocacy style (F15): the pinned style text goes into THIS party's request only. The event records that it was used. It is not public, so
+    // the other side, the jurors and the judge never receive the style or its id. A run with no style takes the unchanged branch.
+    if (style?.text) {
+      this.store.workflow.appendTrialEvent({
+        trialRunId: run.id, phase: run.phase, type: 'advocacy_style_applied', actorId: 'system',
+        visibleTo: ['user', 'role:system'], payload: { partyId, styleId: style.id, catalogueVersion: style.catalogueVersion ?? '', move: phase }, sourceRefs: [],
+      })
+    }
+    // Damages condition (F13): a fixed submission written by code from the pinned inputs is added to this party's closing. A model never
+    // supplies the figure. A run with no condition takes the unchanged branch.
+    const condition = phase === 'closings' ? run.config.damagesCondition : undefined
+    const submission = condition ? (role === 'plaintiff' ? condition.plaintiffText : role === 'defence' ? condition.defenceText : undefined) : undefined
     this.store.workflow.appendTrialEvent({
       trialRunId: run.id, phase: run.phase, type: 'public_submission', actorId: partyId,
-      visibleTo: ['public'], payload: { title: result.title, text: result.content },
+      visibleTo: ['public'], payload: submission ? { title: result.title, text: `${result.content}\n\n${submission}`, damagesCondition: condition!.id } : { title: result.title, text: result.content },
       sourceRefs: citationsToRefs(result.citations, visible.map((item) => item.evidence)), modelAudit: result.audit,
     })
   }
@@ -959,7 +1075,9 @@ export class TrialEngineService {
     const profiles = this.store.workflow.listJurorProfiles(run.id)
     if (profiles.length === 0) return
     const existing = new Set(this.store.workflow.listBallots(run.id, round).map((ballot) => `${ballot.actorId}:${ballot.issueId}`))
-    const jobs = profiles.flatMap((profile) => model.decisionIssues.map((issue) => async () => {
+    // Judge-decided questions are never put to jurors.
+    const juryIssues = model.decisionIssues.filter((issue) => !isJudgeDecided(issue, run.config.framework))
+    const jobs = profiles.flatMap((profile) => juryIssues.map((issue) => async () => {
       if (existing.has(`${profile.actorId}:${issue.id}`)) return
       const outcome = await this.jurorBallot(run, model, profile, issue.id, round)
       const { audit, ...ballot } = outcome
@@ -973,33 +1091,52 @@ export class TrialEngineService {
     await runWithConcurrency(jobs, run.config.deliberation.concurrency)
   }
 
-  private async jurorBallot(run: TrialRun, model: CaseModelV1, profile: JurorCognitiveProfile, issueId: string, round: IssueBallot['round']): Promise<IssueBallot & { audit?: ModelAudit }> {
+  // `poll` is set for a straw-poll vote of the deliberation forecast. It is the
+  // same private ballot, asked mid-deliberation: it is compared with the juror's
+  // last stated position (`poll.baseline`, else the initial ballot), and it is
+  // never saved as a ballot, so the stored ballots of a run are unchanged.
+  private async jurorBallot(run: TrialRun, model: CaseModelV1, profile: JurorCognitiveProfile, issueId: string, round: IssueBallot['round'], poll?: { round: number; baseline?: string }): Promise<IssueBallot & { audit?: ModelAudit }> {
     const issue = model.decisionIssues.find((candidate) => candidate.id === issueId)!
+    if (isJudgeDecided(issue, run.config.framework)) throw new Error(`"${issue.label}" is decided by the judge; jurors never receive a ballot for it.`)
+    const defenceBears = burdenOnDefenceSide(model, issue)
     const visible = run.config.courtroomProtocol ? this.actorContext(run.id, profile.actorId, undefined, { issueId: issue.id, partyIds: issue.respondingPartyIds }).evidence.map(e => ({ evidence: e.evidence, status: e.use })) : this.visibleEvidence(run, 'juror')
     const context = this.actorContext(run.id, profile.actorId, undefined, { issueId: issue.id, partyIds: issue.respondingPartyIds })
     const instructionId = context.events.filter(e => ['judicial_instruction', 'limiting_instruction'].includes(e.type)).at(-1)?.id
     const initialAssessments = round === 'final' ? context.memory.issueAssessments.filter(b => b.round === 'initial' && b.issueId === issue.id && b.usable) : []
     const initial = initialAssessments.length === 1 ? initialAssessments[0] : undefined
+    const baseline = poll?.baseline ?? initial?.choice
+    const ballotKind = poll ? `straw-poll vote after deliberation round ${poll.round}. It is not your final ballot: state where you stand now, and if that differs from where you last stood (${baseline ?? 'no earlier position'}), name the visible deliberation event that moved you` : `${round} ballot`
     const eligibleEvents = context.events.filter(e => usablePeerContribution({ ...e, eventId: e.id }))
+    const v2 = run.config.ballotContract === 'v2'
+    // A question that asks for money, in a run that opted in to damages amounts. A straw poll is never saved, so it is not asked for amounts.
+    const damages = v2 && !poll && run.config.damagesAmounts === true && isAmountQuestion(issue)
     try {
-      const legacyProfile = cognitiveToLegacy(profile)
+      const legacyProfile = cognitiveToLegacy(profile, Boolean(run.config.jurorCognition))
       const generated = await this.generateModelStage(
         run,
         'juror_ballot',
-        `You are ${profile.actorId}. Decide only ${issue.id}: ${issue.label}. Permitted outcomes: ${issue.permittedOutcomes.join(', ')}. This is a private ${round} ballot.\nControlling issue elements and burdens: ${JSON.stringify(run.config.courtroomProtocol ? model.legalPacket!.issues.find(i => i.issueId === issue.id) : issue.elements)}\n${run.config.courtroomProtocol ? `Acknowledge the current instruction by returning instructionEventId: ${instructionId}. Your initial ballot: ${JSON.stringify(this.actorContext(run.id, profile.actorId, undefined, { issueId: issue.id, partyIds: issue.respondingPartyIds }).memory.issueAssessments.find(b => b.round === 'initial' && b.issueId === issueId) ?? null)}. If your position changes, return changedByEventId naming one visible deliberation event ID, mindChangedBecause explaining its relevance, and a permitted citation shared with that event.` : 'Apply these instructions even if the earlier judicial instruction is outside the recent-record window.'}`,
+        v2
+          ? `You are ${profile.actorId}. Decide only ${issue.id}: ${issue.label}. Permitted outcomes: ${issue.permittedOutcomes.join(', ')}. This is a private ${ballotKind}. Name your outcome yourself: exactly one permitted outcome${round === 'initial' ? ', or "undecided" if you cannot yet decide' : ''}.\nControlling issue elements and burdens: ${JSON.stringify(issue.elements)}\nParties (for any apportionment): ${JSON.stringify(model.parties.map(({ id, name }) => ({ id, name })))}\nApply these instructions even if the earlier judicial instruction is outside the recent-record window.${damages ? `\n${damagesBallotPrompt(run.config)}` : ''}`
+          : `You are ${profile.actorId}. Decide only ${issue.id}: ${issue.label}. Permitted outcomes: ${issue.permittedOutcomes.join(', ')}. This is a private ${ballotKind}.${defenceBears ? ' Side vocabulary: the defence bears the burden on this question. Return leaning "defence" if you favour the defence side (the question is established), "crown" if you favour the claimant side (the question is not established), or "mixed" if you cannot decide.' : ''}\nControlling issue elements and burdens: ${JSON.stringify(run.config.courtroomProtocol ? model.legalPacket!.issues.find(i => i.issueId === issue.id) : issue.elements)}\n${run.config.courtroomProtocol ? `Acknowledge the current instruction by returning instructionEventId: ${instructionId}. Your initial ballot: ${JSON.stringify(this.actorContext(run.id, profile.actorId, undefined, { issueId: issue.id, partyIds: issue.respondingPartyIds }).memory.issueAssessments.find(b => b.round === 'initial' && b.issueId === issueId) ?? null)}. If your position changes, return changedByEventId naming one visible deliberation event ID, mindChangedBecause explaining its relevance, and a permitted citation shared with that event.` : 'Apply these instructions even if the earlier judicial instruction is outside the recent-record window.'}`,
         visible.map((item) => item.evidence),
         profile.actorId,
         legacyProfile,
         { ballotRound: round, useScope: { issueId: issue.id, partyIds: issue.respondingPartyIds }, ballotContract: {
-            initialChoice: initial?.choice,
+            initialChoice: baseline,
             permittedOutcomes: issue.permittedOutcomes, instructionEventId: instructionId,
             events: eligibleEvents.map(e => ({ eventId: e.id, exhibitIds: visible.filter(v => e.sourceRefs.some(r => r.evidenceId === v.evidence.id)).map(v => v.evidence.exhibitId) })),
-          } },
+          }, ...(v2 ? { ballotContractVersion: 'v2' as const } : {}) },
       )
       const juror = generated.jurors?.[0]
       if (!juror) throw new Error('Model returned no isolated juror ballot.')
-      const choice = mapLeaningToOutcome(juror.leaning, issue.permittedOutcomes, round)
-      const changed = Boolean(initial && initial.choice !== choice)
+      // Contract v2: the juror names the outcome and no side is translated. An
+      // answer that is not a permitted outcome stays as given and is invalid.
+      const named = v2 ? matchPermittedOutcome(juror.outcome, issue.permittedOutcomes) : undefined
+      const choice = v2
+        ? named ?? (round === 'initial' && normalizeBallotOutcome(juror.outcome) === 'undecided' ? 'undecided' : String(juror.outcome ?? '').trim())
+        : mapLeaningToOutcome(juror.leaning, issue.permittedOutcomes, round, defenceBears)
+      const v2Fields = v2 ? this.ballotV2Fields(model, issue, round, choice, juror, visible.map((item) => item.evidence), damages ? run.config : undefined) : { fields: {}, problems: [] as string[] }
+      const changed = Boolean(baseline !== undefined && baseline !== choice)
       const changedBy = changed ? juror.changedByEventId : undefined
       const sourceRefs = citationsToRefs(juror.citations, visible.map((item) => item.evidence))
       const selectedEvent = changedBy ? eligibleEvents.find(e => e.id === changedBy) : undefined
@@ -1014,8 +1151,9 @@ export class TrialEngineService {
         sourceRefs,
         instructionEventId: instructionId && juror.instructionEventId === instructionId ? instructionId : undefined,
         changedByEventId: changed && changeGrounded ? selectedEvent?.id : undefined,
-        valid: (round === 'initial' ? choice === 'undecided' || issue.permittedOutcomes.includes(choice) : issue.permittedOutcomes.includes(choice)) && changeGrounded,
-        error: changeGrounded ? undefined : !acknowledged ? 'The ballot must acknowledge the current instruction, with no pending jury question.' : 'A changed final position must cite both a selected visible deliberation event and relevant permitted evidence.',
+        valid: (round === 'initial' ? choice === 'undecided' || issue.permittedOutcomes.includes(choice) : issue.permittedOutcomes.includes(choice)) && changeGrounded && v2Fields.problems.length === 0,
+        error: [changeGrounded ? undefined : !acknowledged ? 'The ballot must acknowledge the current instruction, with no pending jury question.' : 'A changed final position must cite both a selected visible deliberation event and relevant permitted evidence.', ...v2Fields.problems].filter(Boolean).join(' ') || undefined,
+        ...v2Fields.fields,
         createdAt: nowIso(), audit: generated.audit,
       }
     } catch (error) {
@@ -1030,6 +1168,26 @@ export class TrialEngineService {
         },
       }
     }
+  }
+
+  // Turns a v2 juror's element findings, amounts and apportionment into the
+  // stored shape and checks them. Problems are returned, never repaired.
+  private ballotV2Fields(
+    model: CaseModelV1, issue: DecisionIssue, round: IssueBallot['round'], choice: string,
+    juror: NonNullable<Awaited<ReturnType<TrialEngineService['generateModelStage']>>['jurors']>[number], evidence: EvidenceItem[],
+    damages?: Pick<TrialRunConfig, 'damagesCategories' | 'damagesCurrency'>,
+  ): { fields: Pick<IssueBallot, 'elementFindings' | 'amounts' | 'apportionment'>; problems: string[] } {
+    const fields: Pick<IssueBallot, 'elementFindings' | 'amounts' | 'apportionment'> = {}
+    if (juror.elementFindings) {
+      fields.elementFindings = juror.elementFindings.map((finding) => ({
+        elementId: finding.elementId, finding: finding.finding as ElementFinding['finding'], confidence: finding.confidence,
+        sourceRefs: citationsToRefs(finding.citations, evidence),
+      }))
+    }
+    if (juror.amounts?.length) fields.amounts = juror.amounts
+    if (juror.apportionment?.length) fields.apportionment = juror.apportionment
+    const check = checkBallotV2({ issue, partyIds: model.parties.map((party) => party.id), outcome: choice, round, ...fields, ...amountSpec(damages) })
+    return { fields, problems: check.problems }
   }
 
   private async collectAdjudicatorBallots(run: TrialRun, model: CaseModelV1): Promise<void> {
@@ -1047,7 +1205,7 @@ export class TrialEngineService {
           )
           const ballot = this.store.workflow.saveBallot({
             id: randomUUID(), trialRunId: run.id, issueId: issue.id, actorId: actor.id, round: 'final',
-            choice: choiceFromOutcome(generated.verdict?.outcome, issue.permittedOutcomes),
+            choice: choiceFromOutcome(generated.verdict?.outcome, issue.permittedOutcomes, burdenOnDefenceSide(model, issue)),
             confidence: clampConfidence(generated.verdict?.confidence ?? 50), rationale: generated.content,
             sourceRefs: citationsToRefs(generated.citations, evidence), valid: true, createdAt: nowIso(),
           })
@@ -1064,10 +1222,10 @@ export class TrialEngineService {
     }
   }
 
-  private async collectJudgeBallots(run: TrialRun, model: CaseModelV1): Promise<void> {
+  private async collectJudgeBallots(run: TrialRun, model: CaseModelV1, issues: DecisionIssue[] = model.decisionIssues): Promise<void> {
     const actorId = 'judge-1'
     const existing = new Set(this.store.workflow.listBallots(run.id, 'final').map((ballot) => `${ballot.actorId}:${ballot.issueId}`))
-    for (const issue of model.decisionIssues) {
+    for (const issue of issues) {
       if (existing.has(`${actorId}:${issue.id}`)) continue
       const evidence = this.visibleEvidence(run, 'judge').map((item) => item.evidence)
       try {
@@ -1078,7 +1236,7 @@ export class TrialEngineService {
         )
         const ballot = this.store.workflow.saveBallot({
           id: randomUUID(), trialRunId: run.id, issueId: issue.id, actorId, round: 'final',
-          choice: choiceFromOutcome(generated.verdict?.outcome, issue.permittedOutcomes),
+          choice: choiceFromOutcome(generated.verdict?.outcome, issue.permittedOutcomes, burdenOnDefenceSide(model, issue)),
           confidence: clampConfidence(generated.verdict?.confidence ?? 50), rationale: generated.content,
           sourceRefs: citationsToRefs(generated.citations, evidence), valid: true, createdAt: nowIso(),
         })
@@ -1109,7 +1267,10 @@ export class TrialEngineService {
     const events = this.store.workflow.listTrialEvents(run.id)
     const evidence = this.store.listEvidence(run.matterId, true)
     const ledger = run.admissionLedgerId ? this.store.workflow.getAdmissionLedger(run.admissionLedgerId) : undefined
-    const decisions = adapter.decide(model, ballots, run.config).map((decision) => ({
+    const discharged = run.config.framework
+      ? events.filter((event) => event.type === 'juror_discharged' && event.actorId).map((event) => event.actorId!)
+      : []
+    const decisions = adapter.decide(model, ballots, run.config, { dischargedJurorIds: discharged }).map((decision) => ({
       ...decision, trace: buildDecisionTrace(run, model, decision.issueId, evidence, ledger, ballots, events),
     }))
     const warnings = decisions.flatMap((decision) => decision.warnings.map((warning) => `${decision.issueId}: ${warning}`))
@@ -1146,6 +1307,10 @@ export class TrialEngineService {
   private recordBallot(run: TrialRun, model: CaseModelV1, input: Omit<IssueBallot, 'id' | 'trialRunId' | 'createdAt'>): IssueBallot {
     const issue = model.decisionIssues.find((candidate) => candidate.id === input.issueId)
     if (!issue) throw new Error(`Decision issue not found: ${input.issueId}`)
+    if (isJudgeDecided(issue, run.config.framework)) {
+      const juror = actorRoster(model, run.config).some((actor) => actor.id === input.actorId && (actor.role === 'juror' || actor.role === 'foreperson')) || /^juror-\d+$/.test(input.actorId)
+      if (juror) throw new Error(`"${issue.label}" is decided by the judge; a juror cannot cast a ballot on it.`)
+    }
     if (run.config.courtroomProtocol) {
       const roles = rolesForActor(model, run.config, input.actorId)
       if (!roles.some(r => ['juror', 'foreperson', 'judge', 'adjudicator'].includes(r))) throw new Error('This actor cannot cast a decision ballot.')
@@ -1163,8 +1328,14 @@ export class TrialEngineService {
       }
     }
     const choice = input.choice === 'undecided' && input.round === 'final' ? missingBallotOutcome(run.procedureAdapter) : input.choice
-    const valid = input.valid && issue.permittedOutcomes.includes(choice)
-    return this.store.workflow.saveBallot({ ...input, choice, valid, id: randomUUID(), trialRunId: run.id, createdAt: nowIso() })
+    let valid = input.valid && issue.permittedOutcomes.includes(choice)
+    let error = input.error
+    if (run.config.ballotContract === 'v2') {
+      // A run under contract v2 holds every ballot to it, however it was recorded.
+      const check = checkBallotV2({ issue, partyIds: model.parties.map((party) => party.id), outcome: choice, round: input.round, elementFindings: input.elementFindings, amounts: input.amounts, apportionment: input.apportionment, ...amountSpec(run.config.damagesAmounts === true && isAmountQuestion(issue) ? run.config : undefined) })
+      if (!check.ok) { valid = false; error = [input.error, ...check.problems].filter(Boolean).join(' ') }
+    }
+    return this.store.workflow.saveBallot({ ...input, choice, valid, error, id: randomUUID(), trialRunId: run.id, createdAt: nowIso() })
   }
 
   private advance(run: TrialRun): TrialRun {
@@ -1203,6 +1374,236 @@ export class TrialEngineService {
     })
   }
 
+  // ---------- juror cognition (F8) ----------
+  // Everything below returns at once when the run did not opt in, so a run that
+  // did not opt in makes exactly the calls and records exactly the events it
+  // always did.
+
+  private async appraiseAdvocacy(run: TrialRun, model: CaseModelV1, partyId: string): Promise<void> {
+    if (!run.config.jurorCognition) return
+    const submission = this.store.workflow.listTrialEvents(run.id)
+      .filter((event) => event.phase === run.phase && event.type === 'public_submission' && event.actorId === partyId).at(-1)
+    if (!submission) return
+    const kind: SegmentKind = run.phase === 'closings' ? 'closing' : 'opening'
+    const name = model.parties.find((party) => party.id === partyId)?.name ?? partyId
+    await this.appraiseSegment(run, model, { key: `${run.phase}:${partyId}`, kind, label: `${name}: ${kind}`, speakerId: partyId, momentEventId: submission.id })
+  }
+
+  private async appraiseWitnessSegment(run: TrialRun, model: CaseModelV1, witness: CaseModelV1['witnesses'][number], examination: 'direct' | 'cross'): Promise<void> {
+    if (!run.config.jurorCognition) return
+    const answer = this.store.workflow.listTrialEvents(run.id).filter((event) =>
+      event.phase === run.phase && event.type === 'witness_answer' && event.payload.witnessId === witness.id && event.payload.examination === examination).at(-1)
+    if (!answer) return
+    await this.appraiseSegment(run, model, { key: `evidence:${witness.id}:${examination}`, kind: examination, label: `${witness.name}: ${examination} examination`, speakerId: witness.id, momentEventId: answer.id })
+  }
+
+  // One private appraisal per juror for one segment of the trial. Each is a
+  // model call made for that juror alone, on that juror's admitted record, and
+  // each is stored visible to that juror and the system only. A failed or
+  // invalid appraisal is recorded as a failure and never repaired or invented.
+  private async appraiseSegment(
+    run: TrialRun, model: CaseModelV1,
+    segment: { key: string; kind: SegmentKind; label: string; speakerId: string; momentEventId: string },
+  ): Promise<void> {
+    const profiles = this.store.workflow.listJurorProfiles(run.id)
+    const before = this.store.workflow.listTrialEvents(run.id)
+    const isAppraisal = (event: TrialEvent) => event.type === appraisalEventType || event.type === appraisalFailedEventType
+    const finished = new Set(before.filter((event) => isAppraisal(event) && event.payload.segmentKey === segment.key).map((event) => event.actorId))
+    const juryIssues = model.decisionIssues.filter((issue) => !isJudgeDecided(issue, run.config.framework))
+    const moment = before.find((event) => event.id === segment.momentEventId)
+    const momentText = moment ? spokenText(moment) : ''
+    const elementCount = juryIssues.reduce((total, issue) => total + issue.elements.length, 0)
+    const questions = juryIssues.map((issue) => ({ issueId: issue.id, question: issue.label, elements: issue.elements.map((element) => ({ elementId: element.id, label: element.label })) }))
+    const jobs = profiles.filter((profile) => !finished.has(profile.actorId)).map((profile) => async () => {
+      const context = this.actorContext(run.id, profile.actorId)
+      const evidence = context.evidence.map((item) => item.evidence)
+      const segmentIndex = new Set(before.filter((event) => isAppraisal(event) && event.actorId === profile.actorId).map((event) => event.payload.segmentKey)).size
+      const state = attentionState({
+        seed: run.seed, jurorId: profile.actorId, traits: profile.traits, segmentIndex,
+        // What this juror had heard before the segment, from this juror's own admitted record.
+        recordCharacters: heardCharacters(context.events.filter((event) => !moment || event.sequence < moment.sequence)),
+        segmentCharacters: momentText.length, segmentDigits: (momentText.match(/\d/g) ?? []).length,
+        elementCount, exhibitCount: evidence.length,
+      })
+      const packet = [
+        `You are ${profile.actorId}, privately appraising the segment you have just heard: ${segment.label} (record event ${segment.momentEventId}).`,
+        `Controlling questions and elements (use these exact ids in elementShifts): ${JSON.stringify(questions)}`,
+        `Your attention for this segment is ${Math.round(state.attention * 100)}% and your fatigue ${Math.round(state.fatigue * 100)}%, at ${state.positionInDayHours} hours into court day ${state.courtDay}. This is a stated heuristic computed in code, not a measurement.`,
+        'Appraise only this segment, from the admitted record you have heard. Do not state a verdict.',
+      ].join('\n')
+      const append = (type: string, payload: Record<string, unknown>, sourceRefs: SourceSegmentRef[], modelAudit?: ModelAudit) => this.store.workflow.appendTrialEvent({
+        trialRunId: run.id, phase: run.phase, type, actorId: profile.actorId,
+        // Only this juror and the system. No other juror, witness or counsel hears it.
+        visibleTo: [profile.actorId, 'role:system'], payload: {
+          simulated: true, label: simulatedLabel, segmentKey: segment.key, segmentKind: segment.kind, segmentLabel: segment.label,
+          speakerId: segment.speakerId, momentEventId: segment.momentEventId, ...payload,
+        }, sourceRefs, modelAudit,
+      })
+      let generated: Awaited<ReturnType<TrialEngineService['generateModelStage']>>
+      try {
+        generated = await this.generateModelStage(run, jurorAppraisalStage, packet, evidence, profile.actorId, cognitiveToLegacy(profile, true))
+      } catch (error) {
+        this.logger.warn('trial_engine.juror_appraisal.failed', { runId: run.id, actorId: profile.actorId, segment: segment.key, error })
+        append(appraisalFailedEventType, { error: errorMessage(error), heuristic: state }, [], failureAudit(run, profile.actorId, segment.key, error, this.provider))
+        return
+      }
+      const parsed = appraisalSchema.safeParse(generated.appraisal)
+      if (!parsed.success) {
+        const detail = parsed.error.issues.map((issue) => `${issue.path.join('.') || 'appraisal'}: ${issue.message}`).join('; ')
+        append(appraisalFailedEventType, { error: `The appraisal was not valid and was not repaired. ${detail}`, heuristic: state }, [], generated.audit)
+        return
+      }
+      const { kept, rejected } = checkElementShifts(parsed.data.elementShifts, juryIssues, (citations) => citationsToRefs(citations, evidence))
+      append(appraisalEventType, {
+        appraisal: { ...parsed.data, elementShifts: kept }, heuristic: state, rejected,
+        note: 'The appraisal is model output playing this juror. Attention and fatigue are a stated heuristic. Neither is a measurement.',
+      }, kept.flatMap((shift) => shift.sourceRefs), generated.audit)
+    })
+    await runWithConcurrency(jobs, run.config.deliberation.concurrency)
+  }
+
+  // Jury roles, derived once before the charge from traits and the appraisals
+  // recorded so far. Stored for the system view only; deliberation applies them.
+  private deriveRoles(run: TrialRun, model: CaseModelV1): void {
+    if ((!run.config.jurorCognition && !run.config.deliberationForecast) || this.hasPhaseEvent(run, rolesEventType)) return
+    const events = this.store.workflow.listTrialEvents(run.id)
+    const profiles = this.store.workflow.listJurorProfiles(run.id)
+    const roster = actorRoster(model, run.config)
+    const appraisals = events.filter((event) => event.type === appraisalEventType)
+    const mean = (values: number[]) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0
+    const observed: Record<string, ObservedBehaviour> = {}
+    for (const profile of profiles) {
+      const own = appraisals.map((event) => event.actorId === profile.actorId ? event.payload.appraisal as { comprehension: number; valence: number; intensity: number; wonders: string[] } : undefined).filter((item): item is NonNullable<typeof item> => Boolean(item))
+      observed[profile.actorId] = {
+        appraisals: own.length, meanIntensity: mean(own.map((item) => item.intensity)), meanComprehension: mean(own.map((item) => item.comprehension)),
+        meanAbsValence: mean(own.map((item) => Math.abs(item.valence))), wonders: own.reduce((total, item) => total + item.wonders.length, 0),
+      }
+    }
+    const roles = deriveJuryRoles({
+      jurors: profiles.map((profile) => ({ jurorId: profile.actorId, traits: profile.traits, isForeperson: roster.find((actor) => actor.id === profile.actorId)?.role === 'foreperson' })),
+      observed, segmentCount: new Set(appraisals.map((event) => event.payload.segmentKey)).size,
+    })
+    this.store.workflow.appendTrialEvent({
+      trialRunId: run.id, phase: run.phase, type: rolesEventType, actorId: 'system', visibleTo: ['role:system'],
+      payload: {
+        simulated: true, label: simulatedLabel, algorithmVersion: cognitionHeuristicVersion, forepersonControlsVote: false, roles,
+        note: 'Roles are derived in code from traits and the appraisals recorded so far. A stated heuristic, not a measurement.',
+      }, sourceRefs: [],
+    })
+  }
+
+  // ---------- deliberation forecast (F9) ----------
+  // Everything below runs only for a run that opted in with `deliberationForecast`.
+  // A run that did not opt in never calls any of it.
+
+  // The speaking order for one round, with the airtime share for the challenge
+  // rounds. The plan is saved the first time, for the system view, and a resumed
+  // run reads it back rather than working it out again.
+  private plannedSpeakers(run: TrialRun, model: CaseModelV1, profiles: JurorCognitiveProfile[], round: number): Array<{ profile: JurorCognitiveProfile; index: number }> {
+    const saved = this.store.workflow.listTrialEvents(run.id).find((event) => event.type === planEventType && event.payload.phase === run.phase && event.payload.round === round)
+    let order = saved && Array.isArray(saved.payload.order) ? saved.payload.order as Array<{ slot: number; jurorId: string }> : undefined
+    if (!order) {
+      const rolesEvent = this.store.workflow.listTrialEvents(run.id).filter((event) => event.type === rolesEventType).at(-1)
+      let roles = Array.isArray(rolesEvent?.payload.roles) ? rolesEvent!.payload.roles as DerivedJuryRole[] : undefined
+      // Roles are derived before the charge. A run resumed without them derives them from the traits alone.
+      roles ??= deriveJuryRoles({ jurors: profiles.map((profile) => ({ jurorId: profile.actorId, traits: profile.traits, isForeperson: actorRoster(model, run.config).find((actor) => actor.id === profile.actorId)?.role === 'foreperson' })), observed: {}, segmentCount: 0 })
+      const jurors: PlanJuror[] = profiles.map((profile) => {
+        const role = roles!.find((item) => item.jurorId === profile.actorId)
+        return { jurorId: profile.actorId, speakingOrderWeight: role?.speakingOrderWeight ?? 1, airtimeWeight: role?.airtimeWeight ?? 1 }
+      })
+      const plan = planRound({ seed: run.seed, phase: run.phase, round, jurors, shareAirtime: run.phase === 'deliberation_challenges' })
+      this.store.workflow.appendTrialEvent({
+        trialRunId: run.id, phase: run.phase, type: planEventType, actorId: 'system', visibleTo: ['role:system'],
+        payload: {
+          simulated: true, label: forecastLabel, algorithmVersion: deliberationPlanVersion, phase: run.phase, round, shareAirtime: plan.shareAirtime,
+          forepersonControlsVote: false, turnsPerJuror: plan.turnsPerJuror, order: plan.order,
+          note: 'The order is a seeded weighted draw from each juror\'s derived role and assertiveness. A challenge round has one turn per juror in all, shared out by airtime weight. A stated heuristic, not a measurement.',
+        }, sourceRefs: [],
+      })
+      order = plan.order
+    }
+    return order.flatMap(({ slot, jurorId }) => {
+      const profile = profiles.find((item) => item.actorId === jurorId)
+      return profile ? [{ profile, index: slot - 1 }] : []
+    })
+  }
+
+  private hasForecastTurn(run: TrialRun, round: number, slot: number): boolean {
+    return this.store.workflow.listTrialEvents(run.id).some((event) =>
+      event.phase === run.phase && event.type === 'juror_deliberation_turn' && (event.payload.round ?? 1) === round && event.payload.slot === slot)
+  }
+
+  // Checks the stance and reply target a juror returned against what that juror
+  // could see. Returns what to record, with the reason for anything set aside.
+  private turnStructure(run: TrialRun, actorId: string, juror: { stance?: string; replyToEventId?: string } | undefined, generated: boolean): { stance: string | null; replyToEventId: string | null; replyToActorId: string | null; structureProblems?: string[] } {
+    const problems: string[] = []
+    let stance: string | null = null
+    if (!generated) problems.push('No contribution was generated for this turn, so no stance or reply target was recorded.')
+    else if (isStance(juror?.stance)) stance = juror!.stance!
+    else problems.push(juror?.stance === undefined ? 'The model returned no stance.' : `The stance "${juror.stance}" is not one of ${stances.join(', ')}.`)
+    let replyToEventId: string | null = null
+    let replyToActorId: string | null = null
+    const claimed = generated ? juror?.replyToEventId : undefined
+    if (claimed) {
+      const visible = this.actorContext(run.id, actorId).events
+      const target = visible.find((event) => event.id === claimed && usablePeerContribution({ ...event, eventId: event.id }) && event.actorId !== actorId)
+      if (target) { replyToEventId = target.id; replyToActorId = target.actorId ?? null }
+      else problems.push('The reply target is not an earlier contribution by another juror that this juror could see, so none was recorded.')
+    } else if (stance && stance !== 'new_point') problems.push(`A "${stance}" turn named no earlier contribution to answer.`)
+    return { stance, replyToEventId, replyToActorId, ...(problems.length ? { structureProblems: problems } : {}) }
+  }
+
+  // The last position this juror stated on a question before `round`: their
+  // last valid straw-poll vote, or nothing (the caller then uses the initial ballot).
+  private strawBaseline(events: TrialEvent[], actorId: string, issueId: string, round: number): string | undefined {
+    return events.filter((event) => event.type === strawPollVoteEventType && event.actorId === actorId && event.payload.issueId === issueId && event.payload.valid === true && Number(event.payload.poll) < round)
+      .sort((a, b) => a.sequence - b.sequence).at(-1)?.payload.choice as string | undefined
+  }
+
+  // A straw poll: every juror states, privately, where they stand now on every
+  // question the jury decides. Votes are saved as events visible to that juror
+  // and the system only, never as ballots. The counts are saved as one more
+  // event, which the jurors see only when the run pinned `strawPollCounts:
+  // 'visible'`. No individual vote appears in it.
+  private async strawPoll(run: TrialRun, model: CaseModelV1, round: number): Promise<void> {
+    const before = this.store.workflow.listTrialEvents(run.id)
+    if (before.some((event) => event.phase === run.phase && event.type === strawPollEventType && event.payload.poll === round)) return
+    const profiles = this.store.workflow.listJurorProfiles(run.id)
+    const juryIssues = model.decisionIssues.filter((issue) => !isJudgeDecided(issue, run.config.framework))
+    const recorded = new Set(before.filter((event) => event.type === strawPollVoteEventType && event.payload.poll === round).map((event) => `${event.actorId}:${event.payload.issueId}`))
+    const initialChoices = new Map(this.store.workflow.listBallots(run.id, 'initial').filter((ballot) => ballot.valid).map((ballot) => [`${ballot.actorId}:${ballot.issueId}`, ballot.choice]))
+    const jobs = profiles.flatMap((profile) => juryIssues.map((issue) => async () => {
+      if (recorded.has(`${profile.actorId}:${issue.id}`)) return
+      const baseline = this.strawBaseline(before, profile.actorId, issue.id, round)
+      const outcome = await this.jurorBallot(run, model, profile, issue.id, 'final', { round, baseline })
+      const { audit } = outcome
+      this.store.workflow.appendTrialEvent({
+        trialRunId: run.id, phase: run.phase, type: strawPollVoteEventType, actorId: profile.actorId,
+        visibleTo: [profile.actorId, 'role:system'], payload: {
+          simulated: true, poll: round, issueId: issue.id, choice: outcome.choice, valid: outcome.valid,
+          previousChoice: baseline ?? initialChoices.get(`${profile.actorId}:${issue.id}`) ?? null, changedByEventId: outcome.changedByEventId ?? null, ...(outcome.error ? { error: outcome.error } : {}),
+        }, sourceRefs: outcome.sourceRefs, modelAudit: audit,
+      })
+    }))
+    await runWithConcurrency(jobs, run.config.deliberation.concurrency)
+    const votes = this.store.workflow.listTrialEvents(run.id).filter((event) => event.type === strawPollVoteEventType && event.payload.poll === round && event.payload.valid === true)
+    const counts: Record<string, Record<string, number>> = {}
+    for (const issue of juryIssues) {
+      const tally: Record<string, number> = {}
+      for (const vote of votes.filter((event) => event.payload.issueId === issue.id)) tally[String(vote.payload.choice)] = (tally[String(vote.payload.choice)] ?? 0) + 1
+      counts[issue.id] = Object.fromEntries(Object.entries(tally).sort(([a], [b]) => a.localeCompare(b)))
+    }
+    const shown = run.config.strawPollCounts !== 'hidden'
+    this.store.workflow.appendTrialEvent({
+      trialRunId: run.id, phase: run.phase, type: strawPollEventType, actorId: 'system',
+      visibleTo: shown ? ['role:juror', 'role:system'] : ['role:system'],
+      payload: {
+        simulated: true, label: forecastLabel, poll: round, round, countsVisibleToJurors: shown, counts,
+        note: shown ? 'A show of hands: the number of jurors on each answer. Who voted which way is not recorded here.' : 'Counts kept from the jurors for this run. Recorded for the audit view only.',
+      }, sourceRefs: [],
+    })
+  }
+
   private async snapshotJurors(run: TrialRun, state: Record<string, unknown>): Promise<void> {
     const profiles = this.store.workflow.listJurorProfiles(run.id)
     const model = this.store.workflow.getCaseModel(run.caseModelId)
@@ -1238,8 +1639,8 @@ export class TrialEngineService {
     evidence: EvidenceItem[],
     actorId: string,
     jurorProfile?: JurorProfile,
-    options: { verdictOutcomes?: string[]; ballotRound?: 'initial' | 'final'; ballotContract?: StageRequest['ballotContract']; useScope?: import('./evidenceRestrictions').EvidenceUseScope } = {},
-  ): Promise<{ title: string; content: string; citations: string[]; examinationComplete?: boolean; jurors?: Awaited<ReturnType<ModelClient['generateStage']>>['jurors']; verdict?: Awaited<ReturnType<ModelClient['generateStage']>>['verdict']; audit: ModelAudit }> {
+    options: { verdictOutcomes?: string[]; ballotRound?: 'initial' | 'final'; ballotContract?: StageRequest['ballotContract']; ballotContractVersion?: 'v2'; deliberationContract?: StageRequest['deliberationContract']; useScope?: import('./evidenceRestrictions').EvidenceUseScope } = {},
+  ): Promise<{ title: string; content: string; citations: string[]; examinationComplete?: boolean; jurors?: Awaited<ReturnType<ModelClient['generateStage']>>['jurors']; verdict?: Awaited<ReturnType<ModelClient['generateStage']>>['verdict']; appraisal?: unknown; audit: ModelAudit }> {
     if (!this.modelClient) throw new Error('No model client is configured for autonomous actor generation.')
     const model = this.store.workflow.getCaseModel(run.caseModelId)
     const provider = resolveProvider(run, this.provider)
@@ -1270,8 +1671,13 @@ export class TrialEngineService {
         ballotContract: options.ballotContract,
       jurorProfiles: jurorProfile ? [jurorProfile] : undefined,
       verdictOutcomes: options.verdictOutcomes, ballotRound: options.ballotRound,
-      groundingRequired: true, groundingContext: `Source-use restrictions:\n${restrictions}\n${recordScopePrompt(model, evidence)}`,
-      runConfig: defaultRunConfig({ providerMode: provider.mode, templateId: templateForAdapter(run.procedureAdapter), jurorCount: panelSizeForAdapter(run.procedureAdapter), externalDisclosureConfirmed: run.config.externalDisclosureConfirmed }),
+      ...(options.ballotContractVersion ? { ballotContractVersion: options.ballotContractVersion } : {}),
+      ...(options.deliberationContract ? { deliberationContract: options.deliberationContract } : {}),
+      // A juror appraisal is private perception, not a factual claim: it is
+      // validated against the admitted record in code instead of being sent to
+      // the model source checker.
+      groundingRequired: stage !== jurorAppraisalStage, groundingContext: `Source-use restrictions:\n${restrictions}\n${recordScopePrompt(model, evidence)}`,
+      runConfig: defaultRunConfig({ providerMode: provider.mode, templateId: templateForAdapter(run.procedureAdapter), jurorCount: panelSizeForAdapter(run.procedureAdapter, run.config), externalDisclosureConfirmed: run.config.externalDisclosureConfirmed }),
       legalTemplate: getLegalTemplate(templateForAdapter(run.procedureAdapter)),
     }
     const manifest = { ...context.manifest, legalPacketHash: run.config.legalPacketHash, admissionLedgerId: this.store.workflow.getTrialRun(run.id).admissionLedgerId, inputHash: contextHash(request) }
@@ -1322,6 +1728,18 @@ class TrialActorError extends Error {
   }
 }
 
+// The brief an advocate argues from: the party's most recently saved one, by updatedAt (createdAt when that is
+// missing). When two share a time, the one stored later wins, since the list is in storage order. Saving a new
+// brief for a party therefore replaces the old one in later runs; earlier runs keep their recorded events.
+export function newestTheoryBrief(briefs: readonly TheoryBrief[], partyId: string): TheoryBrief | undefined {
+  let newest: TheoryBrief | undefined
+  for (const brief of briefs) {
+    if (brief.partyId !== partyId) continue
+    if (!newest || (brief.updatedAt || brief.createdAt) >= (newest.updatedAt || newest.createdAt)) newest = brief
+  }
+  return newest
+}
+
 // The server has exactly one model client; per-actor provider labels in the
 // run config are informational. Prefer the real provider when it is known.
 function resolveProvider(
@@ -1350,8 +1768,8 @@ function witnessAnswerType(text: string): 'answer' | 'do_not_know' | 'do_not_rec
   return 'answer'
 }
 
-function panelSizeForAdapter(adapter: TrialRun['procedureAdapter']): number {
-  return adapter === 'ontario_criminal_jury_v1' ? 12 : adapter === 'ontario_capital_markets_v1' ? 3 : 6
+function panelSizeForAdapter(adapter: TrialRun['procedureAdapter'], config?: TrialRunConfig): number {
+  return adapter === 'ontario_criminal_jury_v1' ? 12 : adapter === 'ontario_capital_markets_v1' ? 3 : config?.framework?.panelSize ?? 6
 }
 
 function normalizeOutcome(value?: string): string {
@@ -1361,10 +1779,17 @@ function normalizeOutcome(value?: string): string {
 // Match the model's answer against the permitted vocabulary first; only fall
 // back to the legacy crown/defence leaning heuristic when no permitted outcome
 // was named.
-function choiceFromOutcome(outcome: string | undefined, permitted: string[]): string {
+function choiceFromOutcome(outcome: string | undefined, permitted: string[], defenceBears = false): string {
   const normalized = normalizeOutcome(outcome)
   const direct = permitted.find((candidate) => normalizeOutcome(candidate) === normalized)
-  return direct ?? mapLeaningToOutcome(verdictLeaning(outcome), permitted, 'final')
+  return direct ?? mapLeaningToOutcome(verdictLeaning(outcome), permitted, 'final', defenceBears)
+}
+
+// True when the party that must establish the question sits on the defence
+// side (for example contributory negligence, where the defendant bears the burden).
+function burdenOnDefenceSide(model: CaseModelV1, issue: DecisionIssue): boolean {
+  const role = issue.claimantPartyId ? roleForParty(model, issue.claimantPartyId) : undefined
+  return role === 'defence' || role === 'respondent'
 }
 
 // Read the judge's disposition directly. A motion is "granted" when its mover
@@ -1391,7 +1816,7 @@ function actorRoster(model: CaseModelV1, config: TrialRunConfig): Array<{ id: st
   }
   actors.push({ id: 'judge-1', role: 'judge' })
   if (config.procedureAdapter === 'ontario_criminal_jury_v1' || config.civilDecisionMaker === 'jury') {
-    const count = config.procedureAdapter === 'ontario_criminal_jury_v1' ? 12 : 6
+    const count = config.procedureAdapter === 'ontario_criminal_jury_v1' ? 12 : config.framework?.panelSize ?? 6
     const foreperson = Math.floor(seedRandom(`${config.seed}:foreperson`)() * count)
     for (let index = 0; index < count; index += 1) actors.push({ id: `juror-${String(index + 1).padStart(2, '0')}`, role: index === foreperson ? 'foreperson' : 'juror' })
   }
@@ -1402,18 +1827,37 @@ function cognitiveProfile(run: TrialRun, actorId: string): JurorCognitiveProfile
   const seed = `${run.seed}:${actorId}`
   const random = seedRandom(seed)
   const trait = () => Math.round(random() * 1000) / 1000
+  const traits = {
+    comprehension: trait(), numeracy: trait(), memoryRetention: trait(), ambiguityTolerance: trait(),
+    confidenceCalibration: trait(), narrativeSusceptibility: trait(), burdenSensitivity: trait(),
+    assertiveness: trait(), patience: trait(), socialInfluence: trait(),
+  }
   return {
     id: randomUUID(), trialRunId: run.id, actorId, seed,
-    traits: {
-      comprehension: trait(), numeracy: trait(), memoryRetention: trait(), ambiguityTolerance: trait(),
-      confidenceCalibration: trait(), narrativeSusceptibility: trait(), burdenSensitivity: trait(),
-      assertiveness: trait(), patience: trait(), socialInfluence: trait(),
-    },
+    // A pinned jury profile replaces the traits its strata set; every other
+    // trait keeps the seeded draw above. With no profile nothing changes.
+    traits: run.config.juryProfile ? { ...traits, ...pinnedTraits(run.config.juryProfile, run.seed, actorId) } : traits,
     createdAt: nowIso(),
   }
 }
 
-function cognitiveToLegacy(profile: JurorCognitiveProfile): JurorProfile {
+// With juror cognition on, all ten traits reach the juror's prompt. With it off
+// this is the profile the engine has always built, field for field.
+function cognitiveToLegacy(profile: JurorCognitiveProfile, cognition = false): JurorProfile {
+  const base = cognitiveToLegacyBase(profile)
+  if (!cognition) return base
+  const { traits } = profile
+  const pct = (value: number) => Math.round(value * 100)
+  return {
+    ...base,
+    evidenceFocus: `${base.evidenceFocus} Numeracy ${pct(traits.numeracy)}/100: ${traits.numeracy > 0.6 ? 'comfortable with figures and statistics' : 'uneasy with figures and statistics'}.`,
+    reasoningStyle: `${base.reasoningStyle} Memory for detail ${pct(traits.memoryRetention)}/100; tolerance for ambiguity ${pct(traits.ambiguityTolerance)}/100; confidence calibration ${pct(traits.confidenceCalibration)}/100 (${traits.confidenceCalibration > 0.6 ? 'states confidence in proportion to the proof' : 'tends to over- or under-state confidence'}).`,
+    emotionalPosture: `${base.emotionalPosture} Narrative susceptibility ${pct(traits.narrativeSusceptibility)}/100 (${traits.narrativeSusceptibility > 0.6 ? 'moved by a well-told story' : 'little moved by storytelling'}); patience ${pct(traits.patience)}/100.`,
+    whatWouldChangeMind: `${base.whatWouldChangeMind} Social influence ${pct(traits.socialInfluence)}/100; assertiveness ${pct(traits.assertiveness)}/100; comprehension ${pct(traits.comprehension)}/100.`,
+  }
+}
+
+function cognitiveToLegacyBase(profile: JurorCognitiveProfile): JurorProfile {
   const traits = profile.traits
   return {
     id: profile.id, sessionId: profile.trialRunId, juror: profile.actorId,
@@ -1443,9 +1887,15 @@ function requiresCheckpoint(config: TrialRunConfig, phase: TrialPhase): boolean 
 }
 
 
-function mapLeaningToOutcome(leaning: 'crown' | 'defence' | 'mixed', outcomes: string[], round: IssueBallot['round']): string {
-  if (leaning === 'crown') return outcomes.find((outcome) => ['guilty', 'proved', 'yes', 'liable'].includes(outcome)) ?? outcomes[0]
-  if (leaning === 'defence') return outcomes.find((outcome) => ['not_guilty', 'not_proved', 'no', 'not_liable'].includes(outcome)) ?? outcomes[1]
+// A leaning is a side: 'crown' is the claimant (prosecution or plaintiff) side and
+// 'defence' is the defence side. The affirmative answer ("proved", "yes") belongs
+// to the side that must establish the question, so when the defence bears the
+// burden the two answers swap sides.
+function mapLeaningToOutcome(leaning: 'crown' | 'defence' | 'mixed', outcomes: string[], round: IssueBallot['round'], defenceBears = false): string {
+  const affirms = leaning === (defenceBears ? 'defence' : 'crown')
+  const denies = leaning === (defenceBears ? 'crown' : 'defence')
+  if (affirms) return outcomes.find((outcome) => ['guilty', 'proved', 'yes', 'liable'].includes(outcome)) ?? outcomes[0]
+  if (denies) return outcomes.find((outcome) => ['not_guilty', 'not_proved', 'no', 'not_liable'].includes(outcome)) ?? outcomes[1]
   if (round === 'initial') return 'undecided'
   return outcomes.find((outcome) => ['no_verdict', 'no_finding', 'no_decision'].includes(outcome)) ?? outcomes.at(-1)!
 }
@@ -1509,6 +1959,11 @@ function missingBallotOutcome(adapter: TrialRun['procedureAdapter']): string {
 
 function templateForAdapter(adapter: TrialRun['procedureAdapter']): LegalTemplateId {
   return adapter === 'ontario_criminal_jury_v1' ? 'criminal_defence' : adapter === 'ontario_capital_markets_v1' ? 'osc_securities' : 'civil_dispute'
+}
+
+// What a ballot on a money question must cover when the run asked for damages amounts: every pinned category once, in the pinned currency.
+function amountSpec(config?: Pick<TrialRunConfig, 'damagesCategories' | 'damagesCurrency'>): { amountCategoryIds?: string[]; amountCurrency?: string } {
+  return config?.damagesCategories ? { amountCategoryIds: config.damagesCategories.map((category) => category.id), amountCurrency: config.damagesCurrency } : {}
 }
 
 function roleForParty(model: CaseModelV1, partyId: string): TrialRole | undefined {
