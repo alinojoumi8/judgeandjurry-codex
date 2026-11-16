@@ -306,6 +306,7 @@ export interface LegalTemplate {
 }
 
 export interface ProviderStatus {
+  quotaFallback?: { name: string; label: string; model: string }
   mode: ProviderMode
   name: string
   label: string
@@ -374,6 +375,7 @@ export interface ExportReport {
 }
 
 export interface StageResult {
+  providerCalls?: import('./providerCallTypes').ProviderCall[]
   examinationComplete?: boolean
   title: string
   content: string

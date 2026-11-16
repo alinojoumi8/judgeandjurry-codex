@@ -34,6 +34,14 @@ Select a source reference to open its inspector alongside the result on a wide s
 
 **Advanced tools** opens the existing Decision and TrialForge workspaces. Provider settings and existing approval, privacy and source-check requirements continue to apply.
 
+## Civil Mareva hearings
+
+For an initial contested injunction application or a motion to set aside or vary
+an existing injunction, use [the Mareva hearing guide](mareva-hearings.md). This
+uses a single simulated judge with moving submissions, a response and a reply.
+It does not use criminal verdicts or jury voting. Saved reasons, source inspection,
+recovery and archives use the existing case workspace.
+
 ## Run Locally
 
 ```powershell

@@ -7,7 +7,7 @@ const request: StageRequest = { stage: 'defence_rebuttal', packet: 'Fictional cl
 const valid = () => ({ findings: ['title:1', 'content:1'].map(unitId => ({ unitId, ...row })) })
 
 describe('complete checker delivery on the bounded correction', () => {
-  it.each(['escaped', 'incomplete'])('corrects %s JSON through a flat tool schema on the same draft', async failure => {
+  it.each(['escaped', 'incomplete'])('corrects %s JSON through the scalar channel on the same draft', async failure => {
     const bodies: any[] = []
     const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fixture', baseUrl: 'https://example.invalid/v1', model: 'fixture', timeoutMs: 1000, maxRetries: 1 }, undefined, async (_url, init) => {
       const body = JSON.parse(String(init?.body)); bodies.push(body)
@@ -22,8 +22,7 @@ describe('complete checker delivery on the bounded correction', () => {
     const schema = bodies[1].tools[0].function.parameters
     expect(schema.required).toEqual(['reviewJson'])
     expect(schema.properties.reviewJson.type).toBe('string')
-    expect(schema.properties.reviewJson.description).toContain('title:1')
-    expect(schema.properties.reviewJson.description).toContain('content:1')
+    expect(schema.properties.reviewJson.description).toContain('["title:1","content:1"]')
     expect(bodies[1].tool_choice).toBe('required')
     expect(bodies[1].response_format).toBeUndefined()
     expect(bodies[1].messages[1].content).toContain('findings is a flat array')

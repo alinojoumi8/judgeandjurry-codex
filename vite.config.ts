@@ -1,9 +1,10 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { pdfjsAssets } from './scripts/pdfjsAssets'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), pdfjsAssets()],
   optimizeDeps: { entries: ['index.html'] },
   server: {
     watch: { ignored: ['**/tmp/**', '**/data/**', '**/coverage/**'] },

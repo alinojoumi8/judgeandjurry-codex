@@ -21,6 +21,14 @@ export const recordScopeSchema = z.object({
     label: text, status: z.enum(['not_supplied', 'not_located_in_disclosure', 'not_applicable']), note: z.string().max(20_000),
   })).max(500),
 })
+export const marevaHearingSchema = z.object({
+  kind: z.enum(['initial', 'set_aside']),
+  movingPartyId: text, respondingPartyId: text,
+  recordAsOf: z.iso.date(), requestedRelief: text, orderSummary: z.string().max(20_000),
+  existingOrderRefs: refs, movingRecordRefs: refs, responseRecordRefs: refs, replyRecordRefs: refs,
+  legalAuthorityRefs: refs, legalFramework: text, reviewedForRehearsal: z.boolean(),
+}).strict()
+
 // A question may depend only on other questions in the same model, never on
 // itself, twice on the same one, or in a cycle.
 function issueDependencyErrors(issues: ReadonlyArray<{ id: string; dependsOn?: string[] }>): string[] {
@@ -49,6 +57,7 @@ function issueDependencyErrors(issues: ReadonlyArray<{ id: string; dependsOn?: s
 }
 
 export const editableCaseModelSchema = z.object({
+  marevaHearing: marevaHearingSchema.optional(),
   legalPacket: legalPacketSchema.optional(),
   title: text.optional(),
   parties: z.array(z.object({

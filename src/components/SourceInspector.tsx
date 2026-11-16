@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowLeft, Copy, Download, X } from 'lucide-react'
-import { downloadEvidenceSource, fetchOriginalSource, fetchSourcePassages } from '../api'
+import { downloadEvidenceSource, fetchSourcePassages } from '../api'
 import type { SourceDocument, TraceReference } from '../../server/trialEngineTypes'
 
+import { PreservedPdfViewer } from './PreservedPdfViewer'
 import { SourceContext } from '../sourceInspectorContext'
 
 export function SourceInspectorProvider({ matterId, scope, children }: { matterId: string; scope: string; children: ReactNode }) {
@@ -35,7 +36,6 @@ export function SourceInspector({ matterId, source, onClose }: { matterId: strin
   const [error, setError] = useState('')
   const [retry, setRetry] = useState(0)
   const [tab, setTab] = useState<'original' | 'text'>('text')
-  const [originalUrl, setOriginalUrl] = useState('')
   const [originalError, setOriginalError] = useState('')
   const [copied, setCopied] = useState(false)
   const selectedParagraph = Number(source.locator?.paragraph)
@@ -73,19 +73,6 @@ export function SourceInspector({ matterId, source, onClose }: { matterId: strin
     if (tab === 'text') target.current?.scrollIntoView({ block: 'nearest' })
   }, [record, tab])
 
-  useEffect(() => {
-    if (tab !== 'original' || !record?.sourceAvailable || record.mimeType !== 'application/pdf') return
-    let cancelled = false
-    let url = ''
-    setOriginalError(''); setOriginalUrl('')
-    void fetchOriginalSource(record.evidenceId).then(blob => {
-      if (cancelled) return
-      url = URL.createObjectURL(blob)
-      setOriginalUrl(url)
-    }).catch(caught => { if (!cancelled) setOriginalError(caught instanceof Error ? caught.message : 'Unable to load the original.') })
-    return () => { cancelled = true; if (url) URL.revokeObjectURL(url) }
-  }, [record, tab])
-
   const citation = [record?.exhibitId ?? source.exhibitId, record?.name ?? source.name,
     targetPage ? `PDF page ${targetPage}` : '', Number.isInteger(selectedParagraph) && selectedParagraph > 0 ? `extracted paragraph ${selectedParagraph}` : '',
   ].filter(Boolean).join(' · ')
@@ -111,7 +98,8 @@ export function SourceInspector({ matterId, source, onClose }: { matterId: strin
       </div> : <div className="source-original">
         {record.mimeType === 'application/pdf' && record.sourceAvailable ? <>
           {!targetPage && <p>No verified PDF page mapping is available. The original opens at its beginning.</p>}
-          {originalError ? <p role="alert">{originalError} You can download the original below.</p> : originalUrl ? <iframe title="Preserved original PDF" src={`${originalUrl}${targetPage ? `#page=${targetPage}` : ''}`} /> : <p role="status">Loading original…</p>}
+            {originalError && <p role="alert">{originalError}</p>}
+            <PreservedPdfViewer evidenceId={record.evidenceId} initialPage={targetPage} />
         </> : <p>{record.sourceAvailable ? 'Download this document to open it in its original format.' : 'No preserved original is available for this reference.'}</p>}
       </div>}
       <section className="source-use-summary"><h3>How this is used</h3>
@@ -120,8 +108,8 @@ export function SourceInspector({ matterId, source, onClose }: { matterId: strin
         {source.use?.status === 'redacted' && <p>You are inspecting the preserved original, before the saved run’s redactions.</p>}
       </section>
       <div className="source-actions">
-        <button type="button" disabled={!record.sourceAvailable} onClick={() => void downloadEvidenceSource(record.evidenceId, record.name).catch(caught => setOriginalError(caught instanceof Error ? caught.message : 'Download failed.'))}><Download size={16} /> Download preserved original</button>
-        <button type="button" disabled={!citation} onClick={() => void navigator.clipboard.writeText(citation).then(() => setCopied(true)).catch(() => setOriginalError('Could not copy the citation. Select and copy the citation text above.'))}><Copy size={16} /> {copied ? 'Copied citation' : 'Copy citation'}</button>
+        <button type="button" disabled={!record.sourceAvailable} onClick={() => { setOriginalError(''); void downloadEvidenceSource(record.evidenceId, record.name).catch(caught => setOriginalError(caught instanceof Error ? caught.message : 'Download failed.')) }}><Download size={16} /> Download preserved original</button>
+        <button type="button" disabled={!citation} onClick={() => { setOriginalError(''); setCopied(false); void navigator.clipboard.writeText(citation).then(() => setCopied(true)).catch(() => setOriginalError('Could not copy the citation. Select and copy the citation text above.')) }}><Copy size={16} /> {copied ? 'Copied citation' : 'Copy citation'}</button>
       </div>
       {originalError && tab !== 'original' && <p role="alert">{originalError}</p>}
       <details className="source-provenance"><summary>Source details</summary><p>Extraction: {record.ingestionStatus}</p><p className="source-hash">Original SHA-256: {record.sha256 ?? 'No preserved hash recorded'}</p></details>
