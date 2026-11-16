@@ -66,6 +66,23 @@ describe('negative source contents remain bounded by actual excerpt coverage', (
     const attributed = 'The report states that E-002, although the report does not mention repayment, does not record a transfer.'
     expect(sourceAbsenceScopeError(attributed, [], outer, fullContext)).toContain('E-001')
   })
+  it('keeps a transcript tied to the source it records', () => {
+    const sources = [...evidence, { ...evidence[0], exhibitId: 'E-002', name: 'Transcript of witness interview' }]
+    const fullContext = context + '\nE-002: primary; whole_document;'
+    const text = 'E-002, although the report does not mention repayment, does not record a transfer.'
+    expect(sourceAbsenceScopeError(text, [], sources, fullContext)).toContain('E-001')
+    expect(sourceAbsenceScopeError(text.replace('the report', 'the interview'), [], sources, fullContext)).toBeUndefined()
+  })
+  it('recognizes an excerpt from a named kind of source as the subject', () => {
+    const sources = [{ ...evidence[0], name: 'Financial analysis' }]
+    const text = 'The supplied excerpt from the report (E-001), although the report does not mention repayment, does not record a transfer.'
+    expect(sourceAbsenceScopeError(text, [], sources, context)).toContain('E-001')
+    expect(sourceAbsenceScopeError('The supplied excerpt from the report (E-001) does not record a transfer.', [], sources, context)).toBeUndefined()
+    const separate = [...evidence, { ...sources[0], exhibitId: 'E-002' }]
+    const both = context + '\nE-002: primary; whole_document;'
+    const distinct = text.replace('from the report (E-001)', 'from the interview (E-002)')
+    expect(sourceAbsenceScopeError(distinct, [], separate, both)).toContain('E-001')
+  })
   it('retains an inherited excerpt subject but resets scope for an explicit new document subject', () => {
     expect(check('The supplied report excerpt lists a deposit but does not include a repayment schedule (E-001).').status).toBe('passed')
     expect(check('The supplied report excerpts list a deposit, and E-001 contains no repayment schedule.').status).toBe('failed')
