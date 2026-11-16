@@ -70,6 +70,13 @@ describe('source speaker identity for reported history changes', () => {
   it('does not label repeated statements in two documents a changed account', () => {
     expect(check('Alder’s account of the acknowledgement changed (E-001, paragraph 2; E-002, paragraph 2).', [opposing[0], source('E-002', 'Rowan Alder', denial)], selectors).status).toBe('failed')
   })
+  it('recognizes a unique opening speaker when the selected correction starts at offset zero', () => {
+    const correction = 'Cedar Vale states: I incorrectly stated that Rowan did not sign the acknowledgement. In fact, Rowan did sign the acknowledgement in my presence.'
+    const exhibit = { ...opposing[1], text: correction }
+    const claim = 'Vale’s account of the acknowledgement changed (E-002, paragraph 1).'
+    expect(check(claim, [exhibit], [{ exhibitId: 'E-002', paragraph: 1 }]).status).toBe('passed')
+    expect(check(claim, [{ ...exhibit, text: correction.replace('Cedar Vale states:', 'Aster Moss states:') }], [{ exhibitId: 'E-002', paragraph: 1 }]).status).toBe('failed')
+  })
   it('requires the correction to follow the earlier account', () => {
     const correction = 'In fact, Rowan did sign the acknowledgement in my presence. I incorrectly stated that Rowan did not sign the acknowledgement.'
     expect(check('Vale’s account of the acknowledgement changed (E-002, paragraph 2).', [source('E-002', 'Cedar Vale', correction)], [{ exhibitId: 'E-002', paragraph: 2 }]).status).toBe('failed')
@@ -77,6 +84,10 @@ describe('source speaker identity for reported history changes', () => {
   it.each(['Alder’s account changed', 'Alder’s account of the changed'])('requires a stated topic rather than unrelated first-person sentences: %s', claim => {
     const evidence = [source('E-001', 'Rowan Alder', 'I work in Alder.'), source('E-002', 'Rowan Alder', 'I live in Birch.')]
     expect(check(claim + ' (E-001, paragraph 2; E-002, paragraph 2).', evidence, selectors).status).toBe('failed')
+  })
+  it('requires the draft to name what changed even when the selected exhibits oppose each other', () => {
+    const evidence = [opposing[0], source('E-002', 'Rowan Alder', admission)]
+    expect(check('Alder’s account changed (E-001, paragraph 2; E-002, paragraph 2).', evidence, selectors).status).toBe('failed')
   })
   it.each(['I did sign the acknowledgement.', 'I signed the acknowledgement later.'])('does not equate changed wording with a changed position: %s', later => {
     expect(check('Alder’s account of the acknowledgement changed (E-001, paragraph 2; E-002, paragraph 2).', [source('E-001', 'Rowan Alder', admission), source('E-002', 'Rowan Alder', later)], selectors).status).toBe('failed')

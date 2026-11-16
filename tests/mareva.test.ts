@@ -9,7 +9,7 @@ import { createApp } from '../server/app'
 import { marevaDecisionIssue, marevaOutcomes } from '../server/mareva'
 import { editableCaseModelSchema } from '../server/workflowSchemas'
 import type { MarevaHearing, TrialRunConfig } from '../server/trialEngineTypes'
-import type { ModelClient, StageRequest } from '../server/minimax'
+import { ModelProviderError, type ModelClient, type StageRequest } from '../server/minimax'
 import { CaseResults } from '../src/components/CaseResults'
 import { resultState } from '../src/caseWorkspace'
 import type { TrialRunView } from '../src/trialEngineTypes'
@@ -146,6 +146,37 @@ describe('Mareva civil judge-alone hearing', () => {
     const result = engine.view(run.id, 'user')
     expect(result.decisionSheet?.complete).toBe(true)
     expect(result.events.filter(event => event.type === 'public_submission')).toHaveLength(3)
+    expect(f.calls.filter(call => call.packet.includes('Present the moving party submission'))).toHaveLength(1)
+  })
+
+  it.each(['transport', 'grounding'] as const)('persists one private %s audit across a resumed submission', async kind => {
+    const f = fixture()
+    const model = f.workflow.approveCaseModel(f.draft().id)
+    const failure = new ModelProviderError('Fictional model request failed.', { retryable: false, status: 503 })
+    failure.providerCalls = [{ provider: 'minimax', model: 'fixture', stage: 'crown_rebuttal', promptHash: 'fictional-provider-hash', status: 503 }]
+    if (kind === 'grounding') failure.grounding = { status: 'failed', method: 'source-quotes-and-model-review', findings: [], errors: ['Fictional unsupported claim.'], repairs: 0 }
+    let failResponse = true
+    const client: ModelClient = { generateStage: async input => {
+      if (failResponse && input.packet.includes('Respond to the actual moving')) throw failure
+      return f.client.generateStage(input)
+    } }
+    const engine = new TrialEngineService(f.store, client)
+    const { run } = engine.createRun({ matterId: f.matter.id, caseModelId: model.id, config: f.config })
+    await expect(engine.runAutonomous(run.id)).rejects.toThrow('Fictional model request failed.')
+    const failedRequests = () => f.store.workflow.listTrialEvents(run.id).filter(event => ['motion_submission_failed', 'source_verification_failed'].includes(event.type))
+    const [saved] = failedRequests()
+    expect(failedRequests()).toHaveLength(1)
+    expect(saved).toMatchObject({
+      type: kind === 'grounding' ? 'source_verification_failed' : 'motion_submission_failed',
+      actorId: 'northbank', visibleTo: ['user', 'role:system'],
+      modelAudit: { status: 'failed', promptHash: expect.any(String), providerCalls: failure.providerCalls },
+    })
+    expect(engine.view(run.id, 'judge-1').events.some(event => event.id === saved.id)).toBe(false)
+
+    failResponse = false
+    await engine.runAutonomous(run.id)
+    expect(engine.view(run.id, 'user').decisionSheet?.complete).toBe(true)
+    expect(failedRequests()).toEqual([saved])
     expect(f.calls.filter(call => call.packet.includes('Present the moving party submission'))).toHaveLength(1)
   })
 
