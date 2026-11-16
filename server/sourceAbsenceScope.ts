@@ -29,11 +29,16 @@ export function sourceAbsenceScopeError(text: string, citations: GroundingCitati
     const mainSources = [...new Set(main.match(/\bE-\d+\b/gi)?.map(id => id.toUpperCase()))]
     const asideKind = aside[1].match(/^(?:the|this|that)\s+(?:(?:whole|entire|complete|accounting)\s+)*(report|interview|affidavit|document)\b/i)?.[1]?.toLowerCase()
     if (mainSources.length !== 1 || !asideKind || /\bE-\d+\b/i.test(aside[1])) return [main, aside[1]]
-    const sourceKind = /\b(?:report|interview|affidavit)\b/i
-    const subjectKind = sentence.slice(0, aside.index).match(sourceKind)?.[0].toLowerCase()
+    const subject = sentence.slice(0, aside.index).trim()
+    const direct = subject.match(/^(?:(?:the|this|that)\s+)?(?:(?:whole|entire|complete|accounting)\s+)*(report|interview|affidavit|document)(?:\s+(?:E-\d+|\(E-\d+\)))?$/i)
+    const excerpt = subject.match(/^(?:(?:the|this|that)\s+)?(?:supplied|selected|provided|quoted|available)\s+(?:(report|interview|affidavit|document)\s+)?(?:excerpts?|extracts?|pages?|passages?|schedules?|paragraphs?)(?:\s+(?:(?:of|from)\s+)?(?:E-\d+|\(E-\d+\)))?$/i)
+    if (!direct && !excerpt && !/^E-\d+$/i.test(subject)) return [main, aside[1]]
+    const subjectKind = (direct?.[1] ?? excerpt?.[1])?.toLowerCase()
     const namedSource = evidence.find(item => item.exhibitId.toUpperCase() === mainSources[0])
-    const namedKinds = namedSource?.name.toLowerCase().match(/\b(?:report|interview|affidavit)\b/g) ?? []
-    const knownKinds = subjectKind ? [subjectKind] : namedKinds
+    // Type words following a relation describe the referenced material.
+    const title = namedSource?.name.toLowerCase().split(/\b(?:about|on|of|for|regarding|concerning|from|with|summariz(?:es|ing)|quot(?:es|ing)|referenc(?:es|ing))\b/, 1)[0]
+    const namedKinds = title?.match(/\b(?:report|interview|affidavit)\b/g) ?? []
+    const knownKinds = subjectKind && subjectKind !== 'document' ? [subjectKind] : namedKinds
     const conflictingKind = asideKind !== 'document' && knownKinds.length > 0 && !knownKinds.includes(asideKind)
     return [main, conflictingKind ? aside[1] : aside[1] + ' ' + mainSources[0]]
   })
