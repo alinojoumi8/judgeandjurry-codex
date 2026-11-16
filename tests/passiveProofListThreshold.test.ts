@@ -51,6 +51,10 @@ describe('passive approved proof-list threshold', () => {
     expect(check(draft.replace('has not proved', 'has proved')).status).toBe('failed')
     expect(check(draft.replace('the subject matter', 'the transfer received by Arin')).status).toBe('failed')
     expect(check(draft + ' Arin was paid $1,500 (E-001).').status).toBe('failed')
+    const first = 'The Crown has not proved: the value of the subject matter exceeds $1,500.'
+    expect(check(first).errors).toEqual([])
+    expect(check(first, { approved: [], source: 'Arin received $1,500.' }).status).toBe('failed')
+    expect(check(first.replace('proved: the', 'proved: a transfer before the')).status).toBe('failed')
   })
   it('keeps both count and listed-element amounts independent', () => {
     expect(check(count.replace('exceeding $1,500', 'exceeding $1,600')).status).toBe('failed')

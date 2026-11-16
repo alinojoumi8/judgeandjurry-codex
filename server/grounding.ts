@@ -227,6 +227,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
     const directive = value.match(crownProofDirective)
     return Boolean(directive && !/\b(?:states?|stated|records?|reports?|says?|said|claims?|claimed)\b/i.test(directive[0])) || approvedBurdenDirective.test(value) || crownBurdenDirective.test(value)
   }
+  const unprovedListLead = /^\s*The Crown has not (?:proved|proven|established)(?: beyond a reasonable doubt)?:\s*/i
   const thresholdReference = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)The\s+(${amount})\s+(?:figure|amount) is the (?:current )?(?:approved|supplied)(?: exercise)? (?:value )?element['’]s threshold\b`, 'gi')
   const valueProofRequirement = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)The (?:(?:current )?(?:approved|supplied)(?: exercise)? )?value element requires proof beyond a reasonable doubt that the (?:subject matter(?: of the alleged fraud)?|value(?: of the subject matter)?)\s+(?:exceeds|exceeded|is over|is greater than)\s*(${amount})`, 'gi')
   const removePassiveThreshold = (statement: string, claimed: string, offset: number, input: string) => {
@@ -247,7 +248,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
     // author's directive. Every source/payment amount keeps its own support.
     const instructionPrefix = prefix.replace(/["“][^"”]*["”]/g, ' ')
     if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(instructionPrefix)) return statement
-    const unprovedValueList = /^\s*The Crown has not (?:proved|proven|established)(?: beyond a reasonable doubt)?:/i.test(prefix) &&
+    const unprovedValueList = unprovedListLead.test(prefix) &&
       /^(?:the\s+)?value of the subject matter(?: of the alleged fraud)?\s+(?:exceeds|exceeded|exceeding|over|greater than)\b/i.test(statement)
     if (!unprovedValueList && !proofDirective(instructionPrefix)) return statement
     const lastProof = [...instructionPrefix.matchAll(new RegExp(crownProofDirective.source, 'gi'))].at(-1)
@@ -255,7 +256,8 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
     if (/\b(?:E-\d+|report|document|source|interview|affidavit|witness|deponent)\b[^;.!?]{0,120}\b(?:states?|stated|records?|reports?|says?|said|claims?|claimed)\b/i.test(proofLead)) return statement
     const localPrefix = instructionPrefix.split(';').at(-1) ?? ''
     if (/\bE-\d+\b|\b(?:records?|reports?|states?|says?|received|transferred|paid|deposited|withdrew)\b/i.test(localPrefix)) return statement
-    if (!proofDirective(localPrefix) && !/^\s*(?:(?:and|or|that|together with|including|with)\s+)*$/i.test(localPrefix)) return statement
+    const listConnector = unprovedValueList ? localPrefix.replace(unprovedListLead, '') : localPrefix
+    if (!proofDirective(localPrefix) && !/^\s*(?:(?:and|or|that|together with|including|with)\s+)*$/i.test(listConnector)) return statement
     if (approvedBurdenDirective.test(localPrefix) || crownBurdenDirective.test(instructionPrefix)) {
       // A report's directive remains reported source content across its list.
       // A later independent Crown directive starts its own semicolon clause.
