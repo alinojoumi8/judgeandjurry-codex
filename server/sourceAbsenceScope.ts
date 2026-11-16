@@ -31,12 +31,12 @@ export function sourceAbsenceScopeError(text: string, citations: GroundingCitati
     if (mainSources.length !== 1 || !asideKind || /\bE-\d+\b/i.test(aside[1])) return [main, aside[1]]
     const subject = sentence.slice(0, aside.index).trim()
     const direct = subject.match(/^(?:(?:the|this|that)\s+)?(?:(?:whole|entire|complete|accounting)\s+)*(report|interview|affidavit|document)(?:\s+(?:E-\d+|\(E-\d+\)))?$/i)
-    const excerpt = subject.match(/^(?:(?:the|this|that)\s+)?(?:supplied|selected|provided|quoted|available)\s+(?:(report|interview|affidavit|document)\s+)?(?:excerpts?|extracts?|pages?|passages?|schedules?|paragraphs?)(?:\s+(?:(?:of|from)\s+)?(?:E-\d+|\(E-\d+\)))?$/i)
+    const excerpt = subject.match(/^(?:(?:the|this|that)\s+)?(?:supplied|selected|provided|quoted|available)\s+(?:(report|interview|affidavit|document)\s+)?(?:excerpts?|extracts?|pages?|passages?|schedules?|paragraphs?)(?:\s+(?:(?:of|from)\s+(?:(?:(?:the|this|that)\s+)?(report|interview|affidavit|document)\s+)?)?(?:E-\d+|\(E-\d+\)))?$/i)
     if (!direct && !excerpt && !/^E-\d+$/i.test(subject)) return [main, aside[1]]
-    const subjectKind = (direct?.[1] ?? excerpt?.[1])?.toLowerCase()
+    const subjectKind = (direct?.[1] ?? excerpt?.[2] ?? excerpt?.[1])?.toLowerCase()
     const namedSource = evidence.find(item => item.exhibitId.toUpperCase() === mainSources[0])
-    // Type words following a relation describe the referenced material.
-    const title = namedSource?.name.toLowerCase().split(/\b(?:about|on|of|for|regarding|concerning|from|with|summariz(?:es|ing)|quot(?:es|ing)|referenc(?:es|ing))\b/, 1)[0]
+    // A transcript names the source it records. Other relations name referenced material.
+    const title = namedSource?.name.toLowerCase().replace(/^\s*(?:(?:the|a|an)\s+)?transcript\s+of\s+/, '').split(/\b(?:about|on|of|for|regarding|concerning|from|with|summariz(?:es|ing)|quot(?:es|ing)|referenc(?:es|ing))\b/, 1)[0]
     const namedKinds = title?.match(/\b(?:report|interview|affidavit)\b/g) ?? []
     const knownKinds = subjectKind && subjectKind !== 'document' ? [subjectKind] : namedKinds
     const conflictingKind = asideKind !== 'document' && knownKinds.length > 0 && !knownKinds.includes(asideKind)
