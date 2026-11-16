@@ -1,3 +1,4 @@
+import { providerCallAudit } from './providerCallTypes'
 import { createHash, randomUUID } from 'node:crypto'
 import { performance } from 'node:perf_hooks'
 
@@ -40,13 +41,14 @@ import { buildRecordCoverage, recordScopePrompt } from './recordCoverage'
 import { buildDecisionTrace } from './decisionTrace'
 import { usablePeerContribution } from './groundingRecords'
 import { compareScenario } from './scenarioComparison'
-import { actorContextCharacterBudget, actorContextCharacters, assembleActorContext } from './actorContext'
+import { actorContextCharacterBudget, actorContextCharacters, assembleActorContext, marevaHistoryCharacterBudget } from './actorContext'
 import { authorisedRecord, contextHash } from './actorMemory'
 import { permittedReference, validateProceedingPurposes } from './evidenceRestrictions'
 import { courtroomState, commitCourtroomCommand } from './courtroom'
 import type { CourtroomCommand } from './courtroomState'
 import { legalPacketReadiness } from './legalPacket'
 import { courtroomAuditEvents } from './grounding'
+import { exactMarevaOutcome, marevaPrompt, marevaRecordRefs, validateMarevaRun } from './mareva'
 import { checkBallotV2, matchPermittedOutcome, normalizeOutcome as normalizeBallotOutcome } from './ballotV2'
 import { isAmountQuestion } from './damages/categories'
 import { damagesBallotPrompt, pinDamagesSettings } from './damages/runSettings'
@@ -135,8 +137,9 @@ export class TrialEngineService {
     if (ledger && ledger.matterId !== input.matterId) throw new Error('Source-use settings do not belong to the selected matter.')
     const evidence = this.store.listEvidence(input.matterId)
     validateProceedingPurposes(evidence, ledger?.evidenceUses ?? [])
+    validateMarevaRun(model, input.config, evidence)
     const actors = [...actorRoster(model, input.config), ...model.witnesses.filter(w => input.config.witnessPlan.some(p => p.witnessId === w.id)).map(w => ({ id: w.id, role: 'witness' as const }))]
-    const scopes = [{}, ...model.decisionIssues.map(issue => ({ issueId: issue.id, partyIds: issue.respondingPartyIds }))]
+    const scopes = model.marevaHearing ? [{}] : [{}, ...model.decisionIssues.map(issue => ({ issueId: issue.id, partyIds: issue.respondingPartyIds }))]
     const projections = actors.flatMap(actor => scopes.map(useScope => {
       // Estimate all selected sources that could become visible, even before
       // the jury has heard them. This is a size preview, never actor input.
@@ -146,20 +149,33 @@ export class TrialEngineService {
       })
       return { actorId: actor.id, characters: actorContextCharacters(record.evidence), evidence: record.evidence }
     }))
+    if (model.marevaHearing) {
+      const required = marevaRecordRefs(model.marevaHearing).map(ref => ref.evidenceId!)
+      const hearingActors = ['judge-1', model.marevaHearing.movingPartyId, model.marevaHearing.respondingPartyId]
+      for (const projection of projections.filter(item => hearingActors.includes(item.actorId))) {
+        if (required.some(id => !projection.evidence.some(source => source.id === id && source.text.trim()))) throw new Error('Every designated Mareva record source must be readable and permitted for both parties and the judge. Review document-use settings.')
+      }
+    }
     const largest = projections.reduce((a, b) => b.characters > a.characters ? b : a, { actorId: '', characters: 0, evidence: [] as EvidenceItem[] })
     // Allow for the configured exchange before spending on the first request.
     // This is an estimate, not a promise about unbounded manual contributions;
     // every actual actor projection still checks the full record against the cap.
     const jurors = actors.filter(actor => ['juror', 'foreperson'].includes(actor.role)).length
-    const historyReserveCharacters = 18_000 + jurors * Math.max(3, input.config.deliberation.maxRounds) * 1_000 + input.config.witnessPlan.length * 8_000
+    const historyReserveCharacters = model.marevaHearing ? marevaHistoryCharacterBudget : 18_000 + jurors * Math.max(3, input.config.deliberation.maxRounds) * 1_000 + input.config.witnessPlan.length * 8_000
     const characters = largest.characters + historyReserveCharacters
-    const fits = characters <= actorContextCharacterBudget
+    const characterBudget = actorContextCharacterBudget + (model.marevaHearing ? historyReserveCharacters : 0)
+    const fits = characters <= characterBudget
     const detail = `${largest.characters.toLocaleString('en-US')} source characters plus ${historyReserveCharacters.toLocaleString('en-US')} reserved for planned arguments, instructions and history`
-    return { fits, characterBudget: actorContextCharacterBudget, characters, sourceCharacters: largest.characters,
-      historyReserveCharacters, headroomCharacters: actorContextCharacterBudget - characters, actorId: largest.actorId,
+    const message = model.marevaHearing
+      ? fits ? `Selected sources use ${largest.characters.toLocaleString('en-US')} / ${actorContextCharacterBudget.toLocaleString('en-US')} characters. Another ${historyReserveCharacters.toLocaleString('en-US')} characters are reserved for hearing history; all permitted sources are retained. Oversized history stops explicitly without truncation.`
+        : `Selected sources need ${largest.characters.toLocaleString('en-US')} characters; the source limit is ${actorContextCharacterBudget.toLocaleString('en-US')}. Select documents or permitted paragraphs in Admitted Record and save a new version before starting. Nothing has been omitted.`
+      : fits ? `Projected context fits: ${detail}. This is an estimate; the full actual record is checked on every turn and nothing is silently omitted.`
+        : `Projected context needs ${characters.toLocaleString('en-US')} characters (${detail}); the limit is ${characterBudget.toLocaleString('en-US')}. Select documents or permitted paragraphs in Admitted Record and save a new version before starting. Nothing has been omitted.`
+    return { fits, characterBudget, characters, sourceCharacters: largest.characters,
+      ...(model.marevaHearing ? { sourceCharacterBudget: actorContextCharacterBudget, historyReserve: historyReserveCharacters } : {}),
+      historyReserveCharacters, headroomCharacters: characterBudget - characters, actorId: largest.actorId,
       sources: largest.evidence.map(e => ({ exhibitId: e.exhibitId, characters: actorContextCharacters([e]) })).sort((a, b) => b.characters - a.characters),
-      message: fits ? `Projected context fits: ${detail}. This is an estimate; the full actual record is checked on every turn and nothing is silently omitted.`
-        : `Projected context needs ${characters.toLocaleString('en-US')} characters (${detail}); the limit is ${actorContextCharacterBudget.toLocaleString('en-US')}. Select documents or permitted paragraphs in Admitted Record and save a new version before starting. Nothing has been omitted.`,
+      message,
     }
   }
 
@@ -210,6 +226,7 @@ export class TrialEngineService {
     // The server stamps its real provider onto the run; clients cannot pick one.
     const config: TrialRunConfig = {
       ...input.config,
+      civilHearing: model.marevaHearing ? 'mareva' : undefined,
       framework,
       juryProfileHash: juryProfile?.profileHash,
       juryProfile,
@@ -483,7 +500,7 @@ export class TrialEngineService {
       throughSequence: events.at(-1)?.sequence ?? 0, evidence, uses,
       protocol: run.config.courtroomProtocol === 'courtroom_v1',
       approvedStatementRefs: model.witnesses.find(w => w.id === actorId)?.approvedStatementRefs ?? [],
-    })
+    }, actorContextCharacterBudget, model.marevaHearing ? marevaHistoryCharacterBudget : 0)
     return {
       ...context,
         theories: roles.some(r => ['juror', 'foreperson', 'witness'].includes(r)) ? [] : party
@@ -544,6 +561,10 @@ export class TrialEngineService {
   }
 
   private async executePhase(run: TrialRun, model: CaseModelV1): Promise<void> {
+    if (model.marevaHearing && run.config.civilHearing === 'mareva' && run.phase === 'motions') {
+      await this.hearMareva(run, model)
+      return
+    }
     if (run.phase === 'motions') {
       const motions = this.store.workflow.listMotions(run.matterId).filter((motion) => motion.status !== 'withdrawn')
       if (!this.hasPhaseEvent(run, 'motion_docket_called')) {
@@ -940,6 +961,31 @@ export class TrialEngineService {
     }
   }
 
+  private async hearMareva(run: TrialRun, model: CaseModelV1): Promise<void> {
+    const hearing = model.marevaHearing!
+    const turns = [
+      { kind: 'moving', actorId: hearing.movingPartyId, instruction: 'Present the moving party submission for the requested relief, fairly confronting the adverse record.' },
+      { kind: 'response', actorId: hearing.respondingPartyId, instruction: 'Respond to the actual moving submission and explain why relief should be refused or narrowed, confronting contrary evidence.' },
+      { kind: 'reply', actorId: hearing.movingPartyId, instruction: 'Reply to the responding submission. Identify new points and avoid treating advocacy as sworn evidence.' },
+    ]
+    for (const turn of turns) {
+      const eventType = 'public_submission'
+      if (this.store.workflow.listTrialEvents(run.id).some(event => event.type === eventType && event.actorId === turn.actorId && event.payload.hearing === 'mareva' && event.payload.kind === turn.kind)) continue
+      const judgeIds = new Set(this.actorContext(run.id, 'judge-1').evidence.map(item => item.evidence.id))
+      const evidence = this.actorContext(run.id, turn.actorId).evidence.map(item => item.evidence).filter(item => judgeIds.has(item.id))
+      const theory = this.store.workflow.listTheoryBriefs(model.id).find(brief => brief.partyId === turn.actorId)
+      const role = roleForParty(model, turn.actorId)
+      const stage = turn.kind === 'moving' ? (role === 'plaintiff' ? 'crown_opening' : 'defence_opening') : (role === 'plaintiff' ? 'crown_rebuttal' : 'defence_rebuttal')
+      const generated = await this.generateModelStage(run, stage,
+        `${marevaPrompt(model, evidence)}\n${turn.instruction}\nOwn private preparation (not evidence, never quote or reveal it as a private document): ${theory?.narrative ?? 'None supplied.'}\nUse at most 700 words.`, evidence, turn.actorId)
+      this.store.workflow.appendTrialEvent({
+        trialRunId: run.id, phase: 'motions', type: eventType, actorId: turn.actorId,
+        visibleTo: ['public'], payload: { hearing: 'mareva', kind: turn.kind, title: generated.title, text: generated.content },
+        sourceRefs: citationsToRefs(generated.citations, evidence), modelAudit: generated.audit,
+      })
+    }
+  }
+
   private async hearMotion(run: TrialRun, model: CaseModelV1, motion: Motion): Promise<void> {
     const currentRun = this.store.workflow.getTrialRun(run.id)
     const sourceIds = new Set(motion.sourceRefs.map((ref) => ref.evidenceId).filter((id): id is string => Boolean(id)))
@@ -1249,12 +1295,14 @@ export class TrialEngineService {
       try {
         const generated = await this.generateModelStage(
           run, 'judge_ruling',
-          `Decide only ${issue.id}: ${issue.label}. Apply the approved elements and select only from ${issue.permittedOutcomes.join(', ')}.`,
+          model.marevaHearing
+            ? `${marevaPrompt(model, this.actorContext(run.id, actorId).evidence.map(item => item.evidence))}\nGive a reasoned judicial ruling on the recorded moving, responding and reply submissions. Address each legal issue, the strongest evidence for both sides and the exact proposed terms. Use only ${issue.permittedOutcomes.join(', ')} for verdict.outcome. Do not report jury votes or criminal guilt. No percentage of likely court success. Use at most 700 words.`
+            : `Decide only ${issue.id}: ${issue.label}. Apply the approved elements and select only from ${issue.permittedOutcomes.join(', ')}.`,
           evidence, actorId, undefined, { verdictOutcomes: issue.permittedOutcomes },
         )
         const ballot = this.store.workflow.saveBallot({
           id: randomUUID(), trialRunId: run.id, issueId: issue.id, actorId, round: 'final',
-          choice: choiceFromOutcome(generated.verdict?.outcome, issue.permittedOutcomes, burdenOnDefenceSide(model, issue)),
+          choice: model.marevaHearing ? exactMarevaOutcome(generated.verdict?.outcome, issue.permittedOutcomes) : choiceFromOutcome(generated.verdict?.outcome, issue.permittedOutcomes, burdenOnDefenceSide(model, issue)),
           confidence: clampConfidence(generated.verdict?.confidence ?? 50), rationale: generated.content,
           sourceRefs: citationsToRefs(generated.citations, evidence), valid: true, createdAt: nowIso(),
         })
@@ -1685,6 +1733,7 @@ export class TrialEngineService {
       const controllingPacket = run.config.courtroomProtocol ? `\nPinned legal packet ${model.legalPacket!.contentHash}: ${JSON.stringify({ issues: model.legalPacket!.issues, instructions: model.legalPacket!.instructions })}\nApproved evidence plan: ${JSON.stringify(run.config.witnessPlan.map(p => ({ witnessId: p.witnessId, name: model.witnesses.find(w => w.id === p.witnessId)?.name, calledByPartyId: p.calledByPartyId, scope: 'Own approved passages only; no promise of facts outside that account.' })))}` : ''
     const request: StageRequest = {
       courtroomProtocol: Boolean(run.config.courtroomProtocol),
+      civilMotionHearing: model.marevaHearing ? true : undefined,
         approvedIssueInstructions: run.config.courtroomProtocol ? undefined : model.decisionIssues.map(issue => ({ issueId: issue.id, elements: issue.elements.map(element => ({ label: element.label, burden: element.burden })) })),
         approvedPartyRoles: model.parties.map(({ id, name, role }) => ({ id, name, role })),
         // The checker needs the same authorized public record as the author,
@@ -1721,7 +1770,7 @@ export class TrialEngineService {
         ...result,
         audit: {
           contextManifest: manifest,
-          provider: provider.provider, model: provider.model, promptHash: hashText(prompt),
+          ...providerCallAudit(result.providerCalls, provider, request.stage), promptHash: hashText(prompt),
           responseHash: hashText(JSON.stringify(result)), schemaVersion: 'trial-event-v1',
           retries: result.grounding?.repairs ?? 0, durationMs: Math.round(performance.now() - started), status: result.grounding?.repairs ? 'repaired' : 'ok', grounding: result.grounding,
         },
@@ -1732,12 +1781,12 @@ export class TrialEngineService {
           trialRunId: run.id, phase: run.phase, type: 'source_verification_failed', actorId,
           visibleTo: ['user', 'role:system'], sourceRefs: [],
           payload: { message: 'Generated text was withheld because its factual source check failed.' },
-          modelAudit: { contextManifest: manifest, provider: provider.provider, model: provider.model, promptHash: hashText(prompt), schemaVersion: 'trial-event-v1', retries: error.grounding.repairs, durationMs: Math.round(performance.now() - started), status: 'failed', error: errorMessage(error), grounding: error.grounding },
+          modelAudit: { contextManifest: manifest, ...providerCallAudit(error instanceof ModelProviderError ? error.providerCalls : undefined, provider), promptHash: hashText(prompt), schemaVersion: 'trial-event-v1', retries: error.grounding.repairs, durationMs: Math.round(performance.now() - started), status: 'failed', error: errorMessage(error), grounding: error.grounding },
         })
       }
       throw new TrialActorError(errorMessage(error), {
         contextManifest: manifest,
-        provider: provider.provider, model: provider.model, promptHash: hashText(prompt),
+        ...providerCallAudit(error instanceof ModelProviderError ? error.providerCalls : undefined, provider), promptHash: hashText(prompt),
         schemaVersion: 'trial-event-v1', retries: 0, durationMs: Math.round(performance.now() - started),
         status: 'failed', error: errorMessage(error), grounding: error instanceof ModelProviderError ? error.grounding : undefined,
       })
@@ -1899,6 +1948,7 @@ function cognitiveToLegacyBase(profile: JurorCognitiveProfile): JurorProfile {
 }
 
 function phasesForRun(run: TrialRun): TrialPhase[] {
+  if (run.config.civilHearing === 'mareva') return ['setup', 'case_management', 'motions', 'decision']
   if (run.mode === 'screen') return ['setup', 'openings', 'instructions', 'deliberation_inventory', 'deliberation_challenges', 'deliberation_review', 'decision']
   const phases = [...getProcedureAdapter(run.procedureAdapter).phases]
   if (run.procedureAdapter === 'ontario_capital_markets_v1') return phases.filter((phase) => phase !== 'sanctions' && phase !== 'complete')

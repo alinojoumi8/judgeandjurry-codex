@@ -13,8 +13,8 @@ describe('explicit record-selection step in a single-unit correction', () => {
     const schema = tool.function.parameters
     expect(Object.keys(schema.properties)).toEqual(['unitId', 'recordCitations', 'citations', 'supportTypes', 'status', 'explanation'])
     expect(schema.required).toEqual(Object.keys(schema.properties))
-    expect(schema.properties.recordCitations.description).toContain('Required even when empty')
-    expect(schema.properties.recordCitations.description).toContain(records.length ? 'Select only actual supporting visible references' : 'No visible record references are available; explicitly return []')
+    expect(schema.properties.recordCitations.type).toBe('string')
+    expect(schema.properties.recordCitations.description).toContain(JSON.stringify(records))
     expect(schema.properties.recordCitations).not.toHaveProperty('default')
     expect(schema.additionalProperties).toBe(false)
   })
@@ -39,7 +39,7 @@ describe('explicit record-selection step in a single-unit correction', () => {
     })
     const review = await client.reviewGrounding({ stage: 'crown_opening', packet: '', previousTurns: '', evidence: [] }, { title: '', content: units[0].text, citations: [], jurors: [] })
     expect(bodies).toHaveLength(2)
-    expect(review.status).toBe(outcome === 'explicit-empty' ? 'passed' : 'failed')
+    expect(review.status).toBe(['explicit-empty', 'string'].includes(outcome) ? 'passed' : 'failed')
     expect(bodies[1].tools[0].function.parameters.required).toEqual(['reviewJson'])
     expect(bodies[0].messages[1].content.split('Draft units to check:\n')[1]).toBe(bodies[1].messages[1].content.split('Draft units to check:\n')[1])
     if (outcome === 'missing') expect(JSON.parse(groundingSingleContent(JSON.stringify(correction))).findings['content:1']).not.toHaveProperty('recordCitations')
@@ -55,7 +55,7 @@ describe('explicit record-selection step in a single-unit correction', () => {
     const reference = visibleRecordReferences(events)[0].reference
     let calls = 0
     const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fixture', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 1000, maxRetries: 1 }, undefined, async () => {
-      const finding = { ...row, supportTypes: ['record'], explanation: 'The peer expressed uncertainty.', ...(++calls === 2 ? { recordCitations: [{ eventId: reference }] } : { recordCitations: undefined }) }
+      const finding = { ...row, supportTypes: ['record'], explanation: 'The peer expressed uncertainty.', ...(++calls === 2 ? { recordCitations: JSON.stringify([{ eventId: reference }]) } : { recordCitations: undefined }) }
       return Response.json({ choices: [{ message: { content: null, tool_calls: [{ type: 'function', function: { name: 'record_grounding_review', arguments: JSON.stringify(calls === 1 ? { findings: { 'content:1': finding } } : { unitId: 'content:1', ...finding }) } }] } }] })
     })
     const review = await client.reviewGrounding({ stage: 'jury_deliberation', packet: '', previousTurns: '', evidence: [], courtroomEvents: events, courtroomActor: { id: 'juror-02', name: 'Juror 2', roles: ['juror'] } }, { title: '', content: 'Juror 1 remains uncertain.', citations: [], jurors: [] })

@@ -4,6 +4,7 @@ import type { EvidenceItem } from './types'
 import { formatSourceRecord } from './grounding'
 
 export const actorContextCharacterBudget = 240_000
+export const marevaHistoryCharacterBudget = 32_000
 // Count the same canonical source rendering used by both author and checker.
 // EvidenceItem.text and authorizedPassages contain the same selected words;
 // counting their JSON twice can reject a record that the model receives once.
@@ -11,17 +12,21 @@ export const actorContextCharacters = (evidence: EvidenceItem[], previousTurns =
 
 // Filter before serialisation. Rebuild from the pinned record; cached summaries
 // are never an authority for access or for the current permitted use of evidence.
-export function assembleActorContext(input: MemoryInput, characterBudget = actorContextCharacterBudget) {
+export function assembleActorContext(input: MemoryInput, characterBudget = actorContextCharacterBudget, historyReserve = 0) {
   const record = authorisedRecord(input)
   const memory = projectParticipantMemory(input)
   const previousTurns = memory.records.map(r => `${r.eventId} ${r.kind}: ${JSON.stringify(r.payload)}`).join('\n')
   const size = actorContextCharacters(record.evidence, previousTurns)
-  if (size > characterBudget) throw new Error(`Actor context exceeds its ${characterBudget} character budget (${size} characters); no material was silently omitted. Select documents or permitted paragraphs in Admitted Record, save a new version, and start a new proceeding. Existing runs retain their saved record.`)
+  const sourceCharacters = actorContextCharacters(record.evidence)
+  if (historyReserve && sourceCharacters > characterBudget) throw new Error(`Selected sources exceed the ${characterBudget} character source budget (${sourceCharacters} characters); the reserved hearing history allowance cannot replace source capacity. No evidence was omitted.`)
+  if (historyReserve && previousTurns.length > historyReserve) throw new Error(`Hearing history exceeds its ${historyReserve} character budget (${previousTurns.length} characters); all sources and submissions remain saved. No history was silently omitted.`)
+  const totalBudget = characterBudget + historyReserve
+  if (size > totalBudget) throw new Error(`Actor context exceeds its ${totalBudget} character budget (${size} characters); no material was silently omitted. Select documents or permitted paragraphs in Admitted Record, save a new version, and start a new proceeding. Existing runs retain their saved record.`)
   const manifest: ActorContextManifest = {
     schemaVersion: 1, runId: input.runId, actorId: input.actorId, throughSequence: input.throughSequence,
     projectionHash: memory.projectionHash, contextHash: contextHash({ previousTurns, evidence: record.evidence }), inputHash: '',
     eventRefs: record.events.map(e => ({ id: e.id, hash: contextHash(e) })), sourceRefs: record.evidence.map(e => ({ evidenceId: e.id, hash: contextHash(e) })),
-    retrieval: 'all-authorised-records-v1', characterBudget, omittedEventIds: [],
+    retrieval: 'all-authorised-records-v1', characterBudget: totalBudget, ...(historyReserve ? { sourceCharacterBudget: characterBudget, historyCharacterBudget: historyReserve } : {}), omittedEventIds: [],
   }
   return { events: record.events, evidence: record.evidence, memory, manifest, previousTurns }
 }

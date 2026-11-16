@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { MiniMaxClient, normalizeStageResult, type StageRequest } from '../server/minimax'
 import { supportedOpeningSource } from '../samples/courtroom-realism/supported-opening'
 import type { GroundingUnit } from '../server/grounding'
@@ -25,6 +25,50 @@ describe('structured response repairs', () => {
     expect(sent[1].messages[1].content).toContain('finish_reason')
     expect(sent[1].messages[1].content).toContain('Do not repeat identifiers')
     expect(new Set(sent.map(body => body.max_tokens)).size).toBe(1)
+  })
+
+  it('reserves the MiniMax M3 hearing output cap for the response through format repair and source review', async () => {
+    vi.stubEnv('MODEL_MAX_OUTPUT_TOKENS', '8000')
+    vi.stubEnv('MINIMAX_REASONING_EFFORT', 'high')
+    try {
+      const sent: Array<{ model: string; messages: Array<{ content: string }>; max_completion_tokens: number; thinking?: unknown; reasoning_effort?: unknown }> = []
+      const client = new MiniMaxClient({ ...config, provider: 'minimax', model: 'MiniMax-M3', apiKey: 'fixture' }, undefined, async (_url, init) => {
+        const body = JSON.parse(String(init?.body)) as typeof sent[number]
+        sent.push(body)
+        const prompt = body.messages.map(message => message.content).join('\n')
+        if (prompt.includes('Draft units to check:\n')) return reply(reviewText(prompt, { exhibitId: 'E-001', paragraph: 1 }))
+        return sent.length === 1
+          ? Response.json({ usage: { completion_tokens: 8000, completion_tokens_details: { reasoning_tokens: 7999 } },
+            choices: [{ finish_reason: 'length', message: { content: JSON.stringify({ ...draft, content: 'Unpublishable candidate.' }) } }] })
+          : reply(JSON.stringify(draft))
+      })
+      const result = await client.generateStage({ ...request, stage: 'defence_opening', civilMotionHearing: true })
+      expect(result.content).toBe(draft.content)
+      expect(result.grounding?.status).toBe('passed')
+      expect(sent).toHaveLength(3)
+      expect(sent[1].messages[1].content).toContain('7999 reasoning tokens out of 8000 completion tokens')
+      expect(sent[1].messages[1].content).not.toContain('Unpublishable candidate.')
+      for (const body of sent) {
+        expect(body).toMatchObject({ model: 'MiniMax-M3', max_completion_tokens: 8000, thinking: { type: 'disabled' } })
+        expect(body).not.toHaveProperty('reasoning_effort')
+      }
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it.each([
+    { model: 'MiniMax-M3', civilMotionHearing: false },
+    { model: 'MiniMax-M3.1-Flash', civilMotionHearing: true },
+  ])('preserves thinking defaults for $model with civil hearing=$civilMotionHearing', async ({ model, civilMotionHearing }) => {
+    const sent: unknown[] = []
+    const client = new MiniMaxClient({ ...config, provider: 'minimax', model, apiKey: 'fixture' }, undefined, async (_url, init) => {
+      sent.push(JSON.parse(String(init?.body)))
+      return reply(JSON.stringify(draft))
+    })
+    await client.generateStage({ ...request, groundingRequired: false, civilMotionHearing })
+    expect(sent).toHaveLength(1)
+    expect(sent[0]).not.toHaveProperty('thinking')
   })
 
   it('keeps exhausted truncation visible without another request', async () => {

@@ -19,12 +19,15 @@ describe('bounded ballot choice repair', () => {
     expect(groundingPatchTargets(draft, audit(false)).some(t => t.unitId === 'ballot-choice-0:1')).toBe(false)
     expect(groundingPatchTargets(draft, audit(true))).toContainEqual({ unitId: 'ballot-choice-0:1', sourceText: 'defence' })
   })
-  it.each(['crown', 'defence', 'mixed'])('permits an explicit %s choice patch and preserves identity, confidence and text', leaning => {
+  it.each(['crown', 'mixed'])('permits an explicit %s choice patch and preserves identity, confidence and text', leaning => {
     const { result, edits } = applyGroundingPatch(draft, audit(true), { repairs: [{ unitId: 'ballot-choice-0:1', replacement: leaning }] })
     expect(result).toEqual({ ...draft, jurors: [{ ...draft.jurors![0], leaning }] })
     expect(groundingRepairDrift(draft, result, audit(true))).toEqual([])
     expect(edits).toEqual([{ unitId: 'ballot-choice-0:1', before: 'defence', replacement: leaning }])
     expect(draft.jurors![0].leaning).toBe('defence')
+  })
+  it('rejects an unchanged choice instead of treating it as a repair', () => {
+    expect(() => applyGroundingPatch(draft, audit(true), { repairs: [{ unitId: 'ballot-choice-0:1', replacement: 'defence' }] })).toThrow('unchanged')
   })
   it.each(['', 'guilty', 'not_guilty', 'undecided', 'Mixed', 'mixed; new claim'])('refuses an invalid structured choice: %s', replacement => {
     expect(() => applyGroundingPatch(draft, audit(true), { repairs: [{ unitId: 'content:1', replacement: 'Changed.' }, { unitId: 'ballot-choice-0:1', replacement }] })).toThrow()
@@ -86,7 +89,7 @@ describe('quotation and pronoun repairs preserve the record', () => {
       expect(result.grounding?.appliedRepairs?.[0].before).toBe(original.content)
     }
     expect(prompts[2]).toContain('repeat the exact supplied name')
-    expect(prompts[3]).toContain('Draft units to check:')
-    expect(prompts).toHaveLength(4)
+    if (!persistent) expect(prompts[3]).toContain('Draft units to check:')
+    expect(prompts).toHaveLength(persistent ? 3 : 4)
   })
 })

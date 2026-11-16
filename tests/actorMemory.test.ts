@@ -12,6 +12,18 @@ const event = (sequence: number, type: string, payload: Record<string, unknown>,
 const input = (events: TrialEvent[], role = 'juror' as const) => ({ runId: 'run', actorId: 'juror-01', roles: [role], events, evidence, uses: [use], throughSequence: 100, protocol: true, approvedStatementRefs: [] })
 
 describe('participant memory and context', () => {
+  it('enforces separate source and history allocations without borrowing or truncation', () => {
+    const args = { ...input([event(1, 'public_submission', { text: 'FULL_SUBMISSION' })]), roles: ['judge' as const] }
+    const context = assembleActorContext(args, 5000, 1000)
+    const sources = JSON.stringify(context.evidence).length
+    const history = context.previousTurns.length
+    expect(assembleActorContext(args, sources, history).manifest.omittedEventIds).toEqual([])
+    expect(() => assembleActorContext(args, sources - 1, history + 1000)).toThrow(/source budget/)
+    expect(() => assembleActorContext(args, sources + 1000, history - 1)).toThrow(/history exceeds/)
+    expect(context.previousTurns).toContain('FULL_SUBMISSION')
+    expect(context.evidence[0].text).toBe(evidence[0].text)
+  })
+
   it('retains early material and labels submissions separately after a long hearing', () => {
     const events = [event(1, 'witness_answer', { text: 'EARLY_FACT' }, ['public'], [{ evidenceId: 'source', attribution: 'source' }]), event(2, 'public_submission', { text: 'ALLEGATION' }), event(3, 'phase_started', { filler: 'x'.repeat(35_000) })]
     const memory = projectParticipantMemory(input(events))

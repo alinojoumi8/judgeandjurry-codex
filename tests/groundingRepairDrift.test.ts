@@ -11,11 +11,11 @@ const request: StageRequest = { stage: 'crown_opening', packet: 'Fictional sourc
 const good = 'E-001 records a blue token at the desk.'
 const bad = 'The report independently proves guilt.'
 const draft = { title: 'Source review', content: `${good} ${bad}`, citations: ['E-001'], jurors: [] }
-function harness(repaired: unknown, toolOutput?: 'valid' | 'wrong-name' | 'duplicate' | 'competing' | 'malformed-json') {
+function harness(repaired: unknown, toolOutput?: 'valid' | 'wrong-name' | 'duplicate' | 'competing' | 'malformed-json', model = 'fixture') {
   const prompts: string[] = []
   const bodies: any[] = []
   let authors = 0
-  const client = new MiniMaxClient({ provider: toolOutput ? 'minimax' : 'openai-compatible', apiKey: 'fixture', baseUrl: 'http://127.0.0.1:11434/v1', model: 'fixture', timeoutMs: 1000, maxRetries: 1 }, undefined, async (_url, init) => {
+  const client = new MiniMaxClient({ provider: toolOutput ? 'minimax' : 'openai-compatible', apiKey: 'fixture', baseUrl: 'http://127.0.0.1:11434/v1', model, timeoutMs: 1000, maxRetries: 1 }, undefined, async (_url, init) => {
     const body = JSON.parse(String(init?.body)); bodies.push(body)
     const prompt = body.messages[1].content as string; prompts.push(prompt)
     const audit = prompt.includes('Draft units to check:\n')
@@ -32,8 +32,10 @@ function harness(repaired: unknown, toolOutput?: 'valid' | 'wrong-name' | 'dupli
 }
 describe('grounding repairs preserve accepted text', () => {
   it('uses one MiniMax repair schema and rechecks its applied text without rewriting accepted units', async () => {
-    const { client, prompts, bodies } = harness({ repairs: [{ unitId: 'content:2', replacement: 'The issue remains unresolved.' }] }, 'valid')
-    const result = await client.generateStage(request)
+    const { client, prompts, bodies } = harness({ repairs: [{ unitId: 'content:2', replacement: 'The issue remains unresolved.' }] }, 'valid', 'MiniMax-M3')
+    const result = await client.generateStage({ ...request, civilMotionHearing: true })
+    expect(bodies).toHaveLength(4)
+    expect(bodies.map(body => body.thinking)).toEqual(Array.from({ length: 4 }, () => ({ type: 'disabled' })))
     expect(result.content).toBe(`${good} The issue remains unresolved.`)
     expect(result.grounding?.status).toBe('passed')
     expect(bodies[2].tool_choice).toBe('required')
@@ -62,9 +64,17 @@ describe('grounding repairs preserve accepted text', () => {
     expect(prompts[3]).toContain(good)
     expect(prompts[3]).toContain('The issue remains unresolved.')
   })
+  it('reports the actual unchanged legacy-repair cause without claiming a protected edit', async () => {
+    const { client, prompts } = harness(draft)
+    await expect(client.generateStage(request)).rejects.toMatchObject({ grounding: {
+      findings: expect.arrayContaining([expect.objectContaining({ explanation: expect.stringContaining('unchanged') })]),
+      errors: expect.arrayContaining([expect.stringContaining('unchanged')]),
+    } })
+    expect(prompts).toHaveLength(3)
+  })
   it('does not auto-accept a patched premise', async () => {
     const { client } = harness({ repairs: [{ unitId: 'content:2', replacement: bad }] })
-    await expect(client.generateStage(request)).rejects.toMatchObject({ grounding: { status: 'failed', appliedRepairs: [{ unitId: 'content:2', before: bad, replacement: bad }] } })
+    await expect(client.generateStage(request)).rejects.toMatchObject({ message: expect.stringContaining('unchanged'), grounding: { status: 'failed', priorFailures: expect.any(Array) } })
   })
   it.each([
     { repairs: [{ unitId: 'content:1', replacement: 'Altered accepted premise.' }] },

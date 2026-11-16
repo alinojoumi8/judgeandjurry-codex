@@ -25,7 +25,9 @@ describe('checker correction uses complete valid examples and precise selector f
     expect(r.status).toBe('passed'); expect(prompts).toHaveLength(2)
     expect(prompts[1]).not.toContain('REPLACE with actual support domains')
     expect(prompts[1]).toContain('Do not put paragraph numbers in explanation')
-    expect(prompts[1]).toContain('"recordCitations":[{"eventId":')
+    const example = JSON.parse(prompts[1].split('Locator shape examples only: ')[1].split('. The example')[0])
+    expect(typeof example.recordCitations).toBe('string')
+    expect(JSON.parse(example.recordCitations)).toEqual([{ eventId: 'COPY actual visible reference' }])
     expect(r.verificationFailures).toHaveLength(1)
   })
   it('keeps repeated unselected paragraph corrections withheld after the existing retry cap', async () => {
