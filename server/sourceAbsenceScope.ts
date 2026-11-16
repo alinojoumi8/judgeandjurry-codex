@@ -32,8 +32,9 @@ export function sourceAbsenceScopeError(text: string, citations: GroundingCitati
     const sourceKind = /\b(?:report|interview|affidavit)\b/i
     const subjectKind = sentence.slice(0, aside.index).match(sourceKind)?.[0].toLowerCase()
     const namedSource = evidence.find(item => item.exhibitId.toUpperCase() === mainSources[0])
-    const namedKind = namedSource?.name.match(sourceKind)?.[0].toLowerCase()
-    const conflictingKind = asideKind !== 'document' && [subjectKind, namedKind].some(kind => kind && kind !== asideKind)
+    const namedKinds = namedSource?.name.toLowerCase().match(/\b(?:report|interview|affidavit)\b/g) ?? []
+    const knownKinds = subjectKind ? [subjectKind] : namedKinds
+    const conflictingKind = asideKind !== 'document' && knownKinds.length > 0 && !knownKinds.includes(asideKind)
     return [main, conflictingKind ? aside[1] : aside[1] + ' ' + mainSources[0]]
   })
   const sourceBoundary = /,?\s+\b(?:but|yet|while|and|although|though|whereas)\b\s+(?=(?:(?:the|this|that|a|an)\s+)?(?:(?:whole|entire|complete|accounting)\s+)*(?:report|interview|affidavit|document)\b|E-\d+\b)/i

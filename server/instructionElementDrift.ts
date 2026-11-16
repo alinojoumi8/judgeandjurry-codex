@@ -40,12 +40,12 @@ export function instructionElementDriftError(text: string, approved: Issue[] | u
     return !rootQuestion.test(prefix) || declarativeSubject ? [prefix] : []
   })
   const required = statements.flatMap(sentence => sentence.split(boundaries)).some(sentence => {
-    if (/\b(?:if|would|could|might)\b/i.test(sentence) ||
-        /\b(?:incorrect|not true) to say\b|\b(?:need not|does not need to|not required to|must not)\b/i.test(sentence)) return false
-    // Remove only the reliance occurrence whose own predicate denies a
-    // requirement. A separate positive requirement must still be checked.
     const afterCondition = sentence.match(/^\s*(?:(?:regardless of|irrespective of|no matter)\s+)?whether\b[^,]+,\s*(.*)$/i)?.[1]
     const assertion = afterCondition ?? sentence.split(/\bwhether\b/i, 1)[0]
+    if (/\b(?:if|would|could|might)\b/i.test(assertion) ||
+        /\b(?:incorrect|not true) to say\b|\b(?:need not|does not need to|not required to|must not)\b/i.test(assertion)) return false
+    // Remove only the reliance occurrence whose own predicate denies a
+    // requirement. A separate positive requirement must still be checked.
     const requirements = assertion.replace(/\b(?:not|rather than|instead of)\s+(?:investor\s+)?reliance\b(?!\s+(?:alone|only)\b)/gi, ' ')
       .replace(/\breliance\b(?=\s+(?:(?:is|are|was|were|remains?)\s+)?(?:not|never)\s+(?:(?:an?|the)\s+)?(?:(?:listed|required|necessary|essential|separate)\s+)*(?:element|required|necessary|essential)\b)/gi, ' ')
     return /\bCrown must (?:still |also )?(?:prove|establish)\b[^.!?;]{0,240}\breliance\b/i.test(requirements) ||

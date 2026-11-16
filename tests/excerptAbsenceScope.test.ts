@@ -47,6 +47,11 @@ describe('negative source contents remain bounded by actual excerpt coverage', (
     const distinct = text.replace('supplied excerpts', 'supplied interview excerpts').replace('E-001', 'E-002')
     expect(sourceAbsenceScopeError(distinct, [], interview, fullContext)).toContain('E-001')
     expect(sourceAbsenceScopeError(distinct.replace('supplied interview excerpts', 'supplied excerpts'), [], interview, fullContext)).toContain('E-001')
+
+    const compoundTitle = [...evidence, { ...interview[1], name: 'Witness interview report' }]
+    const compoundText = 'The report E-002, although the report does not mention repayment, does not record a transfer.'
+    expect(sourceAbsenceScopeError(compoundText, [], compoundTitle, fullContext)).toBeUndefined()
+    expect(sourceAbsenceScopeError(compoundText.replace('The report E-002', 'E-002'), [], compoundTitle, fullContext)).toBeUndefined()
   })
   it('retains an inherited excerpt subject but resets scope for an explicit new document subject', () => {
     expect(check('The supplied report excerpt lists a deposit but does not include a repayment schedule (E-001).').status).toBe('passed')

@@ -23,6 +23,7 @@ describe('local reliance requirement negation', () => {
     'If this were a different exercise, the Crown must prove reliance.',
     'The Crown must prove reliance if this were a different exercise.',
     'Reliance could be a required element in another exercise.',
+    'Regardless of whether the witness signed, reliance could be a required element.',
     'The Crown must prove deception, which could be established by testimony about reliance.',
     'The Crown must prove deception, and reliance could support that inference.',
   ])('keeps an explicit local denial usable: %s', text => {
@@ -38,6 +39,7 @@ describe('local reliance requirement negation', () => {
     'The Crown must prove investor reliance, and we can ask whether it did.',
     'Whether or not the witness signed, the Crown must prove investor reliance.',
     'Regardless of whether the witness signed, the Crown must prove investor reliance.',
+    'Regardless of whether the witness could identify the signature, the Crown must prove investor reliance.',
     'The Crown must prove investor reliance, not reliance on a different report.',
     'Reliance is a required element.',
     'The Crown must prove reliance, and investor reliance is not a listed element.',
