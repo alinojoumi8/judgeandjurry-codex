@@ -33,6 +33,15 @@ describe('checker source premise uses the same disposition-comparison boundary a
     expect(sent.every(x => x.messages[1].content.includes(capture.result.content))).toBe(true)
     expect(sent[1].messages[1].content).toContain('checker source premise fails')
   })
+  it('rechecks a rejection built on the unsupported emphatic conflict premise', async () => {
+    const wrong = JSON.parse(capture.checkerContent)
+    wrong.findings[0].explanation = 'The accounts do conflict: E-001 describes Rowan handing the blue token to Ellis, while E-002 says Rowan left with the token still in their hand.'
+    const { client, sent } = harness([JSON.stringify(wrong), valid])
+    const review = await client.reviewGrounding(capture.request, capture.result)
+    expect(review.status).toBe('passed')
+    expect(review.verificationRetries).toBe(1)
+    expect(sent[1].messages[1].content).toContain('checker source premise fails')
+  })
   it('withholds repeated invalid judgments at the unchanged retry limit', async () => {
     const { client, sent } = harness([capture.checkerContent])
     const review = await client.reviewGrounding(capture.request, capture.result)

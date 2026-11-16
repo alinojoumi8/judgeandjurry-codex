@@ -547,10 +547,19 @@ export function groundingUnits(result: StageResult): GroundingUnit[] {
           // A post-period locator can be a suffix or an inline prefix. Keep
           // both neighboring assertions together without moving the locator
           // or guessing which claim it supports. A new line starts fresh scope.
-            const bracketedLocator = /^[([]\s*E-\d+\b[^\]\)\r\n]*[)\]]/.test(chunk)
+            const bracketedLocator = chunk.match(/^[([]\s*E-\d+\b[^\]\)\r\n]*[)\]]/)
             const bareLocator = /^E-\d+\b(?![ \t]+(?:(?:expressly|explicitly)[ \t]+)?(?:records?|states?|says?|describes?|attributes?|reports?|shows?|contains?|disclaims?|denies|is|was|does)\b)/i.test(chunk)
             const inlineLocator = (bracketedLocator || bareLocator) && !/\r?\n[ \t]*$/.test(text.slice(0, pendingStart))
-          if (chunks.length && inlineLocator) chunks[chunks.length - 1] += ` ${chunk}`
+          const previous = chunks.at(-1)
+          const locator = bracketedLocator?.[0]
+          const next = locator ? chunk.slice(locator.length).trimStart() : ''
+          // A citation between a closed quote and a new attributed quote belongs
+          // with the assertion that just ended. Keep ambiguous prefixes together.
+          if (previous && inlineLocator && locator && /[.!?][”"’']$/.test(previous)
+            && /^\p{Lu}[^:;.!?\r\n]{0,80}:\s*["“]/u.test(next)) {
+            chunks[chunks.length - 1] = `${previous} ${locator}`
+            chunks.push(next)
+          } else if (previous && inlineLocator) chunks[chunks.length - 1] += ` ${chunk}`
           else chunks.push(chunk)
           pending = ''
         }
@@ -2428,7 +2437,8 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         // non-observation or invent the shared timing needed for incompatibility.
         const comparisonPassages = evidence.map(item => item.text)
         const unseenHandover = comparisonPassages.some(p => /\b(?:did not|didn't) see (?:a |the )?handover\b/i.test(p))
-        const directEventConflict = (sentence: string) => (/\b(?:accounts?|sources?|handover|transfer|receipt|element|condition|E-\d+)\b/i.test(sentence) || ((/^\s*(?:these|those|they|both)\b/i.test(sentence) || /\b(?:that|this|the) direct conflict\b/i.test(sentence)) && units.some(other => other.id.replace(/:\d+$/, '') === unit.id.replace(/:\d+$/, '') && /\b(?:accounts?|sources?|handover|transfer|receipt|E-\d+)\b/i.test(other.text))) || (/^\s*(?:(?:are|is)\s+)?(?:(?:directly|mutually|explicitly)\s+)?(?:incompatible|contradict\w*|conflict\w*)\b/i.test(sentence) && /\b(?:accounts?|sources?)\b/i.test(unit.text)) || /^\s*(?:the|this|that|a) (?:(?:genuine|actual|real|direct|explicit) )?contradictions?\b/i.test(sentence)) && [...sentence.matchAll(/\b(?:(?:direct(?:ly)?|explicit(?:ly)?|affirmative(?:ly)?) conflict(?:s|ed|ing)?|conflict(?:s|ed|ing)? (?:directly|explicitly|affirmatively)|(?:(?:direct(?:ly)?|explicit(?:ly)?) )?contradict(?:s|ed|ing|ory|ions?)?|(?:conflicting (?:(?:attributed|disputed) )*(?:accounts?|sources?)|opposing (?:(?:attributed|disputed) )*(?:accounts|sources)(?=\s+(?:of|on|about|regarding)\s+(?:the\s+)?(?:receipt|handover|transfer|token(?:['’]s)?\s+disposition)\b))|(?:mutually )?incompatible)\b/gi)].some(match => {
+        const directEventConflict = (sentence: string) =>
+          /^\s*(?:the |these |those )?(?:accounts?|sources?) (?:do|does|did) conflict(?=[:.]|$)/i.test(sentence) || (/\b(?:accounts?|sources?|handover|transfer|receipt|element|condition|E-\d+)\b/i.test(sentence) || ((/^\s*(?:these|those|they|both)\b/i.test(sentence) || /\b(?:that|this|the) direct conflict\b/i.test(sentence)) && units.some(other => other.id.replace(/:\d+$/, '') === unit.id.replace(/:\d+$/, '') && /\b(?:accounts?|sources?|handover|transfer|receipt|E-\d+)\b/i.test(other.text))) || (/^\s*(?:(?:are|is)\s+)?(?:(?:directly|mutually|explicitly)\s+)?(?:incompatible|contradict\w*|conflict\w*)\b/i.test(sentence) && /\b(?:accounts?|sources?)\b/i.test(unit.text)) || /^\s*(?:the|this|that|a) (?:(?:genuine|actual|real|direct|explicit) )?contradictions?\b/i.test(sentence)) && [...sentence.matchAll(/\b(?:(?:direct(?:ly)?|explicit(?:ly)?|affirmative(?:ly)?) conflict(?:s|ed|ing)?|conflict(?:s|ed|ing)? (?:directly|explicitly|affirmatively)|(?:(?:direct(?:ly)?|explicit(?:ly)?) )?contradict(?:s|ed|ing|ory|ions?)?|(?:conflicting (?:(?:attributed|disputed) )*(?:accounts?|sources?)|opposing (?:(?:attributed|disputed) )*(?:accounts|sources)(?=\s+(?:of|on|about|regarding)\s+(?:the\s+)?(?:receipt|handover|transfer|token(?:['’]s)?\s+disposition)\b))|(?:mutually )?incompatible)\b/gi)].some(match => {
             const prefix = sentence.slice(0, match.index)
               const negated = /\b(?:not|no|doesn't|don't|isn't|may|could|might)\s+(?:(?:be|contain|include|have|reflect|show)\s+)?(?:an? )?(?:(?:directly|mutually|explicitly|expressly|necessarily)\s+)?$/i.test(prefix)
               const coordinatedDenial = /\b(?:is not|isn't|are not|aren't) (?:an? )?(?:(?:express|explicit|direct) )?denial or (?:(?:necessarily|directly|mutually|explicitly|expressly)\s+)*$/i.test(prefix)
