@@ -34,6 +34,16 @@ describe('negative source contents remain bounded by actual excerpt coverage', (
     expect(check('The supplied excerpts, although the report is incomplete, do not mention repayment (E-001).').status).toBe('passed')
     expect(check('The supplied excerpts, although the report contains no repayment schedule, do not mention interest payments (E-001).').status).toBe('failed')
   })
+  it('keeps an aside associated with the identified source', () => {
+    const text = 'The supplied excerpts, although the report contains no repayment schedule, do not mention interest payments (E-001).'
+    const renamed = [{ ...evidence[0], name: 'Financial analysis' }]
+    expect(sourceAbsenceScopeError(text, [], renamed, context)).toContain('E-001')
+
+    const whole = [...evidence, { ...renamed[0], exhibitId: 'E-002' }]
+    const fullContext = context + '\nE-002: primary; whole_document;'
+    expect(sourceAbsenceScopeError(text.replace('E-001', 'E-002'), [], whole, fullContext)).toBeUndefined()
+    expect(sourceAbsenceScopeError(text.replace('the report', 'the report E-001').replace('(E-001)', '(E-002)'), [], whole, fullContext)).toContain('E-001')
+  })
   it('retains an inherited excerpt subject but resets scope for an explicit new document subject', () => {
     expect(check('The supplied report excerpt lists a deposit but does not include a repayment schedule (E-001).').status).toBe('passed')
     expect(check('The supplied report excerpts list a deposit, and E-001 contains no repayment schedule.').status).toBe('failed')

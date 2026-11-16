@@ -24,7 +24,12 @@ export function sourceAbsenceScopeError(text: string, citations: GroundingCitati
   const sentences = prose.split(/(?<=[.!?])\s+|;\s*/).flatMap(sentence => {
     // Check a concessive aside separately while retaining the main subject.
     const aside = sentence.match(/,\s*(?:although|though|whereas)\s+([^,]+),\s+(?=(?:does not|do not|doesn't|don't|contains? no|includes? no|lacks?|never|is not in)\b)/i)
-    return aside ? [sentence.replace(aside[0], ' '), aside[1]] : [sentence]
+    if (!aside) return [sentence]
+    const main = sentence.replace(aside[0], ' ')
+    const mainSources = new Set(main.match(/\bE-\d+\b/gi)?.map(id => id.toUpperCase()))
+    const refersToMainSource = /^(?:the|this|that)\s+(?:(?:whole|entire|complete|accounting)\s+)*(?:report|interview|affidavit|document)\b/i.test(aside[1])
+    const inheritedSource = refersToMainSource && mainSources.size === 1 && !/\bE-\d+\b/i.test(aside[1]) ? ' ' + [...mainSources][0] : ''
+    return [main, aside[1] + inheritedSource]
   })
   const sourceBoundary = /,?\s+\b(?:but|yet|while|and|although|though|whereas)\b\s+(?=(?:(?:the|this|that|a|an)\s+)?(?:(?:whole|entire|complete|accounting)\s+)*(?:report|interview|affidavit|document)\b|E-\d+\b)/i
   for (const sentence of sentences.flatMap(sentence => sentence.split(sourceBoundary))) {

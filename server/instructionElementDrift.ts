@@ -33,16 +33,20 @@ export function instructionElementDriftError(text: string, approved: Issue[] | u
   const statements = unquoted.split(/(?<=[.!?;])\s+/).flatMap(sentence => {
     const trimmed = sentence.trim()
     if (!trimmed.endsWith('?')) return [sentence]
-    if (rootQuestion.test(trimmed)) return []
     const questionStart = trimmed.search(appendedQuestion)
-    return questionStart > 0 ? [trimmed.slice(0, questionStart)] : []
+    if (questionStart < 0) return []
+    const prefix = trimmed.slice(0, questionStart)
+    const declarativeSubject = /^what (?:the )?crown must (?:still |also )?(?:prove|establish) is\b/i.test(prefix)
+    return !rootQuestion.test(prefix) || declarativeSubject ? [prefix] : []
   })
   const required = statements.flatMap(sentence => sentence.split(boundaries)).some(sentence => {
     if (/\b(?:if|would|could|might)\b/i.test(sentence) ||
         /\b(?:incorrect|not true) to say\b|\b(?:need not|does not need to|not required to|must not)\b/i.test(sentence)) return false
     // Remove only the reliance occurrence whose own predicate denies a
     // requirement. A separate positive requirement must still be checked.
-    const requirements = sentence.replace(/\b(?:not|rather than|instead of)\s+(?:investor\s+)?reliance\b(?!\s+(?:alone|only)\b)/gi, ' ')
+    const afterCondition = sentence.match(/^\s*whether\b[^,]+,\s*(.*)$/i)?.[1]
+    const assertion = afterCondition ?? sentence.split(/\bwhether\b/i, 1)[0]
+    const requirements = assertion.replace(/\b(?:not|rather than|instead of)\s+(?:investor\s+)?reliance\b(?!\s+(?:alone|only)\b)/gi, ' ')
       .replace(/\breliance\b(?=\s+(?:(?:is|are|was|were|remains?)\s+)?(?:not|never)\s+(?:(?:an?|the)\s+)?(?:(?:listed|required|necessary|essential|separate)\s+)*(?:element|required|necessary|essential)\b)/gi, ' ')
     return /\bCrown must (?:still |also )?(?:prove|establish)\b[^.!?;]{0,240}\breliance\b/i.test(requirements) ||
       /\breliance\b[^.!?;]{0,100}\b(?:required|necessary|essential|separate) element\b/i.test(requirements)
