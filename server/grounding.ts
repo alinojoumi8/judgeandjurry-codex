@@ -217,6 +217,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
   // Classify each threshold occurrence by its local proof-list scope. The
   // approved number never exempts a neighboring payment of the same amount.
   const listThreshold = new RegExp(String.raw`\b(?:the\s+|a\s+)?(?:(?:subject[- ]matter\s+)?value|subject[- ]matter)(?:\s+of\s+[^$;.!?]{1,90}?)?\s+(?:exceeds|exceeded|exceeding|over|greater than)\s*(${amount})`, 'gi')
+  const approvedListThreshold = new RegExp(String.raw`\bthe\s+value\s+(?:element|requirement),\s+whose\s+(${amount})\s+threshold\s+comes\s+from\s+the\s+approved\s+exercise\s+element\s+list\s+and\s+not\s+from\s+any\s+source\s+quotation(?=\s*(?:[.!?;]|$))`, 'gi')
   const approvedBurdenDirective = /\b(?:(?:current )?(?:approved|supplied)(?: exercise)?|current exercise) (?:issue|(?:value )?element) requires? (?:the )?Crown to (?:prove|establish)\b/i
   const crownBurdenDirective = new RegExp(String.raw`\b${crownBurden}\b`, 'i')
   // A coordinated current directive keeps the Crown as its subject across a
@@ -238,7 +239,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
         /\b(?:records?|reports?|states?|says?|received|transferred|paid|deposited|withdrew)\b|\b(?:was|were) made\b/i.test(clause) || /\b(?:not|never|without)\b/i.test(prefix)) return statement
     return removeProposedThreshold(statement, claimed, offset, input)
   }
-  const removeListedThreshold = (statement: string, claimed: string, offset: number, input: string) => {
+  const removeListedThreshold = (statement: string, claimed: string, offset: number, input: string, requiresApproval = false) => {
     const passive = removePassiveThreshold(statement, claimed, offset, input)
     if (passive !== undefined) return passive
     const prefix = input.slice(0, offset).split(/(?<=[.!?])\s+/).at(-1) ?? ''
@@ -265,7 +266,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
       if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(clause)) return statement
       return removeProposedThreshold(statement, claimed, offset, input)
     }
-    return removeThreshold(statement, claimed, offset, input)
+    return requiresApproval ? removeProposedThreshold(statement, claimed, offset, input) : removeThreshold(statement, claimed, offset, input)
   }
     const proposedErrors: string[] = []
     const allegationValue = new RegExp(String.raw`^\s*The value allegation (?:exceeds|is over|is greater than)\s*(${amount})\s*[:;]`, 'i')
@@ -336,7 +337,8 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
       used.push(matching[0])
       return statement.replace(quotation, quotation.replace(claimed, ''))
     })
-    let factualText = quotedElementText.replace(listThreshold, removeListedThreshold).replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(unresolvedElements, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(conditionalValueElement, removeThreshold).replace(conditionalFigureElement, removeConditionalFigureThreshold).replace(conditionalElementLabel, removeConditionalFigureThreshold).replace(requirement, removeRequirementThreshold).replace(proposedQuestion, removeProposedThreshold).replace(thresholdReference, removeReferenceThreshold).replace(valueProofRequirement, removeValueProofThreshold)
+    let factualText = quotedElementText.replace(listThreshold, removeListedThreshold)
+      .replace(approvedListThreshold, (statement, claimed, offset, input) => removeListedThreshold(statement, claimed, offset, input, true)).replace(assessment, removeThreshold).replace(unresolved, removeThreshold).replace(unresolvedElements, removeThreshold).replace(openQuestion, removeThreshold).replace(doubt, removeThreshold).replace(burdenAssessment, removeThreshold).replace(unprovedValue, removeThreshold).replace(proposedValue, removeThreshold).replace(conditionalValueElement, removeThreshold).replace(conditionalFigureElement, removeConditionalFigureThreshold).replace(conditionalElementLabel, removeConditionalFigureThreshold).replace(requirement, removeRequirementThreshold).replace(proposedQuestion, removeProposedThreshold).replace(thresholdReference, removeReferenceThreshold).replace(valueProofRequirement, removeValueProofThreshold)
   if (title) factualText = factualText.replace(caption, removeProposedThreshold)
     return { factualText, errors: [...comparison.errors, ...proposedErrors], labels: [...new Set(used)], event: used.length ? event : undefined }
 }

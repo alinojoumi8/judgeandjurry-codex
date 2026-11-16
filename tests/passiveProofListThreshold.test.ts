@@ -5,6 +5,7 @@ import { supportedOpeningSource } from '../samples/courtroom-realism/supported-o
 
 const approved = [{ issueId: 'fictional-value', elements: [{ label: 'The value of the subject matter of the alleged fraud exceeds $1,500' }] }]
 const text = 'Deception, deprivation, Arin’s knowledge of the facts, conscious recklessness regarding deprivation, and a subject-matter value exceeding $1,500 must each be proved beyond a reasonable doubt; failure of a business alone proves none of them (E-001).'
+const explicitList = 'The Crown must still prove each element of the proposed count beyond a reasonable doubt: "deception"; "deprivation"; and the value requirement, whose $1,500 threshold comes from the approved exercise element list and not from any source quotation.'
 const count = 'Each element of the proposed fraud over $1,500 count — deception, deprivation, knowledge, and a subject-matter value exceeding $1,500 — must be proved beyond a reasonable doubt.'
 const instruction: GroundingRecordEvent = { eventId: 'current', type: 'judicial_instruction', payload: { text: 'Apply the reviewed fictional exercise.', issueInstructions: approved } }
 function check(draft = text, options: { source?: string; approved?: typeof approved; events?: GroundingRecordEvent[]; status?: string } = {}) {
@@ -26,6 +27,20 @@ describe('passive approved proof-list threshold', () => {
     expect(check(draft, { source, events: [{ ...instruction, payload: { ...instruction.payload, withheld: true } }] }).status).toBe('failed')
     const later = { ...instruction, eventId: 'later', payload: { ...instruction.payload, issueInstructions: [{ ...approved[0], elements: [{ label: 'The value exceeds $1,600' }] }] } }
     expect(check(draft, { source, events: [instruction, later] }).status).toBe('failed')
+  })
+  it('recognizes a proof-list value threshold explicitly attributed to the approved exercise', () => {
+    expect(check(explicitList).errors).toEqual([])
+    expect(check(explicitList, { approved: [], events: [instruction] }).errors).toEqual([])
+  })
+  it('requires exact approval and keeps a matching transaction amount independently checked', () => {
+    const source = 'The report records $1,500, $1,600 and USD $1,500.'
+    expect(check(explicitList, { source, approved: [] }).status).toBe('failed')
+    expect(check(explicitList.replace('$1,500', '$1,600'), { source }).status).toBe('failed')
+    expect(check(explicitList.replace('$1,500', 'USD $1,500'), { source }).status).toBe('failed')
+    expect(check(explicitList.replace('proposed count', 'actual criminal count')).status).toBe('failed')
+    expect(check('The report states that ' + explicitList).status).toBe('failed')
+    expect(check(`${explicitList} Arin received $1,500 (E-001).`).status).toBe('failed')
+    expect(check(`${explicitList} Arin received $1,500 (E-001).`, { source: 'Arin received $1,500.' }).errors).toEqual([])
   })
   it('keeps both count and listed-element amounts independent', () => {
     expect(check(count.replace('exceeding $1,500', 'exceeding $1,600')).status).toBe('failed')
