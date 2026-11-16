@@ -191,7 +191,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
   const conditionalFigureElement = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)If\b(?:[^;.!?]|\.(?=\d)){0,400}\bis established as (?:the )?value of (?:the )?(?:alleged )?subject matter,\s+(?:it|(?:that|the) (?:figure|amount|total)) (?:could|would|may|might) support (?:the )?(?:approved )?(?:value )?element (?:exceeding|over|greater than)\s*(${amount})`, 'gi')
   const conditionalElementLabel = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+)If the Crown establishes\b(?:[^;.!?]|\.(?=\d)){0,300}\bas (?:the )?value of (?:the )?(?:alleged )?subject matter in the currency of the (?:approved|supplied)\s+(${amount})\s+(?:value )?element,\s+(?:it|that figure) (?:could|would|may|might) support (?:that|the) (?:value )?element\b`, 'gi')
   const requirement = new RegExp(String.raw`(?:^|(?<=[.!?;])\s+(?:[([]E-\d+(?:\s*[,;]\s*E-\d+)*[)\]]\s*)*)(?:For (?:this|the) (?:proposed|supplied|fictional|exercise) count,?\s+)?The (?:Crown|evidence) must (?:(?:still|also) )?(?:prove|establish|tie)\b[^$;.!?"“”]{0,350}\b(?:value|amount|loss|deprivation)\s+(?:exceeding|over|greater than)\s*(${amount})`, 'gi')
-  const caption = new RegExp(String.raw`^(?:Crown|Defence) (?:Opening|Closing|Rebuttal)(?:\s*[-—:]\s*|\s+on\s+)Proposed Fraud[ -]+(?:Exceeding|Over|Greater[ -]+Than)[ -]*(${amount})(?: Count)?(?:(?: Against |\s*[-—:]\s*)[\p{L}][\p{L} ’'-]{0,80})?[.!?]?$`, 'iu')
+  const caption = new RegExp(String.raw`^(?:Crown|Defence) (?:Opening|Closing|Rebuttal)(?:\s*[-—:]\s*|\s+on\s+)(?:reasonable doubt on the\s+)?Proposed Fraud[ -]+(?:Exceeding|Over|Greater[ -]+Than)[ -]*(${amount})(?: Count)?(?:(?: Against |\s*[-—:]\s*)[\p{L}][\p{L} ’'-]{0,80})?[.!?]?$`, 'iu')
   const crownBurden = String.raw`Crown bears the burden of (?:proving|establishing)`
     const proposedQuestion = new RegExp(String.raw`(?:^|(?<=[;.!?])\s+)(?:whether|what)\b[^$;.!?]{0,300}\bon (?:the )?proposed fraud (?:exceeding|over|greater than)\s*(${amount})\s+count,?\s+(?:remains?|is)\s+(?:an?\s+)?unresolved (?:question|issue) (?:on|within) (?:this|the supplied) record\b`, 'gi')
   const removeThreshold = (statement: string, claimed: string, offset: number, input: string) => {
@@ -246,7 +246,9 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
     // author's directive. Every source/payment amount keeps its own support.
     const instructionPrefix = prefix.replace(/["“][^"”]*["”]/g, ' ')
     if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(instructionPrefix)) return statement
-    if (!proofDirective(instructionPrefix)) return statement
+    const unprovedValueList = /^\s*The Crown has not (?:proved|proven|established)(?: beyond a reasonable doubt)?:/i.test(prefix) &&
+      /^(?:the\s+)?value of the subject matter(?: of the alleged fraud)?\s+(?:exceeds|exceeded|exceeding|over|greater than)\b/i.test(statement)
+    if (!unprovedValueList && !proofDirective(instructionPrefix)) return statement
     const lastProof = [...instructionPrefix.matchAll(new RegExp(crownProofDirective.source, 'gi'))].at(-1)
     const proofLead = lastProof ? instructionPrefix.slice(instructionPrefix.lastIndexOf(';', lastProof.index) + 1, lastProof.index) : ''
     if (/\b(?:E-\d+|report|document|source|interview|affidavit|witness|deponent)\b[^;.!?]{0,120}\b(?:states?|stated|records?|reports?|says?|said|claims?|claimed)\b/i.test(proofLead)) return statement
@@ -265,7 +267,7 @@ function instructionThresholds(text: string, events: NonNullable<Parameters<type
       if (/\b(?:operative|charged|filed)\b[^;.!?]{0,80}\b(?:issue|count|charge)\b|\bactual (?:criminal )?(?:count|charge)\b/i.test(clause)) return statement
       return removeProposedThreshold(statement, claimed, offset, input)
     }
-    return requiresApproval ? removeProposedThreshold(statement, claimed, offset, input) : removeThreshold(statement, claimed, offset, input)
+    return requiresApproval || unprovedValueList ? removeProposedThreshold(statement, claimed, offset, input) : removeThreshold(statement, claimed, offset, input)
   }
     const proposedErrors: string[] = []
     const allegationValue = new RegExp(String.raw`^\s*The value allegation (?:exceeds|is over|is greater than)\s*(${amount})\s*[:;]`, 'i')

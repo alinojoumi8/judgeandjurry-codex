@@ -42,6 +42,16 @@ describe('passive approved proof-list threshold', () => {
     expect(check(`${explicitList} Arin received $1,500 (E-001).`).status).toBe('failed')
     expect(check(`${explicitList} Arin received $1,500 (E-001).`, { source: 'Arin received $1,500.' }).errors).toEqual([])
   })
+  it('recognizes an authored assessment of the listed elements that remain unproved', () => {
+    const draft = 'The Crown has not proved: “deception”; “deprivation”; either knowledge element; or that the value of the subject matter exceeds $1,500.'
+    expect(check(draft).errors).toEqual([])
+    expect(check(draft, { approved: [], source: 'Arin received $1,500.' }).status).toBe('failed')
+    expect(check(draft.replace('$1,500', 'USD $1,500')).status).toBe('failed')
+    expect(check('The report states that ' + draft).status).toBe('failed')
+    expect(check(draft.replace('has not proved', 'has proved')).status).toBe('failed')
+    expect(check(draft.replace('the subject matter', 'the transfer received by Arin')).status).toBe('failed')
+    expect(check(draft + ' Arin was paid $1,500 (E-001).').status).toBe('failed')
+  })
   it('keeps both count and listed-element amounts independent', () => {
     expect(check(count.replace('exceeding $1,500', 'exceeding $1,600')).status).toBe('failed')
     expect(check(`${text} Arin received $1,500 (E-001).`).status).toBe('failed')
