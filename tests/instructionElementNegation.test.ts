@@ -37,6 +37,7 @@ describe('local reliance requirement negation', () => {
     'What the Crown must prove is investor reliance, but can it do so?',
     'The Crown must prove investor reliance, and we can ask whether it did.',
     'Whether or not the witness signed, the Crown must prove investor reliance.',
+    'Regardless of whether the witness signed, the Crown must prove investor reliance.',
     'The Crown must prove investor reliance, not reliance on a different report.',
     'Reliance is a required element.',
     'The Crown must prove reliance, and investor reliance is not a listed element.',

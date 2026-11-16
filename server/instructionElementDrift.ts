@@ -44,7 +44,7 @@ export function instructionElementDriftError(text: string, approved: Issue[] | u
         /\b(?:incorrect|not true) to say\b|\b(?:need not|does not need to|not required to|must not)\b/i.test(sentence)) return false
     // Remove only the reliance occurrence whose own predicate denies a
     // requirement. A separate positive requirement must still be checked.
-    const afterCondition = sentence.match(/^\s*whether\b[^,]+,\s*(.*)$/i)?.[1]
+    const afterCondition = sentence.match(/^\s*(?:(?:regardless of|irrespective of|no matter)\s+)?whether\b[^,]+,\s*(.*)$/i)?.[1]
     const assertion = afterCondition ?? sentence.split(/\bwhether\b/i, 1)[0]
     const requirements = assertion.replace(/\b(?:not|rather than|instead of)\s+(?:investor\s+)?reliance\b(?!\s+(?:alone|only)\b)/gi, ' ')
       .replace(/\breliance\b(?=\s+(?:(?:is|are|was|were|remains?)\s+)?(?:not|never)\s+(?:(?:an?|the)\s+)?(?:(?:listed|required|necessary|essential|separate)\s+)*(?:element|required|necessary|essential)\b)/gi, ' ')

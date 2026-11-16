@@ -26,10 +26,15 @@ export function sourceAbsenceScopeError(text: string, citations: GroundingCitati
     const aside = sentence.match(/,\s*(?:although|though|whereas)\s+([^,]+),\s+(?=(?:does not|do not|doesn't|don't|contains? no|includes? no|lacks?|never|is not in)\b)/i)
     if (!aside) return [sentence]
     const main = sentence.replace(aside[0], ' ')
-    const mainSources = new Set(main.match(/\bE-\d+\b/gi)?.map(id => id.toUpperCase()))
-    const refersToMainSource = /^(?:the|this|that)\s+(?:(?:whole|entire|complete|accounting)\s+)*(?:report|interview|affidavit|document)\b/i.test(aside[1])
-    const inheritedSource = refersToMainSource && mainSources.size === 1 && !/\bE-\d+\b/i.test(aside[1]) ? ' ' + [...mainSources][0] : ''
-    return [main, aside[1] + inheritedSource]
+    const mainSources = [...new Set(main.match(/\bE-\d+\b/gi)?.map(id => id.toUpperCase()))]
+    const asideKind = aside[1].match(/^(?:the|this|that)\s+(?:(?:whole|entire|complete|accounting)\s+)*(report|interview|affidavit|document)\b/i)?.[1]?.toLowerCase()
+    if (mainSources.length !== 1 || !asideKind || /\bE-\d+\b/i.test(aside[1])) return [main, aside[1]]
+    const sourceKind = /\b(?:report|interview|affidavit)\b/i
+    const subjectKind = sentence.slice(0, aside.index).match(sourceKind)?.[0].toLowerCase()
+    const namedSource = evidence.find(item => item.exhibitId.toUpperCase() === mainSources[0])
+    const namedKind = namedSource?.name.match(sourceKind)?.[0].toLowerCase()
+    const conflictingKind = asideKind !== 'document' && [subjectKind, namedKind].some(kind => kind && kind !== asideKind)
+    return [main, conflictingKind ? aside[1] : aside[1] + ' ' + mainSources[0]]
   })
   const sourceBoundary = /,?\s+\b(?:but|yet|while|and|although|though|whereas)\b\s+(?=(?:(?:the|this|that|a|an)\s+)?(?:(?:whole|entire|complete|accounting)\s+)*(?:report|interview|affidavit|document)\b|E-\d+\b)/i
   for (const sentence of sentences.flatMap(sentence => sentence.split(sourceBoundary))) {
