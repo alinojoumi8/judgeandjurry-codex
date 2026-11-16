@@ -21,7 +21,13 @@ export function sourceAbsenceScopeError(text: string, citations: GroundingCitati
   const partial = evidence.filter(item => context.split('\n').some(line => line.toUpperCase().startsWith(item.exhibitId.toUpperCase() + ':') && /; selected_extracts;/i.test(line)))
   if (!partial.length) return
   const prose = text.replace(/["“]([^"”]+)["”]/g, (whole, quote: string) => citations.some(c => c.quote.includes(quote)) ? ' '.repeat(whole.length) : whole)
-  for (const sentence of prose.split(/(?<=[.!?])\s+|;\s*|,?\s+\b(?:but|yet|while|and|although|though|whereas)\b\s+(?=(?:(?:the|this|that|a|an)\s+)?(?:(?:whole|entire|complete|accounting)\s+)*(?:report|interview|affidavit|document)\b|E-\d+\b)/i)) {
+  const sentences = prose.split(/(?<=[.!?])\s+|;\s*/).flatMap(sentence => {
+    // Check a concessive aside separately while retaining the main subject.
+    const aside = sentence.match(/,\s*(?:although|though|whereas)\s+([^,]+),\s+(?=(?:does not|do not|doesn't|don't|contains? no|includes? no|lacks?|never|is not in)\b)/i)
+    return aside ? [sentence.replace(aside[0], ' '), aside[1]] : [sentence]
+  })
+  const sourceBoundary = /,?\s+\b(?:but|yet|while|and|although|though|whereas)\b\s+(?=(?:(?:the|this|that|a|an)\s+)?(?:(?:whole|entire|complete|accounting)\s+)*(?:report|interview|affidavit|document)\b|E-\d+\b)/i
+  for (const sentence of sentences.flatMap(sentence => sentence.split(sourceBoundary))) {
     const absence = sentence.match(/\b(?:does not|do not|doesn't|don't|contains? no|includes? no|lacks?|never)\s+(?:(?:itself|themselves)\s+)?(?:trac\w*|match\w*|map\w*|pair\w*|identify|identifies|includ\w*|contain\w*|record\w*|mention\w*|stat\w*|say\w*|report\w*|provid\w*|suppl\w*|link\w*|repayment|tracing|mapping)\b|\bis not in\b|\bno (?:passage|paragraph|page)\b[^.;!?]{0,100}\b(?:ties?|links?|connects?|records?|mentions?|states?|includes?|provides?)\b/i)
     if (!absence) continue
     const lead = sentence.slice(0, absence.index)

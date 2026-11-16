@@ -27,7 +27,16 @@ export function instructionElementDriftError(text: string, approved: Issue[] | u
   const evidentialReliance = String.raw`(?:${subjectWord}\s+){0,6}reliance(?:\s+(?:on|upon|in)\s+(?:${subjectWord}\s+){0,9}${subjectWord})?\s+(?:supports?|shows?|suggests?|indicates?|bears? on|is (?:evidence|relevant))\b`
   const independentModal = String.raw`(?:${subjectWord}\s+){1,8}(?:would|could|might)\b`
   const boundaries = new RegExp(String.raw`(?<=[.!?;])\s+|\s+(?:but|yet|whereas|however)\s+|,\s*(?=(?:which|who|whose)\b)|,\s*and\s+(?=(?:the\s+)?Crown\b)|,\s*(?:and|or)\s+(?=(?:this|that|it)\s+(?:would|could|might)\b)|,\s*(?:and|or)\s+(?=${evidentialReliance})|,?\s+(?:and|or)\s+(?=${independentModal})`, 'iu')
-  const statements = unquoted.split(/(?<=[.!?;])\s+/).filter(sentence => !sentence.trim().endsWith('?'))
+  const questionLead = String.raw`(?:am|is|are|was|were|do|does|did|have|has|had|can|could|must|will|would|should|may|might|what|which|who|whom|whose|why|when|where|how)\b`
+  const rootQuestion = new RegExp('^' + questionLead, 'i')
+  const appendedQuestion = new RegExp(String.raw`,\s*(?:and|or|but|yet)\s+(?=${questionLead})`, 'i')
+  const statements = unquoted.split(/(?<=[.!?;])\s+/).flatMap(sentence => {
+    const trimmed = sentence.trim()
+    if (!trimmed.endsWith('?')) return [sentence]
+    if (rootQuestion.test(trimmed)) return []
+    const questionStart = trimmed.search(appendedQuestion)
+    return questionStart > 0 ? [trimmed.slice(0, questionStart)] : []
+  })
   const required = statements.flatMap(sentence => sentence.split(boundaries)).some(sentence => {
     if (/\b(?:if|would|could|might)\b/i.test(sentence) ||
         /\b(?:incorrect|not true) to say\b|\b(?:need not|does not need to|not required to|must not)\b/i.test(sentence)) return false
