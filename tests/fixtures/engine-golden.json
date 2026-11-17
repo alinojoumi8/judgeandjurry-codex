@@ -1,50 +1,50 @@
 {
  "civilJury": {
   "requestHashes": [
-   "crown_opening 2cbdceb4232d1f4dc51abf5c87758d081ca725ad8438b85f5a80667be15be67a",
-   "defence_opening 3d06e5ff8844447d32146c0fd34314f72179f1ad6f5656fb97741830daef3e99",
-   "juror_ballot e46e28e60a2bc0377e349bd216311a56b9da0fbbd0d4646b0b81680f455a32f2",
-   "juror_ballot 76ff01e69a00f65a93cd1bbd474388012e1e0366f62d378a9730d50bb3a50244",
-   "juror_ballot 01bb8517fde65f974b1f99bd85d9afef2f23b5dd4d9ec9a751f5dad34665497b",
-   "juror_ballot 1aeff1caf31fff853133569af64fd0dc5cbe4d73ff25bbf7f350c77c487cd7e8",
-   "juror_ballot 205b488b3c5ef5b0718820bae1832f62e8754cc00c586171e749300462c2d6c9",
-   "juror_ballot 2c394d3414248982d6346ece0a5902fd1b9e07375efedfcf16f70e2c9b287bb8",
-   "juror_ballot 0ff4588bff5b6b98528bcbfd34d929fd892c4ca0b9c1cba3bacde6cf65c94c50",
-   "juror_ballot 58022d3354e3398dfcc557d2a16011f4188d6bb1792aa818840abd65a2b09d8e",
-   "juror_ballot 866ab9935ced148cb752a08fa6a5c11f4c0458dc0e2d596d1b128d37c5f6ebca",
-   "juror_ballot f6d86b245d8a8147090d41fa9cfbbaa3decae162f0724c25f1da5beb8e44f8ee",
-   "juror_ballot 5410e7ea6626ec45d9f03b53308cb710ebc957967ecbc468896dc10af19beec0",
-   "juror_ballot ea5e843082330ce9f574b0f77a61c49ab972808fbc7272c43a5f37cada80596b",
-   "jury_deliberation 0857c71259cac4a109cfac24a9f46f2a4b73c092a35c7563ecffe6d98a67b101",
-   "jury_deliberation 5ce6ec411d47e5b5020164d5d41b5c12d6d3bc17daab63d95c834acdedcbd623",
-   "jury_deliberation 74172a3f0dfeeacb02cbb8753150d4e7661b0e2de3c47d20a3367d4b83f2ab5f",
-   "jury_deliberation 91e1da83c0a81e44dad5807c33f84c7770dc20a755c50d86b418c9c6c9865867",
-   "jury_deliberation bee383eb1261971915c3203faafa03622f7c92a29e1d2bb2ea5c302bea9b7261",
-   "jury_deliberation cf4100bbc79f7230056b19482b5c3549fa9b02f904eaabffb4921cad678d3c41",
-   "jury_deliberation dee19463ed3bb5c79bb774097975cee02d4f818218d1de379837b4d7c07ac65f",
-   "jury_deliberation 5e7f5b6d50c4ab776c9a742f1af66dccd8e3e308092bb022d4e0d243a7d0b895",
-   "jury_deliberation 74668a48951268384fd5e08fd304a5b8b39bc7b671abd3377ed2bf14cfc939fc",
-   "jury_deliberation e707b2a3e0031eeb2c1c4f60c51a53bc5119067994ac5e5e33dc19ab1ecbbfaa",
-   "jury_deliberation 4f9f11510c7c654c60adc68dc3e6a0df6a47c1151a349c8084ee1a45401d9b3d",
-   "jury_deliberation 3ff9e12256b971f73298f35001831872a9130cda57548bd5d272b29395be8a20",
-   "jury_deliberation 46a6356e764d4856f610e19962617de01a3082a3ca28ad39e66a070fea5a38ff",
-   "jury_deliberation 082df29f6f82547d2fd3297f3048e7b0d9b4cea79521728597492f6f8cddc12d",
-   "jury_deliberation b889ad67303a73d1e5e111385f0401384da790d5b793b037e1352c8d6b63d1ab",
-   "jury_deliberation 1d1c9a257c115c333b997a9155f4fc58c9b6205b9ae5ed7889cbc53644ba378d",
-   "jury_deliberation 89fb8938f7063ac3ac767059df2a833444df5a859c2f75c36f25207c49edd593",
-   "jury_deliberation efec3d285bc3f22c65c6141fdc21dd5c070bc967ab56b58e03a2ccea8301be2c",
-   "juror_ballot 764c511d2b9202b55c644f35d313e6fdd8ebc38cb28aa78a5e3cdd8e20fb80cb",
-   "juror_ballot 6042dac8c2ff5aaf6b6d33c1a0fdb4eba9e1b5ab6d7cd3406edee5fa3ad46da9",
-   "juror_ballot aa10394f346662f9d55755258b1c8e257c30be4637c4166054cabb5dd8488ad8",
-   "juror_ballot 3505accfbba1807bc002171a634d85bfbe4ce5fff81945ffd3ceb770225d3c52",
-   "juror_ballot 32406e25507ebcd45ce40cd83e3ccc1c3eb6407b6e4224ee79582de4fd8899bc",
-   "juror_ballot 87878f40dc026d31f92350e42843ed08ddb3e8b5602fd761e86eb6983acc4f48",
-   "juror_ballot b40ba850f176c4b3f3a15df00017ca2c7eb2eff9ea16afc2c4dc8085644b279c",
-   "juror_ballot 94c414b84880c9f1c362324ab7a03cdce97cce6da0355085b77f5e44fccecfd4",
-   "juror_ballot 3ff7f658babbb83dc4ccd4f5edfc327ef9e149a4d36cfb7c28e2903b2376e066",
-   "juror_ballot 31c7bcf1e3dc688ff61c1f95a1ac92a0f8459e98d05eaaeaafdb2d8bb7606cfa",
-   "juror_ballot 91e54f3070b467a0e46edb9ecc4e99b667b8110ef1d0e1a90ba513d85e1b2a1b",
-   "juror_ballot b3a2d8d4ae8e95e3b92d58f3950d5cce8e0f2f4503f17d5c352bb7e42ee7ee27"
+   "crown_opening 9e456f414a97c70b222eb49a58dcfa95e0b88899d6ac75c613cac43f64c5eaf1",
+   "defence_opening c1c4133fb24680465b7a9866070b4349c7213f1d78c3521233d6127267e5596b",
+   "juror_ballot baf2d409aa1b88bfdb8e1fc3eb82689db0624fb8015ff74841d03dd956a82af1",
+   "juror_ballot 4172ecd22b910203bc5cd765bd260f5a623ac875373ca3f593f9296e6f5f99a0",
+   "juror_ballot 55051506651b997f51bd206841523b8e899ba547a1d76c4b5236daaddb92efa3",
+   "juror_ballot cf4163653523a9c50ca6c97ac0702dfc66ccabb692bac5cec8493913a2dacae3",
+   "juror_ballot 2412dead19487e868aafe9afbd563b317c179f53e73dd02f301a72ac3f5e3366",
+   "juror_ballot 695e0629f43a62195e6d45bc46e6da0d628c334bc66203b545ec4c8c7d9a109e",
+   "juror_ballot a55f486e23541973feb1c12948ad7899a86866027f68761e0ac800d2006bf656",
+   "juror_ballot 7ee9c29405ef15955cc0103af71f6500cb4b04dd9af9ed4c5200b4776307da79",
+   "juror_ballot d1281f48475122f4b53affa75697fc5314360c31d095b014b2172c7846b70c13",
+   "juror_ballot 6bd76b28dca41e1ba8f79fff4d0023a850b9c7c750c3f6324eea0067ecf5aea3",
+   "juror_ballot d6b7716f7ece129508ca70d8c243d9c50bc68996dc9b25f6422a6f798cac49ea",
+   "juror_ballot 4a74b0bd83db95889b20fb540657210e1f23502c7755779cd40d9b45c1cca910",
+   "jury_deliberation ba412034ce1c33edca1acfc7726fc336b8f5d5c9e3e222cb133bb22ea0f2b910",
+   "jury_deliberation d2bacb040b03ee1d27ee2889be74be22749287523a9e54bfeaa705056501366a",
+   "jury_deliberation 2db478f20c0526084e1ae07cdf75f23da8b6aac4fa5e38359805bc73587a6730",
+   "jury_deliberation c5b62e75ba3e44a8a6400cb6f2aa53c6cf1cc796a8c596e2f5181a51e95a95f7",
+   "jury_deliberation 964f3eeeeddc4ed9e747bf7e1d32e9609e1c5b48c15404d5a50d4a5f870065cc",
+   "jury_deliberation 11466f4fb8ec8bf4f07f61e1b51405276c517a6586df1426bed5de7ff92ae1c6",
+   "jury_deliberation 9c0f6856ffa78af52b2917c86aac97a6d4e256b5b1fe116a1e6b59233261a5c0",
+   "jury_deliberation edf87afe797ef035778a16c216b612e38f608ab7de7cadb694a87b81175b574a",
+   "jury_deliberation abc4d34d90d54e2567ed716f18558196dc630b6be83ba3f364250644e46cd82d",
+   "jury_deliberation a5857203572fe7610c4e6e99a5fcad96e938e5da4140569f80458b19b5e452a8",
+   "jury_deliberation 4a7c5949baeee4d9999cc3a143b79994c24b58e95033f8d8d938cb0d8ed8ef7f",
+   "jury_deliberation e7acca38b4970e04c80448ff155d580c615901d0a7837eea61942c784ad939ba",
+   "jury_deliberation a5c2b2ea4fb825ec5987a16492213fcef540da97a5f90dfe40bbed80c9002c36",
+   "jury_deliberation a7a53b32d0a0816c5b6a52fdf9ae75a73eaed2e380b7bacc32044050089132cc",
+   "jury_deliberation 32bca48f659d81c571ae2cb1b196017a1aa662c53156e34c5836c69c7be33561",
+   "jury_deliberation fb1ff3d0566a4b94a0787fd6a5b5d748f7ee559c5d95d2b28b26470ee3adc5de",
+   "jury_deliberation 95140b61623403d6db2dd34b7c35beb0a8dee8ac40157084cf5d781a21b3ca18",
+   "jury_deliberation 9a5c1563cd4a6ef7cb43425ca4c3f12e979b6d4a48bbe818879f1cf79dca77ac",
+   "juror_ballot 812dc7e5171110ea26d3ce29faf7301f720f597a581e1afdf5dbf01cef7eb776",
+   "juror_ballot 603cdbbc5ce430ecfef3ca1999a4707e37a2631b2434eb075e033212f92da647",
+   "juror_ballot 263a25d1e445df59311855543c213e56afbd7acfe1ef6482dfc3cc7887457d44",
+   "juror_ballot 78b89691f4739d5b94984b342a02325bffabc8eb97f902d144bcbb2114bbbe25",
+   "juror_ballot 8fc8e1e2731b6107412fa7febbd389af83e4e5ebeb44078e80a0f26241e1566c",
+   "juror_ballot 6924dd124cd4110711ebd622ad0c2031a8b9f8787ffb50e100d8a1a18c44d369",
+   "juror_ballot aa26c5aa8f620909e3c5630e00a08444e5529500884baf91a11d16cdceeb2eec",
+   "juror_ballot 4ef074f8a4504b489a6cffd36ecf824585f470f52e4633c6dff99b4df4af6905",
+   "juror_ballot ff0c293026059c1b8b6d331c9458522666f945ec63ae06ef0298d40d6cdb7b5f",
+   "juror_ballot c11d32bc5f022519fcda050dd1531a2f81a720db6ad2a2a4872e1e318e61d0ee",
+   "juror_ballot 7334540dd29b6588e3ebaad65f1a033d080da988c82f6955a516086e06bdafbc",
+   "juror_ballot e4f3e076e53dc775276d5e4643eca190e36fe582a91cee24ff913eb5daa5a9c8"
   ],
   "firstOfEachStage": {
    "crown_opening:openings:": {
@@ -54,7 +54,8 @@
       "issueId": "claim",
       "elements": [
        {
-        "label": "Fictional element"
+        "label": "Fictional element",
+        "burden": "Balance of probabilities"
        }
       ]
      },
@@ -62,7 +63,8 @@
       "issueId": "defence",
       "elements": [
        {
-        "label": "Fictional element"
+        "label": "Fictional element",
+        "burden": "Balance of probabilities"
        }
       ]
      }
@@ -90,7 +92,7 @@
     "courtroomAssessments": [],
     "stage": "crown_opening",
     "proceedingPhase": "openings",
-    "packet": "Approved issue(s): claim: Fictional question claim; defence: Fictional question defence\nPrivate theory for this advocate only: No private theory was supplied.\nProof gaps: None recorded.\nActor: plaintiff\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "packet": "Approved issue(s): claim: Fictional question claim; defence: Fictional question defence\nPrivate theory for this advocate only: No private theory was supplied.\nProof gaps: None recorded.\nActor: plaintiff\nDo not reveal private strategy or chain-of-thought.\nPublic-submission attribution contract (also applies to every repair): Keep the document author, any quoted speaker, and the party making a public submission separate. An affidavit quoting or disputing another person does not make that account the deponent’s admission, that person’s own document, or the Defence’s argument.\nBefore saying a party points to, argues, concedes or explains something, match the complete claim to that party’s actual visible public submission and approved actor identity. An exhibit, a private theory, a shared topic or a source-use permission cannot establish what another party submitted. Preserve the actual source speaker, quotation and disputed status in a separate source-attributed sentence.\nWhen the relevant submission or speaker attribution is unavailable in this actor projection, omit the attribution or frame the inference as your own assessment or an explicitly hypothetical challenge. Do not invent an opponent position, a business-failure account, an admission or a public-submission reference. Absence from this projection establishes no global absence.\nActor-visible other-party submission references (positions, not evidence truth): []\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -159,7 +161,8 @@
       "issueId": "claim",
       "elements": [
        {
-        "label": "Fictional element"
+        "label": "Fictional element",
+        "burden": "Balance of probabilities"
        }
       ]
      },
@@ -167,7 +170,8 @@
       "issueId": "defence",
       "elements": [
        {
-        "label": "Fictional element"
+        "label": "Fictional element",
+        "burden": "Balance of probabilities"
        }
       ]
      }
@@ -205,7 +209,7 @@
     "courtroomAssessments": [],
     "stage": "defence_opening",
     "proceedingPhase": "openings",
-    "packet": "Approved issue(s): claim: Fictional question claim; defence: Fictional question defence\nPrivate theory for this advocate only: No private theory was supplied.\nProof gaps: None recorded.\nActor: defendant-1\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "packet": "Approved issue(s): claim: Fictional question claim; defence: Fictional question defence\nPrivate theory for this advocate only: No private theory was supplied.\nProof gaps: None recorded.\nActor: defendant-1\nDo not reveal private strategy or chain-of-thought.\nPublic-submission attribution contract (also applies to every repair): Keep the document author, any quoted speaker, and the party making a public submission separate. An affidavit quoting or disputing another person does not make that account the deponent’s admission, that person’s own document, or the Defence’s argument.\nBefore saying a party points to, argues, concedes or explains something, match the complete claim to that party’s actual visible public submission and approved actor identity. An exhibit, a private theory, a shared topic or a source-use permission cannot establish what another party submitted. Preserve the actual source speaker, quotation and disputed status in a separate source-attributed sentence.\nWhen the relevant submission or speaker attribution is unavailable in this actor projection, omit the attribution or frame the inference as your own assessment or an explicitly hypothetical challenge. Do not invent an opponent position, a business-failure account, an admission or a public-submission reference. Absence from this projection establishes no global absence.\nActor-visible other-party submission references (positions, not evidence truth): [{\"eventId\":\"<id>\",\"actorId\":\"plaintiff\"}]\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -274,7 +278,8 @@
       "issueId": "claim",
       "elements": [
        {
-        "label": "Fictional element"
+        "label": "Fictional element",
+        "burden": "Balance of probabilities"
        }
       ]
      },
@@ -282,7 +287,8 @@
       "issueId": "defence",
       "elements": [
        {
-        "label": "Fictional element"
+        "label": "Fictional element",
+        "burden": "Balance of probabilities"
        }
       ]
      }
@@ -381,7 +387,7 @@
     "courtroomAssessments": [],
     "stage": "juror_ballot",
     "proceedingPhase": "instructions",
-    "packet": "You are juror-01. Decide only claim: Fictional question claim. Permitted outcomes: proved, not_proved, no_decision. This is a private initial ballot.\nControlling issue elements and burdens: [{\"id\":\"claim-element\",\"label\":\"Fictional element\",\"burden\":\"Balance of probabilities\",\"sourceRefs\":[{\"attribution\":\"manual\"}]}]\nApply these instructions even if the earlier judicial instruction is outside the recent-record window.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.\nBallot metadata contract: {\"permittedOutcomes\":[\"proved\",\"not_proved\",\"no_decision\"],\"instructionEventId\":\"<id>\",\"events\":[]}. Put the shared permitted exhibit ID in this juror object's citations, not only top-level citations. Choose only an eligible deliberation event when changing position.",
+    "packet": "You are juror-01. Decide only claim: Fictional question claim. Permitted outcomes: proved, not_proved, no_decision. This is a private initial ballot.\nControlling issue elements and burdens: [{\"id\":\"claim-element\",\"label\":\"Fictional element\",\"burden\":\"Balance of probabilities\",\"sourceRefs\":[{\"attribution\":\"manual\"}]}]\nApply these instructions even if the earlier judicial instruction is outside the recent-record window.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\n\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.\nBallot metadata contract: {\"permittedOutcomes\":[\"proved\",\"not_proved\",\"no_decision\"],\"instructionEventId\":\"<id>\",\"events\":[]}. Put the shared permitted exhibit ID in this juror object's citations, not only top-level citations. Choose only an eligible deliberation event when changing position.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -478,7 +484,8 @@
       "issueId": "claim",
       "elements": [
        {
-        "label": "Fictional element"
+        "label": "Fictional element",
+        "burden": "Balance of probabilities"
        }
       ]
      },
@@ -486,7 +493,8 @@
       "issueId": "defence",
       "elements": [
        {
-        "label": "Fictional element"
+        "label": "Fictional element",
+        "burden": "Balance of probabilities"
        }
       ]
      }
@@ -602,7 +610,7 @@
     ],
     "stage": "jury_deliberation",
     "proceedingPhase": "deliberation_inventory",
-    "packet": "Private profile juror-01. Identify the issue, applicable element, and present proof position. (round 1 of 1). Discuss only the supplied evidence within its recorded permitted purposes; availability does not establish admission. Do not cast or alter another actor's ballot.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "packet": "Private profile juror-01. Identify the issue, applicable element, and present proof position. (round 1 of 1). Discuss only the supplied evidence within its recorded permitted purposes; availability does not establish admission. Do not cast or alter another actor's ballot.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\n\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -689,7 +697,8 @@
       "issueId": "claim",
       "elements": [
        {
-        "label": "Fictional element"
+        "label": "Fictional element",
+        "burden": "Balance of probabilities"
        }
       ]
      },
@@ -697,7 +706,8 @@
       "issueId": "defence",
       "elements": [
        {
-        "label": "Fictional element"
+        "label": "Fictional element",
+        "burden": "Balance of probabilities"
        }
       ]
      }
@@ -873,7 +883,7 @@
     ],
     "stage": "jury_deliberation",
     "proceedingPhase": "deliberation_challenges",
-    "packet": "Private profile juror-01. Review one actual visible proof point. You may agree, clarify, or challenge it; identify the actual juror or event when responding. If no opposing point was raised, say so or label a hypothetical explicitly. Do not invent an argument merely to challenge it. (round 1 of 1). Discuss only the supplied evidence within its recorded permitted purposes; availability does not establish admission. Do not cast or alter another actor's ballot.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "packet": "Private profile juror-01. Review one actual visible proof point. You may agree, clarify, or challenge it; identify the actual juror or event when responding. If no opposing point was raised, say so or label a hypothetical explicitly. Do not invent an argument merely to challenge it. (round 1 of 1). Discuss only the supplied evidence within its recorded permitted purposes; availability does not establish admission. Do not cast or alter another actor's ballot.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\n\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -960,7 +970,8 @@
       "issueId": "claim",
       "elements": [
        {
-        "label": "Fictional element"
+        "label": "Fictional element",
+        "burden": "Balance of probabilities"
        }
       ]
      },
@@ -968,7 +979,8 @@
       "issueId": "defence",
       "elements": [
        {
-        "label": "Fictional element"
+        "label": "Fictional element",
+        "burden": "Balance of probabilities"
        }
       ]
      }
@@ -1204,7 +1216,7 @@
     ],
     "stage": "jury_deliberation",
     "proceedingPhase": "deliberation_review",
-    "packet": "Private profile juror-01. Conduct a final element-by-element review and identify any admitted evidence that changed your position. (round 1 of 1). Discuss only the supplied evidence within its recorded permitted purposes; availability does not establish admission. Do not cast or alter another actor's ballot.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "packet": "Private profile juror-01. Conduct a final element-by-element review and identify any admitted evidence that changed your position. (round 1 of 1). Discuss only the supplied evidence within its recorded permitted purposes; availability does not establish admission. Do not cast or alter another actor's ballot.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\n\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -1291,7 +1303,8 @@
       "issueId": "claim",
       "elements": [
        {
-        "label": "Fictional element"
+        "label": "Fictional element",
+        "burden": "Balance of probabilities"
        }
       ]
      },
@@ -1299,7 +1312,8 @@
       "issueId": "defence",
       "elements": [
        {
-        "label": "Fictional element"
+        "label": "Fictional element",
+        "burden": "Balance of probabilities"
        }
       ]
      }
@@ -1595,7 +1609,7 @@
     ],
     "stage": "juror_ballot",
     "proceedingPhase": "deliberation_review",
-    "packet": "You are juror-01. Decide only claim: Fictional question claim. Permitted outcomes: proved, not_proved, no_decision. This is a private final ballot.\nControlling issue elements and burdens: [{\"id\":\"claim-element\",\"label\":\"Fictional element\",\"burden\":\"Balance of probabilities\",\"sourceRefs\":[{\"attribution\":\"manual\"}]}]\nApply these instructions even if the earlier judicial instruction is outside the recent-record window.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.\nBallot metadata contract: {\"initialChoice\":\"proved\",\"permittedOutcomes\":[\"proved\",\"not_proved\",\"no_decision\"],\"instructionEventId\":\"<id>\",\"events\":[{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]}]}. Put the shared permitted exhibit ID in this juror object's citations, not only top-level citations. Choose only an eligible deliberation event when changing position.",
+    "packet": "You are juror-01. Decide only claim: Fictional question claim. Permitted outcomes: proved, not_proved, no_decision. This is a private final ballot.\nControlling issue elements and burdens: [{\"id\":\"claim-element\",\"label\":\"Fictional element\",\"burden\":\"Balance of probabilities\",\"sourceRefs\":[{\"attribution\":\"manual\"}]}]\nApply these instructions even if the earlier judicial instruction is outside the recent-record window.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\n\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.\nBallot metadata contract: {\"initialChoice\":\"proved\",\"permittedOutcomes\":[\"proved\",\"not_proved\",\"no_decision\"],\"instructionEventId\":\"<id>\",\"events\":[{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]}]}. Put the shared permitted exhibit ID in this juror object's citations, not only top-level citations. Choose only an eligible deliberation event when changing position.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -3424,74 +3438,74 @@
  },
  "criminalFull": {
   "requestHashes": [
-   "crown_opening f71e18a3a5fd8f624a56706ea0234874d5b13d3c26843b4ff430d073fd58bdad",
-   "defence_opening 617251654d6e588f3a94863a1ac9f01ab6fc555fe10fcb284a1242379cdb605b",
-   "crown_opening 3cbc1052a8c7d0a0cf008185281496455a516e728cfcec6c9b444d0f30c43099",
-   "witness_answer 74689c7d9edd49a5982582d8a318606f4a532dc7cb831cbbfe87256e13bf47a4",
-   "defence_rebuttal 53a15a024382274335832ff7fe057327df1c1ea2e55cbca91a11ea31b5db1605",
-   "witness_answer 2ba38a7443de9c5cc5cf2df87248444966d3458cf3600a9d0ddf384002ef942d",
-   "crown_rebuttal dd9afae4c6cd2fa2033ff73867a53ed96764996e9fdad9060ab49457b447f9bf",
-   "defence_rebuttal 17f9e3dbbaeeb36d23452bcf7e8b7f6bfe721d1e7b83581ffb2bec529cd4d6aa",
-   "juror_ballot ea78213009431c3b1a0774aedd901637ee6af191ada9d48119eda1102f9bcc32",
-   "juror_ballot c7b472243d53ed1522452cc9cd2c4e2d234289cf289b364849dd58d5e28bcfff",
-   "juror_ballot 1ce875a596b870ed19a6547ddd201ebadb3abb7bd9f2200dbb8d197479b3ce5e",
-   "juror_ballot 99e125bd7cc383c26d94c6676be6c78f6f95fb36fd6f245c916b2c4b5f1021a9",
-   "juror_ballot ce195f0800e741a5fcc1ecc3db97825db8d900633de0207faedf37c47a6916b9",
-   "juror_ballot d36838a69c8e60915901741a609022ea02e0a9410bc70a4b1ab59819e23f1d8c",
-   "juror_ballot 421d97d53de4988cebaba2d07fc8d5a5b5c3ca02985b1ccfaa4957146d3b4ff5",
-   "juror_ballot b5559d140db6b40ad6f6f2a191750cf443abef466aafb93102cdbbb9753bcac0",
-   "juror_ballot 20efc0466b7a96e8826317114397453aba9dd050a16be1ee2efd070ba6b9d2b1",
-   "juror_ballot 6d10636c13830ee5b54181fcd459f60ebf21bb46363b7677fabc1e1f2756ceed",
-   "juror_ballot e8fd615cbc29992d47370d502b05d03a70aca9d5b9fd2c24fc171f408c133341",
-   "juror_ballot 4a517bcab8f0435a58097d9efa83b5459a38aa01e9fd47f39ce426759971928b",
-   "jury_deliberation 1b3dddcaa877ad2142bd6a8355c171523aac2eaaf3a5d9a163cd2d470211289b",
-   "jury_deliberation 623b27179b07bab170397072df4bc52afc191e5da89b5d3d3c15e9fa7fec9288",
-   "jury_deliberation 36eb34db93c21a7cc907c93dc1559785e30a6d2e995548e9fba628e530f0ca19",
-   "jury_deliberation ca92528cc36578e4f38fa36a720a7d5a48eb9267fa11332c01ff1b2a359c6faf",
-   "jury_deliberation 9df89645090967890098179048e6875ca30c1329179e1426647f17fccfb15af9",
-   "jury_deliberation 2caff9f74be7bcc609a9cdd7b87fea64d6a52530b651aacbd263e0df4905361a",
-   "jury_deliberation 64ba9658ea34a40b59c85f580747c249e1e27577ae4b3dcc57c7e248aad61e9e",
-   "jury_deliberation 559a8251acd2edfaeb2fa361c84ad5e87dd8e041c77f1e1ceb8bf21257e7b91f",
-   "jury_deliberation 8155ddcded67899da29f2c4015e60cbd188afa0b0ab45fe89908536431916c9a",
-   "jury_deliberation e7c148c5215cbb06144338e0d1b1e14dd9c856d4b3d0675607a509ab72e40567",
-   "jury_deliberation 703f442dbd25b2cefce744d34823813d8a6eefc406cb46c69f9f2319e14e8122",
-   "jury_deliberation 8549ef78732c76046587ec53210024de48cac7386788efc463c1ca37eecb281f",
-   "jury_deliberation e9faac82128f8963071298bc895a80eb4442b7dbdecfd932e4490471b8524096",
-   "jury_deliberation 4faf19b4d559031d84ee83a885248ef746c8433bdf7a7df061c0a703c95699c1",
-   "jury_deliberation b8ee9b9bfeaa2dbc62ad11b5fae529a396b7f4caeb62bd74b858df88d31de4cc",
-   "jury_deliberation a5a02c86232e93d4ce0431d310ba4f946dc4ce8d31ef79c6b0918e58e7018aa5",
-   "jury_deliberation 683b7a7ac1b0c59090bf494844b54d09009b1e7d1358703895018d575f3c9345",
-   "jury_deliberation fecec0c250262b85472c43aac6e172151f4281efc0895ea6412f48b5734d1f6a",
-   "jury_deliberation e787486025bf2532de4a0ca6a65e2d03f960b47da8973d9cdefb9c4851b79349",
-   "jury_deliberation f101fa29d219e7d111d35b54f5707701ce31e5fc8e9469bd6bb9d4bb8732adec",
-   "jury_deliberation 47f302d671a0980e27085f33f7d139445889ce5c827aa03433b157e08e1dafe7",
-   "jury_deliberation 324b97826be554f31d1ec42b56c69a45360fbe327f5e022a28d6aa9fe16c3015",
-   "jury_deliberation bb0ea6b7f88b2f77c32a6cbb690ade51f91b4574c485e740b04df3a407748d70",
-   "jury_deliberation d9ffb33052b17be274b7a1a351080c3e6f63fd635b3c6b24506df9ef87ff2b2e",
-   "jury_deliberation 85ff6e38392a17eb8eec90a378cc0134372cca8b14a29814b634947f0822e1a9",
-   "jury_deliberation 1282b4474ab92659233ae58d5b25c20377fa4b76cdb8bc9d1945b9e6e42b3971",
-   "jury_deliberation 9bbb4cc5cff75abdc0c41e3424f124e64dcc7d43d09ba790684a3eff66620cbe",
-   "jury_deliberation f5cdd2e649e3d45f01d98d5794aa59aac4475a3e0a4a94815f3d4f78376e907c",
-   "jury_deliberation 1238bdc6f01443ab8fd74c47fa04ac46350ef3af4ffcaa852cf6dc57f3263e32",
-   "jury_deliberation 98b4d976c55534ff17561da257ad6216a991a3b9809035872dc9c8bc87b38b90",
-   "jury_deliberation ceee0eb2c81bc6f0cabe2c22d70727a4e24942ca21fa962017578f18d7ce9397",
-   "jury_deliberation e5687052906157589e7a97d2faae3a580da8035af9957085b76e8d838b535325",
-   "jury_deliberation 151394afe3387adedec9cec3880dc4b8f48654a39bb011020c80ad10cf40d87d",
-   "jury_deliberation 3d2ddfacdc953c2c6e10ccd1bf059dd38814ee9a265ce5c97d3c4e682a54aed7",
-   "jury_deliberation adfc0b9dab481c7f331b697abb2673aa39319845db0c2ddceb3406ba722242fc",
-   "jury_deliberation 774c658d3468c59a9e0194b06670363fbfdd028425681bb59816e2ad5331fc6e",
-   "juror_ballot b598ccccee0a9333712e1a23191cfb5b64ee4d797c350149441c3dffb7fae6f4",
-   "juror_ballot 17dcad201688ba1de6e2cc3a827d54fbf1daa7de0a3aa09c9c0ca0c79e07712a",
-   "juror_ballot bbb74de859667ba215ad150723f15ade75df9673db0d81199198063236517b5d",
-   "juror_ballot 0838cd3d795da9b6db783896004abaea66166d20ca40e328e65542a7d8fc3ea0",
-   "juror_ballot 5348e09aa2f043c9611002d69364e4ed7e10d6e76b54baf7f83d9645c8e8920a",
-   "juror_ballot 7b8740a454eb056d7fe8d54c1159bd1767f37d4f9f6bb392afa4977c0edf0713",
-   "juror_ballot a24a8fdcab5d536ab033b6dda7c5e06db0d4794b858109279f300e64e5ad97a2",
-   "juror_ballot 6ac50f51cda345332a742c3d316cb9a8c902955909b3345fa776949bdf223f1c",
-   "juror_ballot 34472a947fc7156b68a37a43fe333e1086c90076d8a1eec6040a2d597b771b0c",
-   "juror_ballot e7b8af9fb4826f2d42acf703f87e399abfe62b9b49ff87ac979f29d804bc7968",
-   "juror_ballot 796b7cd26dddec0b4635d2bb432f285051f736b1ce9209a9a4aa37e88db68acf",
-   "juror_ballot 89fd84833a1d73f37a759c30c032a896c58dfd9008afcd0c8f535e99fadb44bd"
+   "crown_opening 84ac8046c18d56bd9eaf7149109c6a52fe808157ea055a120e1bc5d216ba86ed",
+   "defence_opening 5ad3470414c4ec07c265dbf331fb63a32d9bc5eefceb5103d3aad6e215541b8b",
+   "crown_opening bbecc2327c0bbe13939a902f3bc26e89f688781e2916f38217a30e51b8ef20e8",
+   "witness_answer c8a26113516bd0bbd949c118431fa64b9ac01ea8a38c310b33ee5cdb499a279f",
+   "defence_rebuttal 669ae0727959d508a4e9dff8b1d4dbea7aaa66b396a750b8baa08c258be21481",
+   "witness_answer ef710065a905009abb74f6fa78a111cde5b3321e2758dfc08927c2465f038de4",
+   "crown_rebuttal 9b5042f9584e13961f95d3671a51e7cd74908a818bb3030b5599d73a0b471204",
+   "defence_rebuttal 98153dc1fb9af9b2af7941c2ad0c1c0a87c04b650a6f20fe1c7acc6cb2c9c6a4",
+   "juror_ballot 62fe56f6a494337b28b83b8fd96b041e2252bf48c28aa1b0c90ce1e61727a910",
+   "juror_ballot 8429ae1fe80309221a931ac9781ec7c453802b887a2e7f653ec1537599f5fe36",
+   "juror_ballot c4c570a2103a845f64c3fb0dfbdd93583c0420902e53c5a6d80a7ebd8773a279",
+   "juror_ballot ff736a162d1e59791fbc409fae85ca837e76c9f33b9779eb52b5c843b5c5950b",
+   "juror_ballot b68c292ed58336a70b62bcaedf1a3959cb72639541f8ac9088d918bae4eece92",
+   "juror_ballot 0d61c71bb775bd3565ea545ea43c9bfde8b4840a3bd58f755853a92d76fa1043",
+   "juror_ballot 095eb346e21b24b4148c0399d3bbf634f7b5d5e5192de9b6eac6607a64d169b9",
+   "juror_ballot fff27655fa5b1ae0408a191052e3b1694c0a5f879fbe250649eeb4d27d188cbb",
+   "juror_ballot 9b278fad1349814a587406eec95c197239f8b1b4c2fb015a70078a2c2bbdf8df",
+   "juror_ballot d055e8fcf66a0df22409881e17173505cff9483037e2de7c52f64925038efd69",
+   "juror_ballot eebe8d4c2e4ec8d922fcd5223ab4309376b5d565719a4d67b6c77b0c04e80c92",
+   "juror_ballot 5389dd637081b49c8b7d84e7756d325fb188b8dd67b8c27c031de52d471a5be8",
+   "jury_deliberation 5fbc7249286fa181beed32ba54df651061b4e8e99bb112209ca7094d25f1d2d2",
+   "jury_deliberation a5f0b84a4dc214cd9530ea48ac7de8773164aee741a966f2c062fd54f098f772",
+   "jury_deliberation 94c8c4bec5beb856cbd7e4d4dad50e24c86718682905cd1b3a63719ae502707d",
+   "jury_deliberation 5196307ac8e987042eab53a145d0853f755a6959b1c3a69a9ab54ea15b149167",
+   "jury_deliberation 2100388d6b1260f4aeccd2bfd884e8f247feb365cbaa748197c31c252c14535b",
+   "jury_deliberation 54c0725c932353ba7385f94f3bd3f8e06a9bcf5d1b94a74b574bc0602fbaa645",
+   "jury_deliberation d5fdc89ffce8f709c4aa5b38d87c247111088e1bf60cf280d1b0c443e7dc5a25",
+   "jury_deliberation 8bfe5783abdb949489f3e6b36b209f7d4103ef01c1718753eb477ca75628ec8a",
+   "jury_deliberation a3c9d60be6511d3a0f34f9e485d8a59e3cb328d167421364f07c996e9e4427fa",
+   "jury_deliberation 9933293abb4e707e7819cf6ba1f061bacc82be98e78cb84e78714d6a2bf3e996",
+   "jury_deliberation fa51a684dc5f8e77d2b1db1ebc7efeef158936f7a5440a86e69fd69af5c5650e",
+   "jury_deliberation 93778b234a2a298406d32573fe5b3a3c61559d3e7e2c782b1e0e56b7bfe34fe1",
+   "jury_deliberation aacb69ccf997e7b0598046db7afe8171077544ea3df3e315ab3d95225728f54f",
+   "jury_deliberation d037159be2d9c85df45e71163f0515241e1a2f50ef64026e2f19ef4b8f8452da",
+   "jury_deliberation 1be759813c45feb7c83421b44bc46e442fdaa0880e7ed04aa4a9e89c7af83b90",
+   "jury_deliberation 5f491d6d9ce07011a444462f23d0deb87a0fab5b29f574487e4c4d6f0ba9fe0f",
+   "jury_deliberation 56a181041cfb6984fb5b3a12459524a38abc4f41834d6cb2493a6ba517bda175",
+   "jury_deliberation e6f64504cb995b3328ed9e160fe2a08e4815c76776227c6e0f9ccb980cbabac3",
+   "jury_deliberation 68ed22a0369785e899d61f1ef0d7bb38e51f1827c94a5ddd138159430504fba8",
+   "jury_deliberation 4624ddcddc34bc4e8839327bece2ffdb8b37aedcb663f0cad155fb0e5b341a0c",
+   "jury_deliberation 415f68ffaba7fa87e52d1585416eae81534f115c1923c8e8fe53e23354de3e04",
+   "jury_deliberation 09ee4bb44cb5888c579959499356f3f85897b9a9a209657598e8004dd74d4e0b",
+   "jury_deliberation 688b4f71c77b5e50e082096305327974189a30977823875f63ac338add59f8fd",
+   "jury_deliberation e7ddb7da7b3df0a897f072fb4cbebdca9d99f34799f6bbcff091149c2fbd997c",
+   "jury_deliberation e4a63ab37ed00f16c2f2bb85fffee3aeb544719de283a9f9ff61d1faec49433b",
+   "jury_deliberation 2f538050ba192d737ddcf75f8cd0ff28d92d0d955f92bfbdbbd85bd43a532432",
+   "jury_deliberation 73232683bd095a0b09b62b4abaf5cefd4409534a33cdcccf847dc516771f1fd2",
+   "jury_deliberation 9dad1f639aa52a8d0bf420109ba6ee611749adefc6be40bbf06719338c06d69b",
+   "jury_deliberation 7c9386936c5e727eec4d2bbdce409965f284a96ff412d216d0899318b535f766",
+   "jury_deliberation a6d0bf800be9dc5f35cfc8ff38fe319f014d34b2d99eb24145951264d231e3b8",
+   "jury_deliberation dc2ba70390403402d6069cb8a79f55c0753fa3fa2655e25bb716e0fcc9effa86",
+   "jury_deliberation 3fc87f5a3599450d616564be2f8b5d6046b81736e50550aecf0412091d8f2bad",
+   "jury_deliberation 53d6fd71a604128b8dd6a8d05d18cdab2c60852c63aff976867f1f0b740bbdf7",
+   "jury_deliberation c1bddb3f880ec4f0bd1f263298d7de5f4c5c04ed43df2147b85ded5e8ec97c4a",
+   "jury_deliberation 8d4774a9f886bf52b67b6b93f7c235d57c2a38d569e7d2fe85fa907ec4159e52",
+   "jury_deliberation 4dff1e187354f9d38ba5d516aaa36ac81694cc688aad3cc86a08bcbfb5a0492f",
+   "juror_ballot 5723995e1377cd2ee5bcd4cd7103850b799c59307789a24ce992bf2420135df9",
+   "juror_ballot 51d10947c5b4e408f2b6e5d8ddcb1ec8dc7a28b9d06cb0a4f5b66663ea3a8f01",
+   "juror_ballot 288b72ba5dca679ce6a40d8305947f7d8649677d393d35eb219c2bd013e9581e",
+   "juror_ballot 2b35cc21e4150ae13c4eaae6dd40250e0dabd10938a2bf8ffe95213e87ab6a40",
+   "juror_ballot b2d6cf29573d26b61fd635bfbea060354b8f7d45d680b7c801f43c6808d03245",
+   "juror_ballot 1a7c6ee4906c744a0d77a45f800495ae6019fdeb36fbefe98d108f0aeac0199c",
+   "juror_ballot 2d95479d41e899f9eabc642b75bb0025ca2bc630134823f81d731596b3ac6087",
+   "juror_ballot ef05f5ba9b98a837cd0cbd895e9a736eaa38b9450f2fdcfa6051a8e92377bbb6",
+   "juror_ballot 5d072f604b30c8ffff12cc2d1051587a1a262f13b5f33b8d6a32190faec32565",
+   "juror_ballot 85fc41c5d222e3ffd79e241bbcf253e2b88c372ab08a5932e991f2ea7872314c",
+   "juror_ballot ac7c1b4201c9fb5bfee7030e4e7ca0c9c65d54cc6de2443c1aeab4a103cb7f90",
+   "juror_ballot b66bba90e262db5e631fabffcbd1080f9f4194d677507965951555513b7fc9eb"
   ],
   "firstOfEachStage": {
    "crown_opening:openings:": {
@@ -3501,7 +3515,8 @@
       "issueId": "issue-1",
       "elements": [
        {
-        "label": "Essential elements require user/legal review"
+        "label": "Essential elements require user/legal review",
+        "burden": "Beyond a reasonable doubt"
        }
       ]
      }
@@ -3529,7 +3544,7 @@
     "courtroomAssessments": [],
     "stage": "crown_opening",
     "proceedingPhase": "openings",
-    "packet": "Approved issue(s): issue-1: Primary allegation\nPrivate theory for this advocate only: No private theory was supplied.\nProof gaps: None recorded.\nActor: crown\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "packet": "Approved issue(s): issue-1: Primary allegation\nPrivate theory for this advocate only: No private theory was supplied.\nProof gaps: None recorded.\nActor: crown\nDo not reveal private strategy or chain-of-thought.\nPublic-submission attribution contract (also applies to every repair): Keep the document author, any quoted speaker, and the party making a public submission separate. An affidavit quoting or disputing another person does not make that account the deponent’s admission, that person’s own document, or the Defence’s argument.\nBefore saying a party points to, argues, concedes or explains something, match the complete claim to that party’s actual visible public submission and approved actor identity. An exhibit, a private theory, a shared topic or a source-use permission cannot establish what another party submitted. Preserve the actual source speaker, quotation and disputed status in a separate source-attributed sentence.\nWhen the relevant submission or speaker attribution is unavailable in this actor projection, omit the attribution or frame the inference as your own assessment or an explicitly hypothetical challenge. Do not invent an opponent position, a business-failure account, an admission or a public-submission reference. Absence from this projection establishes no global absence.\nActor-visible other-party submission references (positions, not evidence truth): []\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -3597,7 +3612,8 @@
       "issueId": "issue-1",
       "elements": [
        {
-        "label": "Essential elements require user/legal review"
+        "label": "Essential elements require user/legal review",
+        "burden": "Beyond a reasonable doubt"
        }
       ]
      }
@@ -3635,7 +3651,7 @@
     "courtroomAssessments": [],
     "stage": "defence_opening",
     "proceedingPhase": "openings",
-    "packet": "Approved issue(s): issue-1: Primary allegation\nPrivate theory for this advocate only: No private theory was supplied.\nProof gaps: None recorded.\nActor: accused-1\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "packet": "Approved issue(s): issue-1: Primary allegation\nPrivate theory for this advocate only: No private theory was supplied.\nProof gaps: None recorded.\nActor: accused-1\nDo not reveal private strategy or chain-of-thought.\nPublic-submission attribution contract (also applies to every repair): Keep the document author, any quoted speaker, and the party making a public submission separate. An affidavit quoting or disputing another person does not make that account the deponent’s admission, that person’s own document, or the Defence’s argument.\nBefore saying a party points to, argues, concedes or explains something, match the complete claim to that party’s actual visible public submission and approved actor identity. An exhibit, a private theory, a shared topic or a source-use permission cannot establish what another party submitted. Preserve the actual source speaker, quotation and disputed status in a separate source-attributed sentence.\nWhen the relevant submission or speaker attribution is unavailable in this actor projection, omit the attribution or frame the inference as your own assessment or an explicitly hypothetical challenge. Do not invent an opponent position, a business-failure account, an admission or a public-submission reference. Absence from this projection establishes no global absence.\nActor-visible other-party submission references (positions, not evidence truth): [{\"eventId\":\"<id>\",\"actorId\":\"crown\"}]\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -3703,7 +3719,8 @@
       "issueId": "issue-1",
       "elements": [
        {
-        "label": "Essential elements require user/legal review"
+        "label": "Essential elements require user/legal review",
+        "burden": "Beyond a reasonable doubt"
        }
       ]
      }
@@ -3759,7 +3776,7 @@
     "courtroomAssessments": [],
     "stage": "crown_opening",
     "proceedingPhase": "evidence",
-    "packet": "Ask one concise direct-examination question of witness-1. The question must remain within the approved source segments.\nActor: crown\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "packet": "Ask one concise direct-examination question of witness-1. The question must remain within the approved source segments.\nActor: crown\nDo not reveal private strategy or chain-of-thought.\nPublic-submission attribution contract (also applies to every repair): Keep the document author, any quoted speaker, and the party making a public submission separate. An affidavit quoting or disputing another person does not make that account the deponent’s admission, that person’s own document, or the Defence’s argument.\nBefore saying a party points to, argues, concedes or explains something, match the complete claim to that party’s actual visible public submission and approved actor identity. An exhibit, a private theory, a shared topic or a source-use permission cannot establish what another party submitted. Preserve the actual source speaker, quotation and disputed status in a separate source-attributed sentence.\nWhen the relevant submission or speaker attribution is unavailable in this actor projection, omit the attribution or frame the inference as your own assessment or an explicitly hypothetical challenge. Do not invent an opponent position, a business-failure account, an admission or a public-submission reference. Absence from this projection establishes no global absence.\nActor-visible other-party submission references (positions, not evidence truth): [{\"eventId\":\"<id>\",\"actorId\":\"accused-1\"}]\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -3827,7 +3844,8 @@
       "issueId": "issue-1",
       "elements": [
        {
-        "label": "Essential elements require user/legal review"
+        "label": "Essential elements require user/legal review",
+        "burden": "Beyond a reasonable doubt"
        }
       ]
      }
@@ -3867,7 +3885,7 @@
     "courtroomAssessments": [],
     "stage": "witness_answer",
     "proceedingPhase": "evidence",
-    "packet": "You are witness witness-statement (witness-1) under direct examination.\nQuestion: Source-grounded fixture output [E-001].\nYour approved statement segments (the only facts you may assert):\nThe witness recalls seeing the signed delivery record on 1 March.\nActor: witness-1\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "packet": "You are witness witness-statement (witness-1) under direct examination.\nQuestion: Source-grounded fixture output [E-001].\nYour approved statement segments (the only facts you may assert):\nThe witness recalls seeing the signed delivery record on 1 March.\nActor: witness-1\nDo not reveal private strategy or chain-of-thought.\n\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -3935,7 +3953,8 @@
       "issueId": "issue-1",
       "elements": [
        {
-        "label": "Essential elements require user/legal review"
+        "label": "Essential elements require user/legal review",
+        "burden": "Beyond a reasonable doubt"
        }
       ]
      }
@@ -4013,7 +4032,7 @@
     "courtroomAssessments": [],
     "stage": "defence_rebuttal",
     "proceedingPhase": "evidence",
-    "packet": "Ask one concise cross-examination question of witness-1. The question must remain within the approved source segments.\nActor: accused-1\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "packet": "Ask one concise cross-examination question of witness-1. The question must remain within the approved source segments.\nActor: accused-1\nDo not reveal private strategy or chain-of-thought.\nPublic-submission attribution contract (also applies to every repair): Keep the document author, any quoted speaker, and the party making a public submission separate. An affidavit quoting or disputing another person does not make that account the deponent’s admission, that person’s own document, or the Defence’s argument.\nBefore saying a party points to, argues, concedes or explains something, match the complete claim to that party’s actual visible public submission and approved actor identity. An exhibit, a private theory, a shared topic or a source-use permission cannot establish what another party submitted. Preserve the actual source speaker, quotation and disputed status in a separate source-attributed sentence.\nWhen the relevant submission or speaker attribution is unavailable in this actor projection, omit the attribution or frame the inference as your own assessment or an explicitly hypothetical challenge. Do not invent an opponent position, a business-failure account, an admission or a public-submission reference. Absence from this projection establishes no global absence.\nActor-visible other-party submission references (positions, not evidence truth): [{\"eventId\":\"<id>\",\"actorId\":\"crown\"}]\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -4081,7 +4100,8 @@
       "issueId": "issue-1",
       "elements": [
        {
-        "label": "Essential elements require user/legal review"
+        "label": "Essential elements require user/legal review",
+        "burden": "Beyond a reasonable doubt"
        }
       ]
      }
@@ -4190,7 +4210,7 @@
     "courtroomAssessments": [],
     "stage": "crown_rebuttal",
     "proceedingPhase": "closings",
-    "packet": "Approved issue(s): issue-1: Primary allegation\nPrivate theory for this advocate only: No private theory was supplied.\nProof gaps: None recorded.\nActor: crown\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "packet": "Approved issue(s): issue-1: Primary allegation\nPrivate theory for this advocate only: No private theory was supplied.\nProof gaps: None recorded.\nActor: crown\nDo not reveal private strategy or chain-of-thought.\nPublic-submission attribution contract (also applies to every repair): Keep the document author, any quoted speaker, and the party making a public submission separate. An affidavit quoting or disputing another person does not make that account the deponent’s admission, that person’s own document, or the Defence’s argument.\nBefore saying a party points to, argues, concedes or explains something, match the complete claim to that party’s actual visible public submission and approved actor identity. An exhibit, a private theory, a shared topic or a source-use permission cannot establish what another party submitted. Preserve the actual source speaker, quotation and disputed status in a separate source-attributed sentence.\nWhen the relevant submission or speaker attribution is unavailable in this actor projection, omit the attribution or frame the inference as your own assessment or an explicitly hypothetical challenge. Do not invent an opponent position, a business-failure account, an admission or a public-submission reference. Absence from this projection establishes no global absence.\nActor-visible other-party submission references (positions, not evidence truth): [{\"eventId\":\"<id>\",\"actorId\":\"accused-1\"}]\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -4258,7 +4278,8 @@
       "issueId": "issue-1",
       "elements": [
        {
-        "label": "Essential elements require user/legal review"
+        "label": "Essential elements require user/legal review",
+        "burden": "Beyond a reasonable doubt"
        }
       ]
      }
@@ -4376,7 +4397,7 @@
     "courtroomAssessments": [],
     "stage": "defence_rebuttal",
     "proceedingPhase": "closings",
-    "packet": "Approved issue(s): issue-1: Primary allegation\nPrivate theory for this advocate only: No private theory was supplied.\nProof gaps: None recorded.\nActor: accused-1\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "packet": "Approved issue(s): issue-1: Primary allegation\nPrivate theory for this advocate only: No private theory was supplied.\nProof gaps: None recorded.\nActor: accused-1\nDo not reveal private strategy or chain-of-thought.\nPublic-submission attribution contract (also applies to every repair): Keep the document author, any quoted speaker, and the party making a public submission separate. An affidavit quoting or disputing another person does not make that account the deponent’s admission, that person’s own document, or the Defence’s argument.\nBefore saying a party points to, argues, concedes or explains something, match the complete claim to that party’s actual visible public submission and approved actor identity. An exhibit, a private theory, a shared topic or a source-use permission cannot establish what another party submitted. Preserve the actual source speaker, quotation and disputed status in a separate source-attributed sentence.\nWhen the relevant submission or speaker attribution is unavailable in this actor projection, omit the attribution or frame the inference as your own assessment or an explicitly hypothetical challenge. Do not invent an opponent position, a business-failure account, an admission or a public-submission reference. Absence from this projection establishes no global absence.\nActor-visible other-party submission references (positions, not evidence truth): [{\"eventId\":\"<id>\",\"actorId\":\"crown\"},{\"eventId\":\"<id>\",\"actorId\":\"crown\"}]\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -4444,7 +4465,8 @@
       "issueId": "issue-1",
       "elements": [
        {
-        "label": "Essential elements require user/legal review"
+        "label": "Essential elements require user/legal review",
+        "burden": "Beyond a reasonable doubt"
        }
       ]
      }
@@ -4603,7 +4625,7 @@
     "courtroomAssessments": [],
     "stage": "juror_ballot",
     "proceedingPhase": "instructions",
-    "packet": "You are juror-01. Decide only issue-1: Primary allegation. Permitted outcomes: guilty, not_guilty, no_verdict. This is a private initial ballot.\nControlling issue elements and burdens: [{\"id\":\"issue-1-element-1\",\"label\":\"Essential elements require user/legal review\",\"burden\":\"Beyond a reasonable doubt\",\"sourceRefs\":[{\"attribution\":\"unresolved\"}]}]\nApply these instructions even if the earlier judicial instruction is outside the recent-record window.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.\nBallot metadata contract: {\"permittedOutcomes\":[\"guilty\",\"not_guilty\",\"no_verdict\"],\"instructionEventId\":\"<id>\",\"events\":[]}. Put the shared permitted exhibit ID in this juror object's citations, not only top-level citations. Choose only an eligible deliberation event when changing position.",
+    "packet": "You are juror-01. Decide only issue-1: Primary allegation. Permitted outcomes: guilty, not_guilty, no_verdict. This is a private initial ballot.\nControlling issue elements and burdens: [{\"id\":\"issue-1-element-1\",\"label\":\"Essential elements require user/legal review\",\"burden\":\"Beyond a reasonable doubt\",\"sourceRefs\":[{\"attribution\":\"unresolved\"}]}]\nApply these instructions even if the earlier judicial instruction is outside the recent-record window.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\n\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.\nBallot metadata contract: {\"permittedOutcomes\":[\"guilty\",\"not_guilty\",\"no_verdict\"],\"instructionEventId\":\"<id>\",\"events\":[]}. Put the shared permitted exhibit ID in this juror object's citations, not only top-level citations. Choose only an eligible deliberation event when changing position.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -4699,7 +4721,8 @@
       "issueId": "issue-1",
       "elements": [
        {
-        "label": "Essential elements require user/legal review"
+        "label": "Essential elements require user/legal review",
+        "burden": "Beyond a reasonable doubt"
        }
       ]
      }
@@ -4867,7 +4890,7 @@
     ],
     "stage": "jury_deliberation",
     "proceedingPhase": "deliberation_inventory",
-    "packet": "Private profile juror-01. Identify the issue, applicable element, and present proof position. (round 1 of 1). Discuss only the supplied evidence within its recorded permitted purposes; availability does not establish admission. Do not cast or alter another actor's ballot.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "packet": "Private profile juror-01. Identify the issue, applicable element, and present proof position. (round 1 of 1). Discuss only the supplied evidence within its recorded permitted purposes; availability does not establish admission. Do not cast or alter another actor's ballot.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\n\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -4953,7 +4976,8 @@
       "issueId": "issue-1",
       "elements": [
        {
-        "label": "Essential elements require user/legal review"
+        "label": "Essential elements require user/legal review",
+        "burden": "Beyond a reasonable doubt"
        }
       ]
      }
@@ -5241,7 +5265,7 @@
     ],
     "stage": "jury_deliberation",
     "proceedingPhase": "deliberation_challenges",
-    "packet": "Private profile juror-01. Review one actual visible proof point. You may agree, clarify, or challenge it; identify the actual juror or event when responding. If no opposing point was raised, say so or label a hypothetical explicitly. Do not invent an argument merely to challenge it. (round 1 of 1). Discuss only the supplied evidence within its recorded permitted purposes; availability does not establish admission. Do not cast or alter another actor's ballot.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "packet": "Private profile juror-01. Review one actual visible proof point. You may agree, clarify, or challenge it; identify the actual juror or event when responding. If no opposing point was raised, say so or label a hypothetical explicitly. Do not invent an argument merely to challenge it. (round 1 of 1). Discuss only the supplied evidence within its recorded permitted purposes; availability does not establish admission. Do not cast or alter another actor's ballot.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\n\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -5327,7 +5351,8 @@
       "issueId": "issue-1",
       "elements": [
        {
-        "label": "Essential elements require user/legal review"
+        "label": "Essential elements require user/legal review",
+        "burden": "Beyond a reasonable doubt"
        }
       ]
      }
@@ -5735,7 +5760,7 @@
     ],
     "stage": "jury_deliberation",
     "proceedingPhase": "deliberation_review",
-    "packet": "Private profile juror-01. Conduct a final element-by-element review and identify any admitted evidence that changed your position. (round 1 of 1). Discuss only the supplied evidence within its recorded permitted purposes; availability does not establish admission. Do not cast or alter another actor's ballot.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
+    "packet": "Private profile juror-01. Conduct a final element-by-element review and identify any admitted evidence that changed your position. (round 1 of 1). Discuss only the supplied evidence within its recorded permitted purposes; availability does not establish admission. Do not cast or alter another actor's ballot.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\n\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.",
     "evidence": [
      {
       "exhibitId": "E-001",
@@ -5821,7 +5846,8 @@
       "issueId": "issue-1",
       "elements": [
        {
-        "label": "Essential elements require user/legal review"
+        "label": "Essential elements require user/legal review",
+        "burden": "Beyond a reasonable doubt"
        }
       ]
      }
@@ -6349,7 +6375,7 @@
     ],
     "stage": "juror_ballot",
     "proceedingPhase": "deliberation_review",
-    "packet": "You are juror-01. Decide only issue-1: Primary allegation. Permitted outcomes: guilty, not_guilty, no_verdict. This is a private final ballot.\nControlling issue elements and burdens: [{\"id\":\"issue-1-element-1\",\"label\":\"Essential elements require user/legal review\",\"burden\":\"Beyond a reasonable doubt\",\"sourceRefs\":[{\"attribution\":\"unresolved\"}]}]\nApply these instructions even if the earlier judicial instruction is outside the recent-record window.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.\nBallot metadata contract: {\"initialChoice\":\"guilty\",\"permittedOutcomes\":[\"guilty\",\"not_guilty\",\"no_verdict\"],\"instructionEventId\":\"<id>\",\"events\":[{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]}]}. Put the shared permitted exhibit ID in this juror object's citations, not only top-level citations. Choose only an eligible deliberation event when changing position.",
+    "packet": "You are juror-01. Decide only issue-1: Primary allegation. Permitted outcomes: guilty, not_guilty, no_verdict. This is a private final ballot.\nControlling issue elements and burdens: [{\"id\":\"issue-1-element-1\",\"label\":\"Essential elements require user/legal review\",\"burden\":\"Beyond a reasonable doubt\",\"sourceRefs\":[{\"attribution\":\"unresolved\"}]}]\nApply these instructions even if the earlier judicial instruction is outside the recent-record window.\nActor: juror-01\nDo not reveal private strategy or chain-of-thought.\n\nSource-use restrictions (apply to the visible source record):\nE-001: admitted; permitted purposes: general use\nRecord coverage:\nAbsent from this run does not mean absent from the disclosure or that evidence does not exist. Restrict conclusions to the supplied record.\n\nE-001: unclassified; unknown; \nNo source is classified as a primary document in the usable record. Findings may depend on summaries or unclassified material.\nSource type or completeness remains unchecked for some material.\nTreat preparation summaries as summaries and advocacy as advocacy, not independently established facts. Do not turn gaps in the supplied packet into claims that the underlying evidence does not exist.\nBallot metadata contract: {\"initialChoice\":\"guilty\",\"permittedOutcomes\":[\"guilty\",\"not_guilty\",\"no_verdict\"],\"instructionEventId\":\"<id>\",\"events\":[{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]},{\"eventId\":\"<id>\",\"exhibitIds\":[\"E-001\"]}]}. Put the shared permitted exhibit ID in this juror object's citations, not only top-level citations. Choose only an eligible deliberation event when changing position.",
     "evidence": [
      {
       "exhibitId": "E-001",

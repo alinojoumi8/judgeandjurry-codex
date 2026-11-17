@@ -40,7 +40,7 @@ describe('opening approved identity and role boundaries', () => {
       prompt = JSON.parse(String(init?.body)).messages.map((m: { content: string }) => m.content).join('\n')
       throw new Error('capture')
     })
-    await expect(client.reviewGrounding({ ...supportedOpeningRequest, packet: supportedOpeningRequest.packet + '\nPrivate theory: Ellis is accused.' }, { title: '', content: disclaimer, citations: [], jurors: [] })).rejects.toThrow('capture')
+    await expect(client.reviewGrounding({ ...supportedOpeningRequest, approvedPartyRoles: [], packet: supportedOpeningRequest.packet + '\nPrivate theory: Ellis is accused.' }, { title: '', content: disclaimer, citations: [], jurors: [] })).rejects.toThrow('capture')
     expect(prompt).toContain('Approved party roles: []')
     expect(prompt).toContain('either accused')
     expect(prompt).not.toContain('Private theory: Ellis is accused.')

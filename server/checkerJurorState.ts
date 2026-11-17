@@ -1,6 +1,6 @@
 import type { GroundingReview, GroundingUnit } from './grounding'
 import type { StageResult } from './types'
-import { assessmentText, peerAssessmentAttribution, peerConcernInfluence, usablePeerContribution, type GroundingRecordEvent } from './groundingRecords'
+import { assessmentText, peerAssessmentAttribution, peerAssessmentShift, peerConcernInfluence, usablePeerContribution, type GroundingRecordEvent } from './groundingRecords'
 
 interface JurorStateRequest {
   stage: string
@@ -47,6 +47,8 @@ const matchesChoice = (choice: string, current: NonNullable<ReturnType<typeof cu
 // History assertions remain assertions when joined to a present evaluation or
 // conditional change. Validate the history clause independently of its suffix.
 export function jurorHistoryError(text: string, current: ReturnType<typeof currentJurorDraft>, history: Parameters<typeof matchingCurrentJurorState>[2]) {
+  const shift = peerAssessmentShift(text)
+  if (shift && !matchingJurorInfluence(jurorInfluenceStatement(text), current, history)) return 'A stated change requires one usable initial ballot matching the stated earlier choice and the matching current structured choice.'
   const prose = assessmentText(text).replace(/["“][^"”]*["”]|(?<!\w)'[^']*'(?!\w)/g, '')
   const noUsable = /^(?:No usable (initial|earlier|prior|previous) ballot(?: of mine)? (?:was supplied|exists)|I have no usable (initial|earlier|prior|previous) ballot)\b/i.exec(prose)
   const stable = /\bmy (?:(?:own|usable|initial|current|final|not[- ]guilty|guilty|defen[cs]e|crown|no[- ]verdict)\s+)*(?:assessment|position|ballot|view)\s+(?:(?:remains|stays)\s+(?:stable|unchanged|with the (?:Defen[cs]e|Crown)|not[- ]guilty|guilty|no[- ]verdict)|is\s+(?:stable|unchanged))\b|\b(?:it |and )?matches my (?:usable )?initial ballot\b/i.test(prose)
@@ -78,6 +80,8 @@ export function jurorStateAttribution(text: string) {
 // for the actual earlier choice or introduce an earlier influence event.
 export function jurorInfluenceStatement(text: string) {
   if (!peerAssessmentAttribution(text) || /\b(?:previously|earlier|before|yesterday|last|initially)\b/i.test(text)) return
+  const shift = peerAssessmentShift(text)
+  if (shift) return { peer: shift.peer, stable: false, choice: shift.to, qualifiedNegation: false, state: '', shift }
   const concern = peerConcernInfluence(text)
   if (concern) return { peer: concern.peer, stable: Boolean(concern.state), choice: concern.choice, qualifiedNegation: true, state: concern.state ?? '' }
   const match = assessmentText(text).match(/^juror[- ]?0?(\d+)['’]s [\w ,’'-]+? reinforce[ds]? my (?:(stable|unchanged|initial) )?(?:current )?(?:([\w-]+(?: [\w-]+){0,2}) )?(assessment|position|view)(?: without (?:resolving|supplying) [\w ,’'-]+| but (?:supplied|provided|introduced|presented) no ([\w ,’'-]+) resolving ([\w ,’'-]+))?[.!]?$/i)
@@ -120,6 +124,11 @@ export function matchingCurrentJurorState(text: string, current: ReturnType<type
 }
 
 export function matchingJurorInfluence(influence: ReturnType<typeof jurorInfluenceStatement>, current: ReturnType<typeof currentJurorDraft>, history: Parameters<typeof matchingCurrentJurorState>[2]) {
+  const shift = influence && 'shift' in influence ? influence.shift : undefined
+  if (shift) {
+    const initial = history?.assessments.filter(assessment => assessment.round === 'initial' && assessment.usable) ?? []
+    if (history?.actorId !== current?.actorId || initial.length !== 1 || normalizeChoice(initial[0].choice ?? '') !== normalizeChoice(shift.from)) return false
+  }
   return Boolean(influence && current?.choice &&
     (!influence.choice || matchesChoice(influence.choice, current)) &&
     (!influence.stable || matchingCurrentJurorState(influence.state, current, history)))
@@ -178,7 +187,7 @@ export function jurorInfluenceValidationUnits(request: JurorStateRequest, result
   const current = currentJurorDraft(request, result)
   if (!current || !Array.isArray(request.courtroomAssessments) || !Array.isArray(request.courtroomEvents)) return []
   return review.findings.filter(finding => {
-    if (!['unsupported', 'contradicted'].includes(finding.status) || !/\b(?:historical event|internal[ -](?:influence|state)|actually reinforced)\b/i.test(finding.explanation)) return false
+    if (!['unsupported', 'contradicted'].includes(finding.status) || !/\b(?:historical event|internal[ -](?:influence|state)|actually reinforced|no supplied history records\b[^.!?]*\bcause)\b/i.test(finding.explanation)) return false
     const unit = units.find(candidate => candidate.id === finding.unitId)
     const influence = unit && !unit.kind && jurorInfluenceStatement(unit.text)
     return influence && matchingJurorInfluence(influence, current, { actorId: current.actorId, assessments: request.courtroomAssessments! }) &&

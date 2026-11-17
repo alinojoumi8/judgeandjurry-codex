@@ -81,6 +81,14 @@ describe('approved exercise threshold scope within source statements', () => {
   it.each(['Defence Opening — Fraud Exceeding $5,000 Count', 'Arin committed fraud exceeding $5,000', 'Defence Opening — Proposed Fraud Exceeding $10,000 Count'])('does not certify actual charges or another caption threshold: %s', text => {
     expect(check(text, { title: true }).status).toBe('failed')
   })
+  it('recognizes a reasonable-doubt caption only for the matching proposed exercise', () => {
+    const caption = 'Defence opening: reasonable doubt on the proposed fraud over $5,000 count'
+    expect(check(caption, { title: true }).errors).toEqual([])
+    expect(check(caption, { title: true, labels: [] }).status).toBe('failed')
+    expect(check(caption.replace('proposed', 'filed'), { title: true }).status).toBe('failed')
+    expect(check(caption.replace('$5,000', 'USD $5,000'), { title: true }).status).toBe('failed')
+    expect(check(caption).status).toBe('failed')
+  })
   it('does not exempt an exercise caption used as a factual body statement', () => {
     expect(check('Defence Opening — Proposed Fraud Exceeding $5,000 Count').status).toBe('failed')
   })

@@ -6,9 +6,11 @@ import type { StageRequest } from '../server/minimax'
 
 const capture = JSON.parse(readFileSync(new URL('../docs/qa/jury/v133-captured-stood-while-negative-2-capture.json', import.meta.url), 'utf8'))
 const request = capture.request as StageRequest
-function check(content: string, q = request, status = 'analysis') {
+function check(content: string, q = request, status = 'analysis', selectCrown = false) {
   const units = groundingUnits({ title: '', content, citations: [], jurors: [] })
-  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'The quotes are correct.', citations: [] })) }), units, q.evidence, q.groundingContext, undefined,
+  const crown = q.courtroomEvents?.find(event => event.type === 'public_submission' && q.approvedPartyRoles?.some(party => party.id === event.actorId && party.role === 'crown'))
+  if (selectCrown) expect(crown?.eventId).toBeDefined()
+  return reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status, explanation: 'The quotes are correct.', citations: [], ...(selectCrown && unit.text.startsWith('The Crown correctly says') ? { recordCitations: [{ eventId: crown!.eventId }] } : {}) })) }), units, q.evidence, q.groundingContext, undefined,
     { packet: q.packet, events: q.courtroomEvents ?? [], actorRoles: q.courtroomActor?.roles ?? [], partyRoles: q.approvedPartyRoles ?? [], stage: q.stage }).status
 }
 
@@ -19,19 +21,21 @@ describe('ordinal account references retain their actual presentation order', ()
     expect(check(capture.generated.content.replaceAll('E-001', 'E-731').replaceAll('E-002', 'E-732').replaceAll('Mira', 'Nia').replaceAll('Tavi', 'Sol'), q)).toBe('failed')
   })
   it('preserves a complete source-identified statement', () => {
-    expect(check(capture.generated.content.replace('The first attributed account describes the listed condition; the second must be weighed', 'The E-001 attributed account describes the listed condition; E-002 must be weighed'))).toBe('passed')
+    expect(check(capture.generated.content.replace('The first attributed account describes the listed condition; the second must be weighed', 'The E-001 attributed account describes the listed condition; E-002 must be weighed'), request, 'analysis', true)).toBe('passed')
   })
   it('preserves first/second when the actual presentation order is accurate', () => {
     expect(check('E-001 records Mira describing the handover. E-002 records Tavi saying, "I did not see a handover." The first attributed account describes the listed condition; the second records personal non-observation.')).toBe('passed')
   })
   it('uses the second presented source when that is explicitly the condition account', () => {
-    expect(check(capture.generated.content.replace('The first attributed account describes the listed condition; the second must be weighed', 'The second attributed account describes the listed condition; the first must be weighed'))).toBe('passed')
+    expect(check(capture.generated.content.replace('The first attributed account describes the listed condition; the second must be weighed', 'The second attributed account describes the listed condition; the first must be weighed'), request, 'analysis', true)).toBe('passed')
   })
   it.each(['unsupported', 'contradicted'])('corrects the actual positive ordinal false rejection: %s', status => {
     const current = JSON.parse(readFileSync(new URL('../docs/qa/jury/v134-correct-ordinal-control-capture.json', import.meta.url), 'utf8'))
     const target = groundingUnits(current.draft).find(unit => unit.text.startsWith('The second attributed account'))!
     const units = groundingUnits(current.draft)
-    expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status: unit.id === target.id ? status : 'analysis', explanation: 'Captured ordinal source ordering.', citations: [] })) }), units, current.request.evidence, current.request.groundingContext, undefined,
+    const crown = current.request.courtroomEvents.find((event: { type: string; actorId: string }) => event.type === 'public_submission' && current.request.approvedPartyRoles.some((party: { id: string; role: string }) => party.id === event.actorId && party.role === 'crown'))
+    expect(crown?.eventId).toBeDefined()
+    expect(reviewWithIndependentScopeCheck('analysis', JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status: unit.id === target.id ? status : 'analysis', explanation: 'Captured ordinal source ordering.', citations: [], ...(unit.text.startsWith('The Crown correctly says') ? { recordCitations: [{ eventId: crown.eventId }] } : {}) })) }), units, current.request.evidence, current.request.groundingContext, undefined,
       { packet: current.request.packet, events: current.request.courtroomEvents, actorRoles: current.request.courtroomActor.roles, partyRoles: current.request.approvedPartyRoles, stage: current.request.stage }).status).toBe('passed')
   })
   it('reads actual changed account text rather than fixing an exhibit to a role', () => {

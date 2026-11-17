@@ -149,6 +149,8 @@ export interface Matter {
 }
 
 export interface EvidenceItem {
+  // Canonical pages of the supplied PDF, from extraction artifacts, never printed folios.
+  sourcePages?: number[]
   authorizedPassages?: Array<{ paragraph: number; text: string; startOffset: number; endOffset: number }>
   id: string
   matterId: string

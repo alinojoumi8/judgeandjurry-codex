@@ -143,7 +143,7 @@ describe('quotations after peer agreement', () => {
   })
   it('keeps a preceding sentence locator out of the next quoted source', () => {
     const unit = 'The interview remains disputed. [E-002 paragraphs 1–2] The report states: “Actual deposits were $8,000.” [E-001 paragraph 1]'
-    const evaluate = (text: string) => parseGroundingReview(JSON.stringify({ findings: [{ unitId: 'content:1', status: 'supported', explanation: 'Separate source statements.', citations: [{ exhibitId: 'E-001', paragraph: 1 }, { exhibitId: 'E-002', paragraph: 1 }] }] }), [{ id: 'content:1', text }], [{ ...source, text: quoted }, { ...source, exhibitId: 'E-002', text: 'The disputed interview describes an automated platform.' }])
+    const evaluate = (text: string) => parseGroundingReview(JSON.stringify({ findings: [{ unitId: 'content:1', status: 'supported', explanation: 'Separate source statements.', citations: [{ exhibitId: 'E-001', paragraph: 1 }, { exhibitId: 'E-002', paragraph: 1 }, { exhibitId: 'E-002', paragraph: 2 }] }] }), [{ id: 'content:1', text }], [{ ...source, text: quoted }, { ...source, exhibitId: 'E-002', text: 'The disputed interview describes an automated platform.\n\nThe interview has not been trial-tested.' }])
     expect(evaluate(unit).errors).toEqual([])
     expect(evaluate(unit.replace('[E-001 paragraph 1]', '[E-002 paragraph 1]')).status).toBe('failed')
     expect(evaluate('[E-002 paragraph 1] records “Actual deposits were $8,000.”').status).toBe('failed')

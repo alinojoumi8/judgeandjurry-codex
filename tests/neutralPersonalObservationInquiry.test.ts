@@ -43,7 +43,7 @@ describe('neutral personal-observation request bound to the approved account', (
     const bodies: string[] = [], draft = { title: '', content: c.draft.content, citations: ['E-001'], jurors: [] }
     const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional-key', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 2000, maxRetries: 2 }, undefined, async (_url, init) => {
       bodies.push(String(init?.body))
-      return Response.json({ choices: [{ message: { content: JSON.stringify({ findings: groundingUnits(draft).map(unit => ({ unitId: unit.id, status: bodies.length > 1 ? 'analysis' : 'unsupported', explanation: bodies.length > 1 ? 'The selected paragraph supplies the approved account.' : 'No prior mention supplied.', citations: bodies.length > 1 ? [{ exhibitId: 'E-001', paragraph: 1 }] : [] })) }) } }] })
+      return Response.json({ choices: [{ message: { content: JSON.stringify({ findings: groundingUnits(draft).map(unit => ({ unitId: unit.id, status: bodies.length > 1 ? 'analysis' : 'unsupported', supportTypes: ['source'], explanation: bodies.length > 1 ? 'The selected paragraph supplies the approved account.' : 'No prior mention supplied.', citations: bodies.length > 1 ? [{ exhibitId: 'E-001', paragraph: 1 }] : [], recordCitations: [] })) }) } }] })
     })
     expect((await client.reviewGrounding(c.request, draft)).status).toBe('passed')
     expect(bodies).toHaveLength(2)

@@ -48,7 +48,7 @@ describe('trial engine v2', () => {
     await engine.runAutonomous(run.id)
     const closing = client.requests.find(request => request.stage === 'defence_rebuttal')!
     expect(closing.courtroomProtocol).toBe(false)
-    expect(closing.approvedIssueInstructions).toEqual(model.decisionIssues.map(issue => ({ issueId: issue.id, elements: issue.elements.map(element => ({ label: element.label })) })))
+    expect(closing.approvedIssueInstructions).toEqual(model.decisionIssues.map(issue => ({ issueId: issue.id, elements: issue.elements.map(element => ({ label: element.label, burden: element.burden })) })))
     expect(closing.courtroomEvents?.some(event => event.type === 'judicial_instruction')).toBe(false)
     expect(closing.courtroomActor?.roles).toContain('defence')
     const crown = store.workflow.listTrialEvents(run.id).filter(event => event.type === 'public_submission' && event.actorId === 'crown')

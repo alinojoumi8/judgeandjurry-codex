@@ -14,6 +14,9 @@ export const supportedOpeningSource: EvidenceItem = {
 
 export const supportedOpeningRequest: StageRequest = {
   stage: 'crown_opening', courtroomProtocol: true, groundingRequired: true,
+  courtroomActor: { id: 'crown', name: 'Fictional Crown advocate', roles: ['crown'] },
+  approvedPartyRoles: [{ id: 'crown', name: 'Fictional Crown advocate', role: 'crown' }],
+  courtroomEvents: [],
   packet: 'Approved party position: the Crown relies on Mira\'s disputed account of an envelope handover, not proof of its contents or guilt. Issue label: fictional envelope allegation. Actor: crown',
   evidence: [supportedOpeningSource], previousTurns: '',
   groundingContext: 'E-101: permitted for accurately attributing Mira\'s account and previewing that account; not proof of envelope contents or guilt. The account is disputed. No assertion of complete disclosure is authorized.',

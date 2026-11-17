@@ -9,7 +9,8 @@ const files=[
 function capture(name:string){return JSON.parse(readFileSync(`docs/qa/jury/v90-${name}.json`,'utf8'))}
 function check(c:any,q=c.request,content=c.result.content){
  const units=groundingUnits({...c.result,content})
- return reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.checkerResult.review.findings.map((f:any)=>({...f,text:content}))}),units,q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor?.roles??[],partyRoles:q.approvedPartyRoles??[],stage:q.stage})
+ const crown=q.courtroomEvents.find((event:any)=>event.type==='public_submission'&&q.approvedPartyRoles?.some((party:any)=>party.id===event.actorId&&party.role==='crown'))
+ return reviewWithIndependentScopeCheck('analysis', JSON.stringify({findings:c.checkerResult.review.findings.map((f:any)=>({...f,text:content,...(content==="The Defence accepts the Crown's concession on this record."&&crown?.eventId?{recordCitations:[{eventId:crown.eventId}]}:{})}))}),units,q.evidence,q.groundingContext,undefined,{packet:q.packet,events:q.courtroomEvents,actorRoles:q.courtroomActor?.roles??[],partyRoles:q.approvedPartyRoles??[],stage:q.stage})
 }
 describe('bounded corrections preserve current advocacy and qualified assessment',()=>{
  it.each(files)('corrects actual checker overstatement: %s',name=>expect(check(capture(name)).status).toBe('passed'))

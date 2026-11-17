@@ -19,9 +19,69 @@ describe('negative source contents remain bounded by actual excerpt coverage', (
   it.each(['The supplied report excerpts do not trace each payment to a particular remitter (E-001).', 'The selected pages of E-001 do not include a repayment schedule.', 'E-001 does not establish my conclusion about intent.', 'The report does not resolve my doubts about repayment (E-001).'])('retains scoped source statements and assessments of weight: %s', text => {
     expect(check(text).status).toBe('passed')
   })
+  it('distinguishes rejecting a conclusion from asserting document-wide absence', () => {
+    const rejectedConclusion = 'We cannot conclude that no page of E-001 mentions repayment.'
+    expect(sourceAbsenceScopeError(rejectedConclusion, [], evidence, context)).toBeUndefined()
+    expect(sourceAbsenceScopeError('No page of E-001 mentions repayment.', [], evidence, context)).toContain('document-wide absence')
+    expect(sourceAbsenceScopeError(rejectedConclusion + ' E-001 contains no repayment schedule.', [], evidence, context)).toContain('document-wide absence')
+    expect(sourceAbsenceScopeError('We cannot conclude that no page of E-001 mentions repayment, although E-001 does not mention interest payments.', [], evidence, context)).toContain('document-wide absence')
+  })
   it('does not let a scoped sentence excuse another unqualified absence claim', () => {
     expect(check('The supplied report excerpts do not include repayment details (E-001). The report contains no repayment schedule (E-001).').status).toBe('failed')
     expect(check('The selected report excerpts do not include repayment details (E-001), but the report contains no repayment schedule (E-001).').status).toBe('failed')
+  })
+  it('keeps the main subject across a concessive aside and checks the aside separately', () => {
+    expect(check('The supplied excerpts, although the report is incomplete, do not mention repayment (E-001).').status).toBe('passed')
+    expect(check('The supplied excerpts, although the report contains no repayment schedule, do not mention interest payments (E-001).').status).toBe('failed')
+  })
+  it('keeps an aside associated with the identified source', () => {
+    const text = 'The supplied excerpts, although the report contains no repayment schedule, do not mention interest payments (E-001).'
+    const renamed = [{ ...evidence[0], name: 'Financial analysis' }]
+    expect(sourceAbsenceScopeError(text, [], renamed, context)).toContain('E-001')
+
+    const whole = [...evidence, { ...renamed[0], exhibitId: 'E-002' }]
+    const fullContext = context + '\nE-002: primary; whole_document;'
+    expect(sourceAbsenceScopeError(text.replace('E-001', 'E-002'), [], whole, fullContext)).toBeUndefined()
+    expect(sourceAbsenceScopeError(text.replace('the report', 'the report E-001').replace('(E-001)', '(E-002)'), [], whole, fullContext)).toContain('E-001')
+    const interview = [...evidence, { ...renamed[0], exhibitId: 'E-002', name: 'Witness interview' }]
+    const distinct = text.replace('supplied excerpts', 'supplied interview excerpts').replace('E-001', 'E-002')
+    expect(sourceAbsenceScopeError(distinct, [], interview, fullContext)).toContain('E-001')
+    expect(sourceAbsenceScopeError(distinct.replace('supplied interview excerpts', 'supplied excerpts'), [], interview, fullContext)).toContain('E-001')
+
+    const compoundTitle = [...evidence, { ...interview[1], name: 'Witness interview report' }]
+    const compoundText = 'The report E-002, although the report does not mention repayment, does not record a transfer.'
+    expect(sourceAbsenceScopeError(compoundText, [], compoundTitle, fullContext)).toBeUndefined()
+    expect(sourceAbsenceScopeError(compoundText.replace('The report E-002', 'E-002'), [], compoundTitle, fullContext)).toBeUndefined()
+  })
+  it('does not inherit an exhibit across a referenced title or an outer attribution', () => {
+    const fullContext = context + '\nE-002: primary; whole_document;'
+    const referenced = [
+      { ...evidence[0], name: 'Witness interview' },
+      { ...evidence[0], exhibitId: 'E-002', name: 'Report about witness interview E-001' },
+    ]
+    const title = 'E-002, although the interview does not mention repayment, does not record a transfer.'
+    expect(sourceAbsenceScopeError(title, [], referenced, fullContext)).toContain('E-001')
+
+    const outer = [...evidence, { ...evidence[0], exhibitId: 'E-002', name: 'Witness interview' }]
+    const attributed = 'The report states that E-002, although the report does not mention repayment, does not record a transfer.'
+    expect(sourceAbsenceScopeError(attributed, [], outer, fullContext)).toContain('E-001')
+  })
+  it('keeps a transcript tied to the source it records', () => {
+    const sources = [...evidence, { ...evidence[0], exhibitId: 'E-002', name: 'Transcript of witness interview' }]
+    const fullContext = context + '\nE-002: primary; whole_document;'
+    const text = 'E-002, although the report does not mention repayment, does not record a transfer.'
+    expect(sourceAbsenceScopeError(text, [], sources, fullContext)).toContain('E-001')
+    expect(sourceAbsenceScopeError(text.replace('the report', 'the interview'), [], sources, fullContext)).toBeUndefined()
+  })
+  it('recognizes an excerpt from a named kind of source as the subject', () => {
+    const sources = [{ ...evidence[0], name: 'Financial analysis' }]
+    const text = 'The supplied excerpt from the report (E-001), although the report does not mention repayment, does not record a transfer.'
+    expect(sourceAbsenceScopeError(text, [], sources, context)).toContain('E-001')
+    expect(sourceAbsenceScopeError('The supplied excerpt from the report (E-001) does not record a transfer.', [], sources, context)).toBeUndefined()
+    const separate = [...evidence, { ...sources[0], exhibitId: 'E-002' }]
+    const both = context + '\nE-002: primary; whole_document;'
+    const distinct = text.replace('from the report (E-001)', 'from the interview (E-002)')
+    expect(sourceAbsenceScopeError(distinct, [], separate, both)).toContain('E-001')
   })
   it('retains an inherited excerpt subject but resets scope for an explicit new document subject', () => {
     expect(check('The supplied report excerpt lists a deposit but does not include a repayment schedule (E-001).').status).toBe('passed')

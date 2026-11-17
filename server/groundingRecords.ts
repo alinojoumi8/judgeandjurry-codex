@@ -64,7 +64,13 @@ export function peerConcernInfluence(text: string) {
   if (identified) return { peer: Number(identified[1]), state: stable?.[1], choice: identified[2].trim() || undefined }
 }
 
+export function peerAssessmentShift(text: string) {
+  const match = assessmentText(text).match(/^Reviewing juror[- ]?0?(\d+)['’]s (?:exhibit-level|exhibit-by-exhibit|source-specific) (?:analysis|review) moved my initial (undecided|not[- ]guilty|guilty|no[- ]verdict) assessment to a (defen[cs]e|crown)-leaning position[.!]?$/i)
+  return match ? { peer: Number(match[1]), from: match[2], to: match[3] } : undefined
+}
+
 export function peerAssessmentAttribution(text: string) {
+  if (peerAssessmentShift(text)) return true
   const statement = assessmentText(text).replace(/\s*\((?:record:\d+|[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12})\)/gi, '')
   const evaluation = statement.match(/^(?:I (?:agree|disagree|concur) with juror[- ]?0?\d+['’]s (?:[\w-]+ ){0,3}approach|juror[- ]?0?\d+, I credit your distinction between [\w ,’'-]+|Nothing in juror[- ]?0?\d+['’]s visible contribution resolves [\w ,’'-]+)[.!]?$/i)
   if (evaluation && !/\b(?:that|because|was|were|has|have|had|did|is|are|received|paid|transferred|stole)\b/i.test(statement)) return true

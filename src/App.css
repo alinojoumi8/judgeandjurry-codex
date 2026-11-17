@@ -2786,7 +2786,10 @@
 .source-dialog::backdrop { background: #15263e99; }
 .source-dialog header { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
 .source-dialog button { padding: 8px 12px; cursor: pointer; }
-.source-dialog iframe { width: 100%; height: 520px; border: 1px solid #d8dfe8; margin-top: 16px; }
+.preserved-pdf-page { overflow: auto; border: 1px solid #d8dfe8; margin-top: 16px; background: #eef1f5; }
+.preserved-pdf-page img { display: block; width: 100%; height: auto; }
+.partial-trial-results { padding: 16px; border: 1px solid #c1cedd; border-radius: 8px; }
+.partial-trial-results article { margin-top: 12px; }
 .source-hash { font-size: 12px; overflow-wrap: anywhere; }
 .source-passages { display: grid; gap: 12px; }
 .source-passages article { padding: 12px; border: 1px solid #e0e5ed; border-radius: 6px; }

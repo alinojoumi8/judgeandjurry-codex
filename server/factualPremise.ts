@@ -1,4 +1,5 @@
 import type { GroundingCitation, GroundingFinding } from './grounding'
+import { transcriptQuotationText } from './transcriptQuotation'
 
 const normal = (text: string) => text.normalize('NFKC').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().replace(/[‘’]/g, "'").replace(/\s+/g, ' ').trim()
 const premiseWording = (text: string) => normal(text)
@@ -72,10 +73,10 @@ export function factualPremiseError(text: string, citations: GroundingCitation[]
     // A less specific noun phrase can omit a colour; it cannot change one.
     const pattern = premise.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       .replace(/\bthe (?=\w+\b)/g, 'the (?:red |orange |yellow |green |blue |purple |black |white |grey |gray |brown )?')
-    const supported = selected.some(citation => premiseWording(citation.quote).split(/(?<=[.!?;])\s+/).some(sentence => {
+    const supported = selected.some(citation => premiseWording(transcriptQuotationText(citation.quote)).split(/(?<=[.!?;])\s+/).some(sentence => {
       // Resolve indirect "they" only when the same named speaker introduces
       // the selected account in the source. Do not transfer a peer's words.
-      const sameSpeaker = owner && new RegExp(`^${owner} (?:states?|says?|reports?):`).test(premiseWording(citation.quote))
+      const sameSpeaker = owner && new RegExp(`^${owner} (?:states?|says?|reports?):`).test(premiseWording(transcriptQuotationText(citation.quote)))
       const comparable = sameSpeaker && /^they\b/.test(premise) ? sentence.replace(/\bi\b/g, 'they') : sentence
       return new RegExp(`(?:^|[\\s:"“])${pattern}(?=$|[\\s,.;:!?"”')])`).test(comparable) &&
         !deniedOrConditional.test(sentence) && !/\b(?:is|was|were) (?:false|untrue|incorrect|not accurate)\b/.test(sentence)

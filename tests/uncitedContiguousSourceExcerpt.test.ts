@@ -56,7 +56,7 @@ describe('actual contiguous excerpt with omitted checker source locator', () => 
     const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional-key', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 2000, maxRetries }, undefined, async (_url, init) => {
       bodies.push(String(init?.body))
       const recovered = kind === 'recovered' && bodies.length > 1
-      const rows = { findings: groundingUnits(c.draft).map(unit => ({ unitId: unit.id, status: recovered ? 'supported' : 'unsupported', explanation: recovered ? 'The exact quotation matches the selected source paragraph.' : 'The quotation omits I saw and is inexact.', citations: recovered ? [{ exhibitId: 'E-001', paragraph: 1 }] : [] })) }
+      const rows = { findings: groundingUnits(c.draft).map(unit => ({ unitId: unit.id, status: recovered ? 'supported' : 'unsupported', supportTypes: ['source'], explanation: recovered ? 'The exact quotation matches the selected source paragraph.' : 'The quotation omits I saw and is inexact.', citations: recovered ? [{ exhibitId: 'E-001', paragraph: 1 }] : [], recordCitations: [] })) }
       return Response.json({ choices: [{ message: { content: JSON.stringify(rows) } }] })
     })
     const review = await client.reviewGrounding(c.request, c.draft)
@@ -66,14 +66,17 @@ describe('actual contiguous excerpt with omitted checker source locator', () => 
     expect(JSON.stringify(c.draft)).toBe(original)
     if (bodies.length > 1) expect(JSON.parse(bodies[1]).messages[1].content).toContain('Re-check the SAME draft units')
   })
-  it('does not retry a separate substantive invented allegation', async () => {
+  it('retains a separate substantive invented allegation while locator corrections exhaust their cap', async () => {
     const draft = { ...c.draft, content: c.draft.content + ' Morgan concealed cash.' }
     let calls = 0
     const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional-key', baseUrl: 'https://fixture.invalid/v1', model: 'fixture', timeoutMs: 2000, maxRetries: 2 }, undefined, async () => {
       calls++
-      return Response.json({ choices: [{ message: { content: JSON.stringify({ findings: groundingUnits(draft).map(unit => ({ unitId: unit.id, status: 'unsupported', explanation: unit.text.includes('concealed') ? 'No source identifies concealed cash.' : 'Quotation omits I saw.', citations: [] })) }) } }] })
+      return Response.json({ choices: [{ message: { content: JSON.stringify({ findings: groundingUnits(draft).map(unit => ({ unitId: unit.id, status: 'unsupported', supportTypes: ['source'], explanation: unit.text.includes('concealed') ? 'No source identifies concealed cash.' : 'Quotation omits I saw.', citations: [], recordCitations: [] })) }) } }] })
     })
-    expect((await client.reviewGrounding(c.request, draft)).status).toBe('failed')
-    expect(calls).toBe(1)
+    const review = await client.reviewGrounding(c.request, draft)
+    expect(review.status).toBe('failed')
+    expect(calls).toBe(3)
+    expect(review.findings.find(finding => finding.text.includes('concealed'))?.status).toBe('unsupported')
+    expect(review.errors.join(' ')).toContain('No source identifies concealed cash.')
   })
 })
