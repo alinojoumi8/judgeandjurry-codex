@@ -30,6 +30,34 @@ describe('negative comparison checker polarity recovery', () => {
     expect(sent).toHaveLength(3)
     expect(review.errors.join(' ')).toContain('polarity')
   })
+  it.each([
+    'The unit rests on a checkable premise that no timing is provided in the supplied accounts. The second account describes possession at departure.',
+    'The unit asserts that no timing was provided, but both accounts specify the same time.',
+    'The claim that no timing is provided is contradicted by the source.',
+  ])('rechecks misread timing scope when the rejection says %s', async explanation => {
+    const rejection = JSON.parse(capture.checkerContent)
+    rejection.findings[0].explanation = explanation
+    const { client, sent } = harness([JSON.stringify(rejection), agreement], 1)
+    const draft = { ...capture.result, content: 'No provided timing renders the accounts mutually incompatible.' }
+    const review = await client.reviewGrounding(capture.request, draft)
+    expect(review.status).toBe('passed')
+    expect(sent).toHaveLength(2)
+    expect(sent[0].messages[1].content).toContain('Timing scope:')
+    expect(sent[1].messages[1].content).toContain('absence of all timing')
+    expect(review.verificationFailures?.[0].findings?.[0].status).toBe('contradicted')
+  })
+  it.each([
+    'The claim that no relative timing is provided is not what the draft says. The accounts describe mutually exclusive possession at the same exact time.',
+    'The phrase "claim that no timing is provided" does not apply. The accounts describe mutually exclusive possession at the same exact time.',
+  ])('keeps a rejection substantive when it rejects or quotes the missing-timing premise', async explanation => {
+    const rejection = JSON.parse(capture.checkerContent)
+    rejection.findings[0].explanation = explanation
+    const { client, sent } = harness([JSON.stringify(rejection)])
+    const draft = { ...capture.result, content: 'No provided timing renders the accounts mutually incompatible.' }
+    const review = await client.reviewGrounding(capture.request, draft)
+    expect(review.status).toBe('failed')
+    expect(sent).toHaveLength(1)
+  })
   it('keeps a genuinely opposing explanation substantive', async () => {
     const opposing = JSON.parse(capture.checkerContent)
     opposing.findings[0].explanation = 'The supplied synchronized timing establishes incompatibility between these accounts.'
