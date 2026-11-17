@@ -16,15 +16,15 @@ const newRules = [
   'Every finding, including unsupported and contradicted findings, must explicitly include supportTypes and recordCitations. Select support domains independently even when rejecting a claim; use an explicit [] for no selected record references. Omission does not mean an empty array. A correction of missing fields must retain a substantive rejection; a changed judgment requires an independent explanation grounded in the actual supplied source or visible record. Completing JSON alone supplies no new support.',
 ]
 
-async function checkerContext(request = capture.request) {
-  let context = ''
+async function checkerInput(request = capture.request) {
+  let messages = ['', '']
   const client = new MiniMaxClient({ provider: 'minimax', apiKey: 'fictional', baseUrl: 'https://fixture.invalid/v1',
     model: 'fixture', timeoutMs: 2000, maxRetries: 0 }, undefined, async (_url, init) => {
-    context = JSON.parse(String(init?.body)).messages[1].content
+    messages = JSON.parse(String(init?.body)).messages.map((message: { content: string }) => message.content)
     return Response.json({ choices: [{ message: { content: '{"findings":[{"unitId":"content:1","status":"analysis","citations":[]}]}' } }] })
   })
   await client.reviewGrounding(request, { title: '', content: 'My current assessment leaves doubt.', citations: [], jurors: [] })
-  return context
+  return { system: messages[0], context: messages[1] }
 }
 
 describe('checker reusable prefix preserves every existing instruction', () => {
@@ -51,29 +51,64 @@ describe('checker reusable prefix preserves every existing instruction', () => {
   })
 })
 
+describe('courtroom ballot checker scope', () => {
+  it('preserves the checker input and core audits while omitting rules for acting as counsel or a witness', () => {
+    const evidence = capture.request.evidence
+    const context = 'Fictional supplied record and procedure.'
+    const [fullSystem, fullInput] = groundingMessages([unit], evidence, context, undefined, true, author)
+    const [ballotSystem, ballotInput] = groundingMessages([unit], evidence, context, undefined, 'juror_ballot', author)
+
+    expect(ballotInput).toEqual(fullInput)
+    expect(ballotSystem.content.length).toBeLessThan(fullSystem.content.length - 8_000)
+    expect(ballotSystem.content).not.toContain('At examination_completion')
+    expect(ballotSystem.content).not.toContain('A witness deferral explicitly tied to the approved-account boundary')
+    expect(ballotSystem.content).toContain('Verify the current question, actual disposition and its exact scope.')
+    expect(ballotSystem.content).toContain('including claimed agreement, concessions and vote-change reasons')
+    expect(ballotSystem.content).toContain('Do not upgrade source attribution or permission')
+    expect(ballotSystem.content).toContain('Select all paragraphs needed to support all premises.')
+    expect(ballotSystem.content).toContain(groundingSupportTypesContract)
+  })
+
+  it('uses the scoped contract only for courtroom ballots at the provider boundary', async () => {
+    const ballot = await checkerInput()
+    const answer = await checkerInput({ ...capture.request, stage: 'witness_answer', courtroomActor: { id: 'w1', roles: ['witness'] } })
+    const legacy = await checkerInput({ ...capture.request, courtroomProtocol: false })
+
+    expect(ballot.system).toContain('Audit a juror ballot as an assessment.')
+    expect(ballot.context).toContain('Ballot audit contract:')
+    expect(ballot.context).toContain('Visible procedural events')
+    expect(ballot.context).not.toContain('Structured audit setup:')
+    expect(answer.system).toContain('At examination_completion')
+    expect(answer.context).toContain('Opening audit contract:')
+    expect(answer.context).toContain('Structured audit setup:')
+    expect(legacy.system).not.toContain('Audit a juror ballot as an assessment.')
+    expect(legacy.context).not.toContain('Ballot audit contract:')
+  })
+})
+
 describe('checker receives explicit bands on the actual 0 to 100 scale', () => {
   it('labels the captured low traits without promoting their assessment to proof', async () => {
-    const text = await checkerContext()
+    const { context: text } = await checkerInput()
     expect(text).toContain('Approved current juror trait bands (0-100 scale; low <=30, high >=70, otherwise moderate; assessment traits, not evidence): {"skepticismLevel":"low","burdenSensitivity":"low"}')
     expect(text).toContain('Profiles cannot expand source purposes, supply facts or change the burden.')
   })
   it.each([[0, 30, 'low', 'low'], [31, 69, 'moderate', 'moderate'], [70, 100, 'high', 'high'], [-1, 101, 'invalid', 'invalid']])('labels boundary values %s and %s', async (skepticismLevel, burdenSensitivity, skepticism, burden) => {
     const request = structuredClone(capture.request)
     Object.assign(request.jurorProfiles[0], { skepticismLevel, burdenSensitivity })
-    const text = await checkerContext(request)
+    const { context: text } = await checkerInput(request)
     expect(text).toContain(JSON.stringify({ skepticismLevel: skepticism, burdenSensitivity: burden }))
   })
   it('leaves a missing current profile null and does not substitute a peer', async () => {
     const request = structuredClone(capture.request)
     request.jurorProfiles[0].juror = 'peer'
     request.jurorProfiles[0].bias = 'PRIVATE_PEER_SENTINEL'
-    const text = await checkerContext(request)
+    const { context: text } = await checkerInput(request)
     expect(text).toContain('assessment traits, not evidence): null')
     expect(text).not.toContain('PRIVATE_PEER_SENTINEL')
     expect(text).not.toContain('"skepticismLevel":"low"')
   })
   it('does not expose bands in a witness task', async () => {
-    const text = await checkerContext({ ...capture.request, stage: 'witness_answer', courtroomActor: { id: 'w1', roles: ['witness'] } })
+    const { context: text } = await checkerInput({ ...capture.request, stage: 'witness_answer', courtroomActor: { id: 'w1', roles: ['witness'] } })
     expect(text).not.toContain('"skepticismLevel":"low"')
   })
 })
