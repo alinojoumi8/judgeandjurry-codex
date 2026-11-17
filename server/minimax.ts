@@ -2,7 +2,7 @@ import { QuotaFallbackTransport, FallbackSetupError, type QuotaFallbackOptions, 
 import { validateJuryBallotContract } from './juryBallotContract'
 import { applyGroundingPatch, groundingPatchInstructions, groundingPatchTargets, groundingRepairDrift } from './groundingRepair'
 import { checkerCorrectionFeedback, checkerSchemaFailure, groundingCorrectionUnits, mergeGroundingCorrection, groundingCorrectionContent, groundingSerializedTool, groundingSerializedContract, groundingSerializedContent, groundingRepairTool, groundingRepairToolName, groundingSingleContent, groundingToolContent, groundingToolName } from './groundingFormat'
-import { negativeComparisonPolarityErrors } from './checkerPolarity'
+import { isNegativeTimingComparison, negativeComparisonPolarityErrors } from './checkerPolarity'
 import { profileBandValidationUnits } from './checkerProfileConsistency'
 import { unsupportedCorrectionPremiseUnits } from './checkerSourcePremises'
 import { hasInitialBallotContext, initialBallotContextValidationUnits } from './checkerInitialBallotContext'
@@ -331,7 +331,10 @@ export class MiniMaxClient implements ModelClient {
         ? '\nInitial ballot, empty own history, no visible jury deliberation: a pure present statement that the initial position remains unchanged because no deliberation is visible describes the current initial assessment without a prior comparison. Audit any explicit historical claim or added factual premise independently.'
         : ''
       openingContext += courtroomStatus + currentDraftContext + initialScope + recordReferenceContext
-      const proceedingContext = !request.courtroomProtocol && publicRecordContext ? `\nApproved public proceeding record (attribution only, not evidence):\n${publicRecordContext}${courtroomStatus}${currentDraftContext}${recordReferenceContext}` : ''
+      const timingScope = units.some(unit => isNegativeTimingComparison(unit.text))
+        ? '\nTiming scope: A denial that supplied timing makes two accounts incompatible is not a claim of absence of all timing. Assess whether the actual relative timing establishes incompatibility.'
+        : ''
+      const proceedingContext = timingScope + (!request.courtroomProtocol && publicRecordContext ? `\nApproved public proceeding record (attribution only, not evidence):\n${publicRecordContext}${courtroomStatus}${currentDraftContext}${recordReferenceContext}` : '')
       let feedback: string | undefined
     const verificationFailures: NonNullable<GroundingReview['verificationFailures']> = []
       let lastReview: GroundingReview | undefined
@@ -469,7 +472,7 @@ export class MiniMaxClient implements ModelClient {
         const polarityValidationUnitIds = negativeComparisonPolarityErrors(units, review)
         if (polarityValidationUnitIds.length) {
           review.status = 'failed'
-            const errors = polarityValidationUnitIds.map(id => `${id}: checker polarity mismatch. The draft denies timing-based incompatibility or purely corrects an unqualified conflict characterization, while the rejection explanation also denies that incompatibility. Reassess the SAME negative proposition against the supplied sources; do not invert its negation or grant acceptance without a valid finding.`)
+            const errors = polarityValidationUnitIds.map(id => `${id}: checker polarity mismatch. The draft denies timing-based incompatibility or purely corrects an unqualified conflict characterization, while the rejection explanation either denies that incompatibility or misreads the claim as an absence of all timing. Reassess the SAME negative proposition against the supplied sources; do not invert its negation or grant acceptance without a valid finding.`)
           review.validationErrors = [...(review.validationErrors ?? []), ...errors]
           review.errors.push(...errors)
         }
