@@ -52,6 +52,13 @@ describe('checker source premise uses the same disposition-comparison boundary a
     evidence[1].text = 'Tavi states: I saw the same token on the desk. It was red. I did not see a handover.'
     expect(compare('The accounts do conflict: E-001 describes the token as blue, while E-002 describes the same token as red.', evidence)).toBe('passed')
   })
+  it('retains a colour disagreement alongside correctly reported handover and non-observation clauses', () => {
+    const evidence = structuredClone(capture.request.evidence)
+    evidence[0].text = 'Mira states: I saw Rowan hand the token to Ellis at noon. It was blue.'
+    evidence[1].text = 'Tavi states: I saw the same token at noon. It was red. I did not see a handover.'
+    expect(compare('The accounts do conflict: E-001 describes a handover and describes the token as blue at noon, while E-002 describes the same token as red at noon and says Tavi did not see a handover.', evidence)).toBe('passed')
+    expect(compare('The accounts do conflict: E-001 describes a handover, while E-002 says Tavi did not see a handover.', evidence)).toBe('failed')
+  })
   it('does not mistake a denied contradiction for a current incompatibility', () => {
     expect(compare('The contradiction is not established.')).toBe('passed')
     expect(compare('The contradiction is established.')).toBe('failed')

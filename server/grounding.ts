@@ -2456,12 +2456,17 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
         const comparisonPassages = evidence.map(item => item.text)
         const unseenHandover = comparisonPassages.some(p => /\b(?:did not|didn't) see (?:a |the )?handover\b/i.test(p))
         const emphaticEventConflict = !presentWeighing && sentences.some(sentence => {
-          const clauses = sentence.match(/^\s*(?:the |these |those )?(?:accounts?|sources?) (?:do|does|did) conflict:\s*(.+?)\b(?:while|whereas|but|and(?=\s+E-\d+\b))\s+(.+)$/i)
+          const clauses = sentence.match(/^\s*(?:the |these |those )?(?:accounts?|sources?) (?:do|does|did) conflict:\s*(?:in my (?:(?:present|current) )?assessment of (?:sufficiency|weight),\s*)?(.+?)\b(?:while|whereas|but|and(?=\s+E-\d+\b))\s+(.+)$/i)
           if (!clauses) return false
-          const reportsHandover = /\b(?:describ(?:es|ed)|reports?|records?) (?:a|the) (?:handover|transfer)\b|\bhand(?:s|ed|ing)\b[^,;.!?]{0,70}\bto\b/i
-          const claimsOtherDisposition = /\b(?:did not|didn't) see (?:a |the )?handover\b|\b(?:left|departed)\b[^,;.!?]{0,90}\b(?:still|remaining) in\b[^,;.!?]{0,35}\b(?:hand|possession)\b|\b(?:proves|shows|establishes) (?:it|the handover) (?:could not|did not|never) occur\b/i
-          return reportsHandover.test(clauses[1]) && claimsOtherDisposition.test(clauses[2]) ||
-            reportsHandover.test(clauses[2]) && claimsOtherDisposition.test(clauses[1])
+          const [left, right] = clauses.slice(1).map(clause => clause.trim()
+            .replace(/^[\w-]+ (?:describ(?:es|ed)|reports?|records?|states?|says?|said)(?: that)?\s+/i, '')
+            .replace(/[,.;\s]+$/, ''))
+          // Bind the conflict to complete disposition clauses. Incidental
+          // non-observation cannot decide a separate factual comparison.
+          const reportsHandover = /^(?:(?:a|the) (?:handover|transfer)(?: occurred| happened)?|(?:[\w-]+ )?hand(?:s|ed|ing) (?:[\w-]+ ){1,8}to [\w-]+)$/i
+          const claimsOtherDisposition = /^(?:(?:[\w-]+ )?(?:did not|didn't) see (?:a |the )?handover|(?:[\w-]+ )?(?:left|departed) with (?:[\w-]+ ){1,8}(?:still|remaining) in (?:[\w'-]+ ){0,3}(?:hand|possession)|(?:E-\d+ )?(?:proves|shows|establishes) (?:it|the handover) (?:could not|did not|never) occur)$/i
+          return reportsHandover.test(left) && claimsOtherDisposition.test(right) ||
+            reportsHandover.test(right) && claimsOtherDisposition.test(left)
         })
         const directEventConflict = (sentence: string) => (/\b(?:accounts?|sources?|handover|transfer|receipt|element|condition|E-\d+)\b/i.test(sentence) || ((/^\s*(?:these|those|they|both)\b/i.test(sentence) || /\b(?:that|this|the) direct conflict\b/i.test(sentence)) && units.some(other => other.id.replace(/:\d+$/, '') === unit.id.replace(/:\d+$/, '') && /\b(?:accounts?|sources?|handover|transfer|receipt|E-\d+)\b/i.test(other.text))) || (/^\s*(?:(?:are|is)\s+)?(?:(?:directly|mutually|explicitly)\s+)?(?:incompatible|contradict\w*|conflict\w*)\b/i.test(sentence) && /\b(?:accounts?|sources?)\b/i.test(unit.text)) || /^\s*(?:the|this|that|a) (?:(?:genuine|actual|real|direct|explicit) )?contradictions?\b/i.test(sentence)) && [...sentence.matchAll(/\b(?:(?:direct(?:ly)?|explicit(?:ly)?|affirmative(?:ly)?) conflict(?:s|ed|ing)?|conflict(?:s|ed|ing)? (?:directly|explicitly|affirmatively)|(?:(?:direct(?:ly)?|explicit(?:ly)?) )?contradict(?:s|ed|ing|ory|ions?)?|(?:conflicting (?:(?:attributed|disputed) )*(?:accounts?|sources?)|opposing (?:(?:attributed|disputed) )*(?:accounts|sources)(?=\s+(?:of|on|about|regarding)\s+(?:the\s+)?(?:receipt|handover|transfer|token(?:['’]s)?\s+disposition)\b))|(?:mutually )?incompatible)\b/gi)].some(match => {
             const prefix = sentence.slice(0, match.index)
