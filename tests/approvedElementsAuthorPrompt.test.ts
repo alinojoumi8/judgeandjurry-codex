@@ -11,7 +11,7 @@ const approved = [{ issueId: 'fictional-count', elements: [
 ] }]
 
 describe('approved exercise model in author and repair prompts', () => {
-  it('sends the exact closed element list and burdens to the author and retains them through repair', async () => {
+  it.each(['crown_opening', 'crown_rebuttal'] as const)('sends the closed element list and heading constraints through %s repair', async (stage) => {
     const authorPrompts: string[] = []
     let authorCalls = 0
     const client = new MiniMaxClient({ provider: 'openai-compatible', baseUrl: 'http://127.0.0.1:11434/v1', model: 'fixture', timeoutMs: 1000, maxRetries: 1 }, undefined, async (_url, init) => {
@@ -30,7 +30,7 @@ describe('approved exercise model in author and repair prompts', () => {
       }
       return Response.json({ choices: [{ message: { content: JSON.stringify(response) } }] })
     })
-    const result = await client.generateStage({ stage: 'crown_opening', packet: 'Actor: crown', evidence: [], previousTurns: '', groundingRequired: true, approvedIssueInstructions: approved })
+    const result = await client.generateStage({ stage, packet: 'Actor: crown', evidence: [], previousTurns: '', groundingRequired: true, approvedIssueInstructions: approved })
     expect(authorPrompts).toHaveLength(2)
     for (const prompt of authorPrompts) {
       expect(prompt).toContain(JSON.stringify(approved))
@@ -38,6 +38,8 @@ describe('approved exercise model in author and repair prompts', () => {
       expect(prompt).toContain('Do not add, replace or remove a required element')
       expect(prompt).toContain('do not turn either into an independent must-prove requirement')
     }
+    expect(authorPrompts[0]).toContain('Keep the heading neutral. If it names the exercise count, explicitly label it Proposed')
+    expect(authorPrompts[1]).toContain('Keep the heading neutral. If it names the exercise count, explicitly label it Proposed')
     expect(authorPrompts[1]).toContain('OUTPUT CONTRACT FOR THIS REPAIR')
     expect(result.content).toBe('The supplied knowledge conditions remain unresolved in my assessment.')
     expect(result.grounding?.status).toBe('passed')
