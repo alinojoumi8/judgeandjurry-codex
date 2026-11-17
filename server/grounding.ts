@@ -2228,9 +2228,17 @@ export function parseGroundingReview(raw: string, units: GroundingUnit[], eviden
           // Bind the conflict to complete disposition clauses. Incidental
           // non-observation cannot decide a separate factual comparison.
           const reportsHandover = /^(?:(?:a|the) (?:handover|transfer)(?: occurred| happened)?|(?:[\w-]+ )?hand(?:s|ed|ing) (?:[\w-]+ ){1,8}to [\w-]+)$/i
-          const claimsOtherDisposition = /^(?:(?:[\w-]+ )?(?:did not|didn't) see (?:a |the )?handover|(?:[\w-]+ )?(?:left|departed) with (?:[\w-]+ ){1,8}(?:still|remaining) in (?:[\w'-]+ ){0,3}(?:hand|possession)|(?:E-\d+ )?(?:proves|shows|establishes) (?:it|the handover) (?:could not|did not|never) occur)$/i
-          return reportsHandover.test(left) && claimsOtherDisposition.test(right) ||
-            reportsHandover.test(right) && claimsOtherDisposition.test(left)
+          const opposing = reportsHandover.test(left) ? right : reportsHandover.test(right) ? left : ''
+          if (/^(?:[\w-]+ )?(?:did not|didn't) see (?:a |the )?handover$/i.test(opposing)) return true
+          const claimsOtherDisposition = /^(?:(?:[\w-]+ )?(?:left|departed) with (?:[\w-]+ ){1,8}(?:still|remaining) in (?:[\w'-]+ ){0,3}(?:hand|possession)|(?:E-\d+ )?(?:proves|shows|establishes) (?:it|the handover) (?:could not|did not|never) occur)$/i
+          if (!claimsOtherDisposition.test(opposing) || comparisonPassages.length !== 2) return false
+
+          // Only infer the timing gap from complete, recognizable untimed
+          // accounts. Additional propositions require independent review.
+          const accounts = comparisonPassages.map(text => normalize(text).replace(/^(?:Fictional (?:witness )?)?[\w-]+ states:\s*/i, ''))
+          const untimedHandover = /^I (?:saw|observed|watched) (?:Fictional )?[\w-]+ (?:hand|give|transfer) (?:a|the) (?:[\w-]+ )?token to (?:Fictional )?[\w-]+(?: at the desk)?\.$/i
+          const untimedDeparture = /^(?:I saw (?:Fictional )?[\w-]+ standing at the desk\. )?(?:Fictional )?[\w-]+ left with the (?:[\w-]+ )?token still in (?:their|his|her) hand\. I (?:did not see a handover|saw no handover)\.$/i
+          return accounts.some(text => untimedHandover.test(text)) && accounts.some(text => untimedDeparture.test(text))
         })
         const directEventConflict = (sentence: string) => (/\b(?:accounts?|sources?|handover|transfer|receipt|element|condition|E-\d+)\b/i.test(sentence) || ((/^\s*(?:these|those|they|both)\b/i.test(sentence) || /\b(?:that|this|the) direct conflict\b/i.test(sentence)) && units.some(other => other.id.replace(/:\d+$/, '') === unit.id.replace(/:\d+$/, '') && /\b(?:accounts?|sources?|handover|transfer|receipt|E-\d+)\b/i.test(other.text))) || (/^\s*(?:(?:are|is)\s+)?(?:(?:directly|mutually|explicitly)\s+)?(?:incompatible|contradict\w*|conflict\w*)\b/i.test(sentence) && /\b(?:accounts?|sources?)\b/i.test(unit.text)) || /^\s*(?:the|this|that|a) (?:(?:genuine|actual|real|direct|explicit) )?contradictions?\b/i.test(sentence)) && [...sentence.matchAll(/\b(?:(?:direct(?:ly)?|explicit(?:ly)?|affirmative(?:ly)?) conflict(?:s|ed|ing)?|conflict(?:s|ed|ing)? (?:directly|explicitly|affirmatively)|(?:(?:direct(?:ly)?|explicit(?:ly)?) )?contradict(?:s|ed|ing|ory|ions?)?|(?:conflicting (?:(?:attributed|disputed) )*(?:accounts?|sources?)|opposing (?:(?:attributed|disputed) )*(?:accounts|sources)(?=\s+(?:of|on|about|regarding)\s+(?:the\s+)?(?:receipt|handover|transfer|token(?:['’]s)?\s+disposition)\b))|(?:mutually )?incompatible)\b/gi)].some(match => {
             const prefix = sentence.slice(0, match.index)
