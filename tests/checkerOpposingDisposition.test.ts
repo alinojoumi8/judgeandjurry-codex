@@ -16,11 +16,10 @@ function harness(outputs: string[], maxRetries = 2) {
   })
   return { client, sent }
 }
-function compare(content: string, explicitDenial = false) {
+function compare(content: string, evidence = capture.request.evidence) {
   const q = structuredClone(capture.request)
-  if (explicitDenial) q.evidence[1].text = 'Tavi states: No handover occurred.'
   const units = groundingUnits({ ...capture.result, content })
-  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status: 'analysis', explanation: 'Current comparison.', citations: [], recordCitations: [] })) }), units, q.evidence, q.groundingContext, undefined,
+  return parseGroundingReview(JSON.stringify({ findings: units.map(unit => ({ unitId: unit.id, status: 'analysis', explanation: 'Current comparison.', citations: [], recordCitations: [] })) }), units, evidence, q.groundingContext, undefined,
     { packet: q.packet, events: q.courtroomEvents, actorRoles: q.courtroomActor.roles, partyRoles: q.approvedPartyRoles, actor: q.courtroomActor, stage: q.stage, ballotRound: q.ballotRound }).status
 }
 describe('checker source premise uses the same disposition-comparison boundary as drafts', () => {
@@ -46,6 +45,12 @@ describe('checker source premise uses the same disposition-comparison boundary a
     expect(compare('The accounts do conflict: in my current assessment of weight.')).toBe('passed')
     expect(compare('The accounts do conflict: in my current assessment of weight, E-001 describes a handover and E-002 proves it could not occur.')).toBe('failed')
     expect(compare('The accounts do conflict: E-001 describes Rowan handing the blue token to Ellis, while E-002 says Rowan left with the token still in their hand.')).toBe('failed')
+  })
+  it('retains an actual colour disagreement when one witness also did not see a handover', () => {
+    const evidence = structuredClone(capture.request.evidence)
+    evidence[0].text = 'Mira states: I saw a blue token on the desk.'
+    evidence[1].text = 'Tavi states: I saw the same token on the desk. It was red. I did not see a handover.'
+    expect(compare('The accounts do conflict: E-001 describes the token as blue, while E-002 describes the same token as red.', evidence)).toBe('passed')
   })
   it('does not mistake a denied contradiction for a current incompatibility', () => {
     expect(compare('The contradiction is not established.')).toBe('passed')
@@ -118,6 +123,8 @@ describe('checker source premise uses the same disposition-comparison boundary a
     'Tavi’s opposing account records “I did not see a handover” (E-002).',
   ])('preserves qualifications, inquiry and account references: %s', text => expect(compare(text)).toBe('passed'))
   it('preserves opposing accounts when their source propositions expressly oppose', () => {
-    expect(compare('These are opposing accounts on receipt.', true)).toBe('passed')
+    const evidence = structuredClone(capture.request.evidence)
+    evidence[1].text = 'Tavi states: No handover occurred.'
+    expect(compare('These are opposing accounts on receipt.', evidence)).toBe('passed')
   })
 })
