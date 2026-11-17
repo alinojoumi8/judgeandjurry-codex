@@ -2,10 +2,10 @@ import type { GroundingReview, GroundingUnit } from './grounding'
 
 const negativeTiming = /^\s*No (?:supplied|provided|recorded) timing (?:makes|renders) (?:these|those|the) accounts (?:mutually |directly )?incompatible[.!]?\s*$/i
 
-// This detects a self-inconsistent rejection, not whether the draft is true.
+// Detect inconsistent explanations or a misstated timing premise.
 // Keep the failed finding and require a new review of the same draft.
 export function negativeComparisonPolarityErrors(units: GroundingUnit[], review: GroundingReview): string[] {
-  const explanationAllegesMissingTiming = /\b(?:premise|claim|assertion) that no (?:relative )?timing (?:is|was) (?:provided|supplied|recorded)\b/i
+  const explanationAllegesMissingTiming = /^\s*The (?:unit|draft|statement) (?:rests on a (?:(?:checkable|factual) )?premise that|asserts that) no (?:relative )?timing (?:is|was) (?:provided|supplied|recorded)(?: in the (?:supplied|provided|recorded) (?:accounts|record|sources|passages))?(?=$|[.!](?:\s|$))/i
   const negativeCorrection = /^\s*(?:It (?:would be|is) incorrect to|Do not) (?:call|describe|treat|regard) (?:these|those|the) (?:conflicting accounts|accounts (?:as )?(?:conflicting|(?:directly |mutually )?incompatible))[.!]?\s*$/i
   const explanationDeniesConflict = /\b(?:accounts?|sources?) (?:are|is) not (?:made |mutually |directly |necessarily )*(?:incompatible|conflicting|contradictory)\b|\b(?:accounts?|sources?) (?:are|is) not (?:shown|established|demonstrated) to (?:conflict|contradict|be (?:mutually |directly )?incompatible)\b|\bnon[- ]observation (?:does not|doesn't) (?:directly )?contradict\b|\b(?:does not|doesn't|cannot|can't) (?:(?:itself|by itself|independently|necessarily|directly) )*(?:make|render) (?:(?:the|those|these) accounts|them) (?:mutually |directly )?incompatible\b|\bincompatibility (?:(?:cannot|can't) be|is not|isn't|has not been|hasn't been) (?:established|shown|demonstrated|inferred)\b/i
   const plainVerbalDenial = /^\s*(?:(?:the|these|those) )?(?:accounts?|sources?) (?:do not|does not|don't|doesn't) (?:(?:directly|mutually|necessarily) )*(?:conflict|contradict)\b(?!\s*\?)/i
