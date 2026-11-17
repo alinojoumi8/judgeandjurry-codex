@@ -42,6 +42,18 @@ describe('negative comparison checker polarity recovery', () => {
     expect(sent[1].messages[1].content).toContain('absence of all timing')
     expect(review.verificationFailures?.[0].findings?.[0].status).toBe('contradicted')
   })
+  it.each([
+    'The claim that no relative timing is provided is not what the draft says. The accounts describe mutually exclusive possession at the same exact time.',
+    'The phrase "claim that no timing is provided" does not apply. The accounts describe mutually exclusive possession at the same exact time.',
+  ])('keeps a rejection substantive when it rejects or quotes the missing-timing premise', async explanation => {
+    const rejection = JSON.parse(capture.checkerContent)
+    rejection.findings[0].explanation = explanation
+    const { client, sent } = harness([JSON.stringify(rejection)])
+    const draft = { ...capture.result, content: 'No provided timing renders the accounts mutually incompatible.' }
+    const review = await client.reviewGrounding(capture.request, draft)
+    expect(review.status).toBe('failed')
+    expect(sent).toHaveLength(1)
+  })
   it('keeps a genuinely opposing explanation substantive', async () => {
     const opposing = JSON.parse(capture.checkerContent)
     opposing.findings[0].explanation = 'The supplied synchronized timing establishes incompatibility between these accounts.'
