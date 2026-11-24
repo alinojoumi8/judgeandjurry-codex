@@ -11,8 +11,10 @@ import type { CaseStore } from '../server/db'
 import type { TrialRunView } from '../server/trialEngine'
 
 const root = mkdtempSync(join(tmpdir(), 'triallens-mareva-'))
-const output = resolve('tmp/qa/mareva-fictional')
-mkdirSync(output, { recursive: true })
+const reportRoot = resolve('tmp/qa/mareva-fictional')
+mkdirSync(reportRoot, { recursive: true })
+const output = mkdtempSync(join(reportRoot, 'run-'))
+console.log('Mareva browser artifacts directory', output)
 Object.assign(process.env, {
   MODEL_PROVIDER: 'openai-compatible', OPENAI_COMPATIBLE_MODEL: 'scripted-mareva',
   JUDGE_JURY_DB_PATH: join(root, 'app.sqlite'), EVIDENCE_STORAGE_DIR: join(root, 'evidence'),
