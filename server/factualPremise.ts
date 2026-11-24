@@ -146,13 +146,17 @@ function sourceSpeakerMatches(speaker: string, citation: GroundingCitation, sour
 // Conflicting speakers do not supply a revision merely by disagreeing.
 function changedAccountError(prose: string, citations: GroundingCitation[], sources: { exhibitId: string; text: string }[]) {
   const changes = /\b([\p{L} '-]+?)'s (?:account|position|story|evidence)(?: (?:of|on|about) ([\p{L} '-]+?))? (?:has |had )?(?:(?:materially|substantially|significantly) )?(?:changed|shifted|reversed)\b/gu
+  // Remove source context before comparing the complete possessive name against the cited speaker.
+  const sourceLocation = /\b(?:in|from|according to) (?:(?:the|an?|this|that|these|those|his|her|their) )?(?:(?:first|second|third|fourth|last|earlier|later|original|amended|supplemental|supplementary|cited|selected) )*(?:affidavits?|statements?|declarations?|testimony|transcripts?|reports?|exhibits?|passages?) /
+  const reportingPhrase = /^(?:(?:the|this|these|those) )?(?:(?:cited|selected) )?(?:records?|evidence|passages?|sources?|exhibits?) (?:shows?|showed|indicates?|indicated|confirms?|confirmed|demonstrates?|demonstrated) /
   for (const match of prose.matchAll(changes)) {
     const prefix = prose.slice(0, match.index).split(/[;.!?]/).at(-1) ?? ''
     if (deniedOrConditional.test(prefix + match[1]) || /\b(?:false|untrue)\b/.test(prefix)) continue
-    const reportingPhrase = /^(?:(?:the|this|these|those) )?(?:(?:cited|selected) )?(?:records?|evidence|passages?|sources?|exhibits?) (?:shows?|showed|indicates?|indicated|confirms?|confirmed|demonstrates?|demonstrated) /
-    const speaker = match[1].split(/\b(?:that|because|although|while)\b/).at(-1)!.trim().replace(reportingPhrase, '')
+    const subject = match[1].replace(sourceLocation, '')
+    const speaker = subject.split(/\b(?:that|because|although|while)\b/).at(-1)!.trim().replace(reportingPhrase, '')
     const topics = normal(match[2] ?? '').replace(/acknowledgement/g, 'acknowledgment').split(' ').filter(word => word && !['the', 'a', 'an'].includes(word))
-    const selected = topics.length ? premiseCitations(prose, match.index!, match.index! + match[0].length, citations) : []
+    if (!topics.length) return `Name what changed in ${speaker}'s account and cite that speaker's selected statements about it.`
+    const selected = premiseCitations(prose, match.index!, match.index! + match[0].length, citations)
     const accounts = selected.filter(citation => sourceSpeakerMatches(speaker, citation, sources)).map(citation => {
       const source = normal(citation.quote).replace(/acknowledgement/g, 'acknowledgment')
       let offset = 0
