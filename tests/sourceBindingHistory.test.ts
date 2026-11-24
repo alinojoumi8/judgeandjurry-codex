@@ -48,6 +48,17 @@ describe('source speaker identity for reported history changes', () => {
     const correction = 'I incorrectly stated that Rowan did not sign the acknowledgement. In fact, Rowan did sign the acknowledgement in my presence.'
     expect(check('Vale’s account of the acknowledgement materially changed (E-002, paragraph 2).', [source('E-002', 'Cedar Vale', correction)], [{ exhibitId: 'E-002', paragraph: 2 }]).status).toBe('passed')
   })
+  it.each([
+    ['The record shows Vale', 'passed'],
+    ['The selected passages indicate Cedar Vale', 'passed'],
+    ['The record shows that Cedar Vale', 'passed'],
+    ['The record shows River Vale', 'failed'],
+  ])('binds the speaker after an evidentiary reporting phrase in "%s"', (subject, expected) => {
+    const correction = 'I incorrectly stated that I did not receive the payment. In fact, I received the payment.'
+    const evidence = [source('E-002', 'Cedar Vale', correction)]
+    const claim = subject + '’s account of the payment changed (E-002, paragraph 2).'
+    expect(check(claim, evidence, [{ exhibitId: 'E-002', paragraph: 2 }]).status).toBe(expected)
+  })
   it('cannot use a correction by the other person to establish this person changed their account', () => {
     const correction = 'I incorrectly stated that Rowan did not sign the acknowledgement. In fact, Rowan did sign the acknowledgement in my presence.'
     expect(check('Alder’s account of the acknowledgement materially changed (E-001, paragraph 2; E-002, paragraph 2).', [opposing[0], source('E-002', 'Cedar Vale', correction)], selectors).status).toBe('failed')
