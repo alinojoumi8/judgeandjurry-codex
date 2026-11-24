@@ -20,6 +20,15 @@ describe('quotation premises in local citation groups', () => {
   it.each(['; ', '. ', ', while '])('does not borrow a reference across the prose boundary %s', boundary => {
     expect(check(`Moss’s statement that “${quote}” supports review (E-001, paragraph 2)${boundary}E-002 discusses the account.`).status).toBe('failed')
   })
+  it.each([
+    '(The statement that no cash was returned supports review E-001; the other report discusses its sources E-002.)',
+    '(The statement that no cash was returned supports review (E-001, para. 2); the other report discusses its sources (E-002, para. 2).)',
+    '[The statement that no cash was returned supports review E-001, while the other report discusses its sources E-002.]',
+  ])('keeps prose clause boundaries around a parenthetical claim: %s', text => {
+    const evidence = [source('E-001', 'River Moss', 'The file was opened.'), source('E-002', 'Cedar Vale', 'No cash was returned.')]
+    expect(check(text, evidence).status).toBe('failed')
+    expect(check(text, [source('E-001', 'River Moss', 'No cash was returned.'), evidence[1]]).status).toBe('passed')
+  })
   it('retains a parenthetical exhibit attached to the source introducing a premise', () => {
     const text = 'The report (E-001) confirmed the statement that no cash was returned, while the second report discusses its sources (E-002).'
     const evidence = [source('E-001', 'River Moss', 'The file was opened.'), source('E-002', 'Cedar Vale', 'No cash was returned.')]
