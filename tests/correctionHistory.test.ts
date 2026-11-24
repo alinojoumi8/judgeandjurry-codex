@@ -27,6 +27,13 @@ describe('attributed correction history in selected passages', () => {
     const text = 'Vale corrected their earlier statement that Rowan did not sign the acknowledgement and now says Rowan signed the acknowledgement in their presence (E-002, paragraph 2).'
     expect(check(text).status).toBe('passed')
   })
+  it('requires the new account to affirm the same action even when the checker repeats a source verbatim', () => {
+    const unchanged = 'In fact, Rowan did not sign the Acknowledgement in my presence.'
+    const text = claim.replace('now says Rowan signed it', 'now says Rowan did not sign the acknowledgement')
+    expect(check(text, passage.replace(corrected, unchanged)).status).toBe('failed')
+    const other = 'In fact, Rowan returned the Acknowledgement in my presence.'
+    expect(check(claim.replace('now says Rowan signed it', 'now says Rowan returned the acknowledgement'), passage.replace(corrected, other)).status).toBe('failed')
+  })
   it('accepts the full deponent name and spelling variant', () => {
     expect(check(claim.replace('Vale corrected', 'Cedar Vale corrected').replaceAll('acknowledgement', 'acknowledgment')).status).toBe('passed')
   })

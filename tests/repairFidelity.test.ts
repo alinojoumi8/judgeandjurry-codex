@@ -53,6 +53,18 @@ describe('nested source arguments', () => {
   ])('checks an explicit argument without adopting quoted or qualified words: %s', (second, expected) => {
     expect(check(nested.replace('the restraint is futile because Vale owns no Alder property', 'the balance remains unresolved'), argument, second).status).toBe(expected)
   })
+  it('resolves “such assets” against the jurisdiction in the asset premise', () => {
+    const wrong = argument.replace('Assets must exist within the Province of Alder.', 'The hearing was in Alder. Assets must exist within the Province of Birch.')
+    expect(check(nested, wrong).status).toBe('failed')
+    expect(check(nested, wrong.replace('Province of Birch', 'Province of Alder')).status).toBe('passed')
+  })
+  it.each([
+    ['Avery wrote: “', '”'], ['Avery wrote: "', '"'],
+    ['Avery wrote: “An earlier sentence. ', '”'], ['Avery reports that ', ''],
+  ])('does not credit the affidavit author with another speaker’s nested report: %s', (lead, end) => {
+    const quoted = argument.replace('Second, ', lead).replace('restraint end.', 'restraint end' + end + '.')
+    expect(check(nested, quoted).status).toBe('failed')
+  })
   it('checks a hyphenated subject without treating it as malformed checker JSON', () => {
     expect(check(nested.replaceAll('the restraint is', 'the short-term restraint is'), argument.replace('the temporary restraint is', 'the short-term restraint is')).status).toBe('passed')
     expect(check(nested.replaceAll('the restraint is', 'the short-term restraint is'), argument.replace('the temporary restraint is', 'the long-term restraint is')).status).toBe('failed')

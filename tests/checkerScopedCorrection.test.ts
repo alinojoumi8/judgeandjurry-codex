@@ -118,6 +118,43 @@ describe('raw finding retention and correction inventory', () => {
   it.each([{ findings: {} }, { findings: { 'invented:1': sourceUse } }, { findings: { [targetId]: sourceUse }, extra: true }])('rejects an incomplete or escaped correction %j', value => {
     expect(() => mergeGroundingCorrection(JSON.stringify(initial()), JSON.stringify(value), units, [units.find(unit => unit.id === targetId)!])).toThrow('exactly its requested finding IDs')
   })
+  it('keeps a malformed retry scoped to its original target within the same budget', async () => {
+    const requested: string[][] = []
+    const client = new MiniMaxClient({ ...config, maxRetries: 2 }, undefined, async (_url, init) => {
+      const body = JSON.parse(String(init?.body))
+      const selected: typeof units = JSON.parse(body.messages[1].content.split('Draft units to check:\n')[1])
+      requested.push(selected.map(unit => unit.id))
+      if (requested.length === 1) return response(initial())
+      if (requested.length === 2) return Response.json({ choices: [{ message: { content: '{"findings":' } }] })
+      return response({ unitId: targetId, ...sourceUse })
+    })
+    const result = await client.reviewGrounding(input, draft)
+    expect(requested).toEqual([units.map(unit => unit.id), [targetId], [targetId]])
+    expect(result.status).toBe('passed')
+    expect(result.verificationRetries).toBe(2)
+    expect(result.verificationFailures).toHaveLength(2)
+    expect(result.findings.filter(row => row.unitId !== targetId).every(row => row.explanation === assessment.explanation)).toBe(true)
+  })
+  it('rejects conflicting duplicate keys on either side of a scoped merge', () => {
+    const target = units.find(unit => unit.id === targetId)!
+    const base = JSON.stringify(initial())
+    const corrected = JSON.stringify({ findings: { [targetId]: sourceUse } })
+    const duplicate = (raw: string) => raw.replace('"findings":{', '"findings":{' + JSON.stringify(targetId) + ':' + JSON.stringify(bad) + ',')
+    expect(() => mergeGroundingCorrection(duplicate(base), corrected, units, [target])).toThrow(/duplicate/i)
+    expect(() => mergeGroundingCorrection(base, duplicate(corrected), units, [target])).toThrow(/duplicate/i)
+  })
+  it('withholds conflicting duplicate fields in the provider’s one-unit correction', async () => {
+    let calls = 0
+    const client = new MiniMaxClient(config, undefined, async () => {
+      if (++calls === 1) return response(initial())
+      const raw = JSON.stringify({ unitId: targetId, ...sourceUse }).replace('"status":', '"status":"unsupported","status":')
+      return Response.json({ choices: [{ message: { tool_calls: [{ type: 'function', function: { name: 'record_grounding_review', arguments: raw } }] } }] })
+    })
+    const result = await client.reviewGrounding(input, draft)
+    expect(result.status).toBe('failed')
+    expect(result.errors.join(' ')).toMatch(/duplicate/i)
+    expect(calls).toBe(2)
+  })
   it('uses uniform rows when two failed units need correction', async () => {
     const data = initial(); data.findings['content:1'] = bad
     const bodies: any[] = []

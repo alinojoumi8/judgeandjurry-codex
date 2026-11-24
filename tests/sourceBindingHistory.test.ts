@@ -24,6 +24,12 @@ describe('quotation premises in local citation groups', () => {
     expect(check(`Moss’s statement that “${quote}” supports review (E-001, paragraph 2).`, sources, [{ exhibitId: 'E-001', paragraph: 2 }]).status).toBe('failed')
     expect(check(`Moss’s statement that “${quote}” supports review (E-001, paragraph 2).`).status).toBe('failed')
   })
+  it('binds the attached exhibit even when an earlier aside names another source', () => {
+    const evidence = [source('E-001', 'River Moss', 'A file was opened.'), source('E-002', 'Cedar Vale', 'No cash was returned.')]
+    const text = 'For context (compare E-002; unrelated), the statement that no cash was returned (E-001) remains unverified.'
+    expect(check(text, evidence).status).toBe('failed')
+    expect(check(text.replace('returned (E-001)', 'returned (E-002)'), evidence).status).toBe('passed')
+  })
   it('preserves the quoted inner speaker rather than assigning those words to someone else', () => {
     expect(check(`Vale argues that Flint’s statement that “${quote}” supports review (E-001, para. 3; E-002, para. 2).`).status).toBe('failed')
   })
@@ -91,6 +97,28 @@ describe('source speaker identity for reported history changes', () => {
     const claim = 'Vale’s account of the acknowledgement changed (E-002, paragraph 1).'
     expect(check(claim, [exhibit], [{ exhibitId: 'E-002', paragraph: 1 }]).status).toBe('passed')
     expect(check(claim, [{ ...exhibit, text: correction.replace('Cedar Vale states:', 'Aster Moss states:') }], [{ exhibitId: 'E-002', paragraph: 1 }]).status).toBe('failed')
+  })
+  it('compares opposing accounts only when both exhibits name the same person', () => {
+    const claim = 'Alder’s account of the acknowledgement changed (E-001, paragraph 2; E-002, paragraph 2).'
+    expect(check(claim, [opposing[0], source('E-002', 'River Alder', admission)], selectors).status).toBe('failed')
+    expect(check(claim, [opposing[0], source('E-002', 'Rowan Alder', admission)], selectors).status).toBe('passed')
+  })
+  it('accepts a denial of an established change while separately checking an affirmative claim', () => {
+    const statement = 'The evidence does not show that Rowan Alder’s account of the acknowledgement changed'
+    const selector = [{ exhibitId: 'E-001', paragraph: 2 }]
+    expect(check(statement + ' (E-001, paragraph 2).', opposing, selector, 'analysis').status).toBe('passed')
+    expect(check(statement.replace('does not show', 'shows') + ' (E-001, paragraph 2).', opposing, selector).status).toBe('failed')
+    expect(check(statement + ', but the record shows that Vale’s account of the payment changed (E-001, paragraph 2).', opposing, selector).status).toBe('failed')
+  })
+  it('recognizes an oath in the selected first paragraph and rejects a quoted or competing identity', () => {
+    const oath = 'I, Cedar Vale, make oath and say: '
+    const words = 'I incorrectly stated that I did not receive the payment. In fact, I received the payment.'
+    const claim = 'Vale’s account of the payment changed (E-002, paragraph 1).'
+    const selected = [{ exhibitId: 'E-002', paragraph: 1 }]
+    const test = (text: string) => check(claim, [{ ...opposing[1], text }], selected).status
+    expect(test(oath + words)).toBe('passed')
+    expect(test('Moss quoted a witness: “' + oath + '” ' + words)).toBe('failed')
+    expect(test(oath + words + ' I, Aster Moss, make oath and say: I received the payment.')).toBe('failed')
   })
   it('requires the correction to follow the earlier account', () => {
     const correction = 'In fact, Rowan did sign the acknowledgement in my presence. I incorrectly stated that Rowan did not sign the acknowledgement.'
