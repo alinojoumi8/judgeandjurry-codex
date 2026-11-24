@@ -552,6 +552,7 @@ export async function fetchAdmissionLedgers(matterId: string): Promise<Admission
 
 export async function preflightTrialRun(matterId: string, caseModelId: string, config: TrialRunConfig, admissionLedgerId: string): Promise<{
   fits: boolean; characterBudget: number; characters: number; actorId: string
+  sourceCharacters?: number; sourceCharacterBudget?: number; historyReserve?: number
   sources: Array<{ exhibitId: string; characters: number }>; message: string
 }> {
   return parseResponse(await apiFetch(`/api/matters/${matterId}/trials/preflight`, {

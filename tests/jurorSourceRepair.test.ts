@@ -27,7 +27,7 @@ describe('bounded author source repairs', () => {
       expect(result.content).toContain('So, that is - I retained the money')
     }
     expect(authors).toBe(2)
-    expect(prompts).toHaveLength(4)
+    expect(prompts).toHaveLength(persistent ? 3 : 4)
     expect(prompts[2]).toContain('Repair each rejected clause against its own named source')
     expect(prompts[2]).toContain('mark every omission with an ellipsis')
   })

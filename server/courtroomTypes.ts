@@ -30,6 +30,8 @@ export interface ActorContextManifest {
   sourceRefs: Array<{ evidenceId: string; hash: string }>
   retrieval: 'all-authorised-records-v1'
   characterBudget: number
+  sourceCharacterBudget?: number
+  historyCharacterBudget?: number
   omittedEventIds: string[]
 }
 export interface ReviewedLegalPacket {

@@ -29,7 +29,8 @@
     "test:intelligence": "tsx e2e/case-intelligence.ts",
     "test:v2:live": "tsx scripts/validate-trial-engine-v2-live.ts",
     "check:authorities": "tsx scripts/check-authority-links.ts",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:mareva": "tsx e2e/mareva.ts"
   },
   "dependencies": {
     "@kenjiuno/msgreader": "^1.28.0",
@@ -42,6 +43,7 @@
     "mammoth": "^1.12.0",
     "multer": "^2.2.0",
     "pdf-parse": "^2.4.5",
+    "pdfjs-dist": "5.4.296",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "tesseract.js": "^7.0.0",

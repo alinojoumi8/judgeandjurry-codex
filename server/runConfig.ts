@@ -288,6 +288,7 @@ export function providerStatusFromConfig(config: ModelProviderConfig): ProviderS
     mode,
     name: config.provider,
     label: providerLabel(config.provider, mode),
+    ...(config.provider === 'minimax' && config.quotaFallback ? { quotaFallback: { name: 'opencode', label: 'OpenCode Go', model: 'deepseek-v4.1-flash' } } : {}),
     model: config.model,
     baseUrl: config.baseUrl,
     hasKey: Boolean(config.apiKey),

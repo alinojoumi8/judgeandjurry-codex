@@ -5,6 +5,7 @@ import { areaForStep, type CaseArea } from '../caseWorkspace'
 import { CaseOverview, type CaseDetailsInput } from './CaseOverview'
 import { CaseDocuments } from './CaseDocuments'
 import { CaseResults } from './CaseResults'
+import { MarevaSetup } from './MarevaSetup'
 import { SourceInspectorProvider } from './SourceInspector'
 import { AdmissionEditor, CaseModelEditor, RecordCoverage } from './WorkflowEditors'
 import { GroundingAudit } from './GroundingAudit'
@@ -198,12 +199,17 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, matter, evidence,
 
   // Juror cognition and ballot contract v2 need jurors and are not offered with
   // the reviewed courtroom protocol. Otherwise the run is made exactly as before.
-  const depthBlocked = adapter === 'ontario_capital_markets_v1' ? 'They need a jury, and this proceeding has an adjudicator panel.'
+  const depthBlocked = caseModel?.marevaHearing ? 'This hearing is decided by a judge alone.'
+    : adapter === 'ontario_capital_markets_v1' ? 'They need a jury, and this proceeding has an adjudicator panel.'
     : adapter === 'ontario_civil_v1' && civilDecisionMaker !== 'jury' ? 'They need a jury: choose a six-person civil jury in Review case.'
     : courtroomProtocol ? 'They are not available with the reviewed courtroom protocol.' : ''
   const estimate = useMemo(() => {
     const files = sources.length
     const issues = Math.max(1, caseModel?.decisionIssues.length ?? 1)
+    if (caseModel?.marevaHearing) {
+      const figures = { stageCalls: 4, cognitionCalls: 0, segments: 0, calls: 8 }
+      return { files, calls: figures.calls, panel: 1, figures, minutes: '2–5' }
+    }
     const panel = adapter === 'ontario_criminal_jury_v1' ? 12 : adapter === 'ontario_capital_markets_v1' ? 3 : civilDecisionMaker === 'jury' ? civilPanelSize(courtRules?.framework) : 1
     const figures = estimateRunCalls({
       panel, issues, parties: caseModel?.parties.length ?? 0, approvedMotions: motions.filter((motion) => motion.status === 'approved').length,
@@ -243,7 +249,7 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, matter, evidence,
   }
 
   const newTrialConfig = (): TrialRunConfig => ({
-      courtroomProtocol: courtroomProtocol ? 'courtroom_v1' : undefined,
+      courtroomProtocol: courtroomProtocol && !caseModel?.marevaHearing ? 'courtroom_v1' : undefined,
       mode: 'full', procedureAdapter: adapter, seed: crypto.randomUUID(),
       checkpointPolicy: {
         default: 'autonomous',
@@ -251,11 +257,11 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, matter, evidence,
         allowCounselTakeover: true,
       },
 
-        witnessPlan: useWitnesses && caseModel ? caseModel.witnesses.map((witness, index) => ({
+        witnessPlan: useWitnesses && caseModel && !caseModel.marevaHearing ? caseModel.witnesses.map((witness, index) => ({
           witnessId: witness.id, calledByPartyId: witness.calledByPartyId ?? caseModel.parties[0]?.id ?? 'user', order: index,
         })) : [],
       deliberation: { maxRounds: 3, concurrency: 4 },
-      civilDecisionMaker: adapter === 'ontario_civil_v1' ? civilDecisionMaker : undefined,
+      civilDecisionMaker: adapter === 'ontario_civil_v1' ? caseModel?.marevaHearing ? 'judge_alone' : civilDecisionMaker : undefined,
       ...(depthBlocked === '' && ballotV2 ? { ballotContract: 'v2' as const } : {}),
       ...(depthBlocked === '' && jurorCognition ? { jurorCognition: true as const } : {}),
       ...(depthBlocked === '' && ballotV2 && damagesAmounts ? { damagesAmounts: true as const } : {}),
@@ -302,7 +308,7 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, matter, evidence,
           {area === 'Simulation' && <details className="case-more-tools"><summary>Advanced preparation</summary>{[3, 4, 5, 10].map(index => <button type="button" key={index} aria-current={step === index ? 'page' : undefined} onClick={() => setStep(index)}>{toolLabels[index]}</button>)}</details>}
         </nav>}
         {area === 'Simulation' && <section className={`provider-banner provider-banner--${displayedProvider?.mode ?? 'local'}`} aria-label="Provider and privacy status">
-          <div className="provider-banner__status"><Scale size={18} /><div><strong>{displayedProvider?.mode === 'external' ? 'External provider mode' : 'Local provider mode'}</strong><span>{displayedProvider ? `${displayedProvider.model} via ${displayedProvider.name}` : 'Loading provider details'}</span></div></div>
+          <div className="provider-banner__status"><Scale size={18} /><div><strong>{displayedProvider?.mode === 'external' ? 'External provider mode' : 'Local provider mode'}</strong><span>{displayedProvider ? `${displayedProvider.model} via ${displayedProvider.name}` : 'Loading provider details'}</span>{provider?.quotaFallback && <span>Quota fallback: {provider.quotaFallback.label} · {provider.quotaFallback.model}</span>}</div></div>
           <div className="provider-banner__meta"><span>{panel}</span><span>{trial?.run.status ?? 'Setup'}</span>{displayedProvider?.mode === 'external' && <span className={consent ? 'safe' : 'risk'}>{consent ? 'Disclosure confirmed' : 'Needs confirmation'}</span>}</div>
         </section>}
         {(area === 'Simulation' || area === 'Results') && runs.length > 0 && <label className="saved-proceeding">Saved attempt<select aria-label="Saved proceeding" value={trial?.run.id ?? ''} disabled={busy} onChange={event => void run(() => openSavedRun(event.target.value))}><option value="" disabled>Select a proceeding</option>{runs.map((item, index) => <option key={item.id} value={item.id}>Attempt {runs.length - index} · {item.status} · {new Date(item.createdAt).toLocaleString()}</option>)}</select></label>}
@@ -350,7 +356,7 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, matter, evidence,
         {step === 2 && (
           <div className="workflow-stack">
             <label>Procedure adapter<select value={adapter} onChange={(event) => setAdapter(event.target.value as ProcedureAdapterId)}><option value="ontario_criminal_jury_v1">Ontario criminal jury</option><option value="ontario_capital_markets_v1">Ontario Capital Markets Tribunal</option><option value="ontario_civil_v1">Ontario civil</option></select></label>
-            {adapter === 'ontario_civil_v1' && <><label>Decision maker<select value={civilDecisionMaker} onChange={(event) => setCivilDecisionMaker(event.target.value as 'judge_alone' | 'jury')}><option value="judge_alone">Judge alone</option><option value="jury">Six-person civil jury</option></select></label>{civilDecisionMaker === 'jury' && <label className="workflow-check"><input type="checkbox" checked={civilJuryNoticeConfirmed} onChange={(event) => setCivilJuryNoticeConfirmed(event.target.checked)} /> The case model should record a manually confirmed valid jury notice. This remains subject to legal review.</label>}</>}
+            {adapter === 'ontario_civil_v1' && <><label>Decision maker<select disabled={Boolean(caseModel?.marevaHearing)} value={caseModel?.marevaHearing ? 'judge_alone' : civilDecisionMaker} onChange={(event) => setCivilDecisionMaker(event.target.value as 'judge_alone' | 'jury')}><option value="judge_alone">Judge alone</option><option value="jury">Six-person civil jury</option></select></label>{civilDecisionMaker === 'jury' && <label className="workflow-check"><input type="checkbox" checked={civilJuryNoticeConfirmed} onChange={(event) => setCivilJuryNoticeConfirmed(event.target.checked)} /> The case model should record a manually confirmed valid jury notice. This remains subject to legal review.</label>}</>}
             <button type="button" onClick={() => void run(async () => {
               const drafted = await draftCaseModel(
               matterId,
@@ -363,6 +369,11 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, matter, evidence,
               localStorage.setItem(`workflow:${matterId}:run`, 'setup')
             })}>Draft neutral case model</button>
             {caseModel && <CaseModelCard model={caseModel} />}
+            {caseModel?.procedureAdapter === 'ontario_civil_v1' && <MarevaSetup key={caseModel.id} model={caseModel} sources={sources} busy={busy} onSave={next => run(async () => {
+              const revised = await saveCaseModelVersion(caseModel.id, next)
+              setCaseModel(revised); setTrial(null); setCivilDecisionMaker('judge_alone'); setUseWitnesses(false); setCourtroomProtocol(false)
+              localStorage.setItem(`workflow:${matterId}:run`, 'setup')
+            })} />}
               {caseModel && <details className="workflow-edit-details"><summary>Edit parties, counts and source coverage</summary><CaseModelEditor key={caseModel.id} model={caseModel} sources={sources} busy={busy} onSave={(next) => run(async () => {
                 const revised = await saveCaseModelVersion(caseModel.id, next)
                 setCaseModel(revised); setTrial(null)
@@ -414,17 +425,18 @@ export function FullWorkflowWorkspace({ matterId, matterTitle, matter, evidence,
         {step === 7 && (
           <div className="workflow-stack">
             {caseModel && adapter === 'ontario_criminal_jury_v1' && <><LegalReadinessPanel model={caseModel} onSaved={setCaseModel} /><label className="workflow-check"><input type="checkbox" checked={courtroomProtocol} onChange={e => setCourtroomProtocol(e.target.checked)} /> Use the reviewed courtroom protocol (requires packet readiness; review remains pending).</label></>}
+            {caseModel?.marevaHearing && <p className="notice-card">Mareva hearing · Judge alone · Moving submission → Response → Reply → Judicial ruling. A simulated ruling does not alter the actual injunction.</p>}
             <SummaryGrid items={[["Files", String(estimate.files)], ["Expected model calls", String(estimate.calls)], ["Expected runtime", `${estimate.minutes} minutes`], ["External disclosure", externalConfirmed ? 'Confirmed' : 'Not confirmed']]} />
               <label className="workflow-check"><input type="checkbox" checked={externalConfirmed} onChange={(event) => setExternalConfirmed(event.target.checked)} /> I confirm the permitted sources may be disclosed to the configured external model for a new run.</label>
-              <label className="workflow-check"><input type="checkbox" checked={useWitnesses} onChange={(event) => setUseWitnesses(event.target.checked)} /> Include source-bound witness examinations from the approved model.</label>
-              <RunDepthSettings ballotContract={ballotV2} jurorCognition={jurorCognition} onBallotContract={setBallotV2} onJurorCognition={setJurorCognition} deliberationForecast={deliberationForecast} strawPollCounts={strawPollCounts} onDeliberationForecast={setDeliberationForecast} onStrawPollCounts={setStrawPollCounts} damagesAmounts={damagesAmounts} onDamagesAmounts={setDamagesAmounts} unavailableReason={depthBlocked} panel={estimate.panel} estimate={estimate.figures} />
+              <label className="workflow-check"><input type="checkbox" checked={useWitnesses} disabled={Boolean(caseModel?.marevaHearing)} onChange={(event) => setUseWitnesses(event.target.checked)} /> Include source-bound witness examinations from the approved model.</label>
+              {!caseModel?.marevaHearing && <RunDepthSettings ballotContract={ballotV2} jurorCognition={jurorCognition} onBallotContract={setBallotV2} onJurorCognition={setJurorCognition} deliberationForecast={deliberationForecast} strawPollCounts={strawPollCounts} onDeliberationForecast={setDeliberationForecast} onStrawPollCounts={setStrawPollCounts} damagesAmounts={damagesAmounts} onDamagesAmounts={setDamagesAmounts} unavailableReason={depthBlocked} panel={estimate.panel} estimate={estimate.figures} />}
               <RecordCoverage scope={caseModel?.recordScope} sources={sources} ledger={settingsLedger} />
               {!settingsLedger && <p role="status">Save document-use settings in Admitted Record before starting.</p>}
             <label className="workflow-check"><input type="checkbox" checked={reviewMotions} onChange={(event) => setReviewMotions(event.target.checked)} /> Pause for review after motion rulings.</label>
             {adapter !== 'ontario_capital_markets_v1' && <label className="workflow-check"><input type="checkbox" checked={reviewInstructions} onChange={(event) => setReviewInstructions(event.target.checked)} /> Pause for review after judicial instructions.</label>}
             <p className="disclaimer">Synthetic panels are not statistically representative, and one run's votes are not probabilities or predictions of a real verdict. The Strategy forecast reports win probabilities from many simulated panels, with intervals; they have not been tested against real outcomes. This workflow is for preparation and stress testing.</p>
             <button type="button" disabled={busy || !caseModel || !settingsLedger} onClick={() => void run(async () => { await checkSourceSize() })}>Check source size</button>
-            {sourceSize && <div className="notice-card" role="status"><strong>Selected source context: {sourceSize.characters.toLocaleString()} / {sourceSize.characterBudget.toLocaleString()} characters</strong><p>{sourceSize.message}</p><small>Largest source contributions: {sourceSize.sources.slice(0, 5).map(source => `${source.exhibitId}: ${source.characters.toLocaleString()}`).join(' · ')}</small>{!sourceSize.fits && <button type="button" onClick={() => setStep(6)}>Choose documents and paragraphs</button>}</div>}
+            {sourceSize && <div className="notice-card" role="status"><strong>{sourceSize.historyReserve ? 'Hearing context allocation' : 'Selected source context'}: {sourceSize.characters.toLocaleString()} / {sourceSize.characterBudget.toLocaleString()} characters</strong><p>{sourceSize.message}</p><small>Largest source contributions: {sourceSize.sources.slice(0, 5).map(source => `${source.exhibitId}: ${source.characters.toLocaleString()}`).join(' · ')}</small>{!sourceSize.fits && <button type="button" onClick={() => setStep(6)}>Choose documents and paragraphs</button>}</div>}
               <button className="primary-action" type="button" disabled={busy || !caseModel || caseModel.status !== 'approved' || !settingsLedger || trial?.run.status === 'running'} onClick={() => void run(createAndStartTrial)}><Play size={16} /> Create and run full proceeding</button>
             {trial && <><RunStatus trial={trial} /><button type="button" onClick={() => setStep(8)}>Inspect saved results <ChevronRight size={16} /></button></>}
             {trial?.run.config.courtroomProtocol && caseModel && <CourtroomPanel trial={trial} model={caseModel} sources={sources} motions={motions} onChanged={setTrial} />}

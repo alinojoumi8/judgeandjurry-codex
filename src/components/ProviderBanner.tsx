@@ -34,6 +34,7 @@ export function ProviderBanner({
           <span>
             {provider ? providerDescription(runConfig.providerMode, provider) : 'Loading provider details'}
           </span>
+          {provider?.quotaFallback && <span>Quota fallback: {provider.quotaFallback.label} · {provider.quotaFallback.model}</span>}
         </div>
       </div>
 
