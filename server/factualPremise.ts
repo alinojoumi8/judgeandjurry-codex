@@ -21,13 +21,14 @@ function insideQuotation(text: string, at: number) {
 // A citation attached to a different coordinated clause cannot establish this
 // clause's source contents, even when both locators occur in one finding.
 function premiseCitations(prose: string, start: number, end: number, citations: GroundingCitation[]) {
-  const groups = /\([^)]*\)|\[[^\]]*\]/g
-  const masked = prose.replace(groups, group => ' '.repeat(group.length))
+  const groups = /\([^()[\]]*\)|\[[^()[\]]*\]/g
+  const locatorGroup = (group: string) => /\be-\d+\b/.test(group) &&
+    !group.replace(/\be-\d+\b|\b(?:paras?|paragraphs?|pp?|pages?|sections?)\b|[\d\s.,;:()[\]–—-]/g, '')
+  // Hide punctuation in locator lists while preserving boundaries in ordinary prose.
+  const masked = prose.replace(groups, group => locatorGroup(group) ? ' '.repeat(group.length) : group)
   const boundaries = [...masked.matchAll(/[;.!?]|,\s*(?:and|but|while|yet)\b/g)]
   const left = boundaries.filter(row => row.index! < start).at(-1)
   const right = boundaries.find(row => row.index! >= end)
-  const locatorGroup = (group: string) => /\be-\d+\b/.test(group) &&
-    !group.replace(/\be-\d+\b|\b(?:paras?|paragraphs?|pp?|pages?|sections?)\b|[\d\s.,;:()[\]–—-]/g, '')
   // A leading locator can qualify a source noun ("the report (E-001)").
   // A prose aside ("compare E-002; unrelated") cannot supply the exhibit.
   const before = prose.slice(left ? left.index! + left[0].length : 0, start).replace(groups, (group, at, line: string) =>
