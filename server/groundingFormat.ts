@@ -67,7 +67,7 @@ export function groundingTool(units: GroundingUnit[], references?: { records: st
 // value is reused as a model assessment.
 export function groundingCorrectionUnits(units: GroundingUnit[], review: GroundingReview, content: string): GroundingUnit[] {
   try {
-    const data = JSON.parse(content)
+    const data = parseCheckerJson(content)
     if (!completeKeyedFindings(data, units) || !review.errors.length) return units
     // A complete inventory with missing fields in accepted rows can be corrected
     // without asking the model to regenerate every other raw assessment.
@@ -97,7 +97,7 @@ function completeKeyedFindings(data: unknown, units: GroundingUnit[]): data is {
 }
 
 export function mergeGroundingCorrection(previous: string, correction: string, units: GroundingUnit[], targets: GroundingUnit[]): string {
-  const base = JSON.parse(previous), next = JSON.parse(correction)
+  const base = parseCheckerJson(previous), next = parseCheckerJson(correction)
   if (!targets.length || !targets.every(target => units.some(unit => unit.id === target.id)) || !completeKeyedFindings(base, units) || !completeKeyedFindings(next, targets)) {
     throw new Error('The scoped correction requires exactly its requested finding IDs and no extra root fields; no missing row is inferred.')
   }
@@ -125,7 +125,7 @@ export function groundingCorrectionTool(units: GroundingUnit[], references: { re
 }
 
 export function groundingCorrectionContent(content: string): string {
-  const data = JSON.parse(content)
+  const data = parseCheckerJson(content)
   if (!Array.isArray(data?.findings)) return content
   const ids = new Set<string>()
   const rows = data.findings.map((row: Record<string, unknown>) => {
@@ -173,16 +173,22 @@ function uniqueJsonObjectKeys(content: string): boolean {
   return true
 }
 
+// Parse before checking scopes so malformed JSON retains its syntax error.
+function parseCheckerJson(content: string) {
+  const parsed = JSON.parse(content)
+  if (!uniqueJsonObjectKeys(content)) throw new Error('The checker response contains a duplicate JSON key.')
+  return parsed
+}
+
 export function groundingSerializedContent(content: string, initialUnitIds: readonly string[] = []): string {
-  const data = JSON.parse(content)
+  const data = parseCheckerJson(content)
   if (data && typeof data === 'object' && Object.hasOwn(data, 'reviewJson')) {
     if (Object.keys(data).length !== 1 || typeof data.reviewJson !== 'string') throw new Error('reviewJson must be the only tool field and contain the complete review as a JSON string.')
-    const review = JSON.parse(data.reviewJson)
+    const review = parseCheckerJson(data.reviewJson)
     // An initial scalar may contain the exact unit map directly. Keep the
     // supplied values unchanged and apply the same keyed review validator.
     if (initialUnitIds.length && review && typeof review === 'object' && !Array.isArray(review) &&
       Object.keys(review).length === initialUnitIds.length && initialUnitIds.every(id => Object.hasOwn(review, id))) {
-      if (!uniqueJsonObjectKeys(content) || !uniqueJsonObjectKeys(data.reviewJson)) throw new Error('The initial unit map contains a duplicate JSON key.')
       return '{"findings":' + data.reviewJson + '}'
     }
     return data.reviewJson
@@ -214,13 +220,13 @@ export function groundingSingleTool(units: GroundingUnit[], references: { record
 }
 
 export function groundingSingleContent(content: string): string {
-  const data = JSON.parse(content)
+  const data = parseCheckerJson(content)
   if (data && typeof data === 'object' && !Array.isArray(data) && !Object.hasOwn(data, 'findings') && typeof data.unitId === 'string') {
     const { unitId, ...finding } = data
     // Decode only an explicit model selection. Missing fields remain missing;
     // the full review parser validates every locator and permitted reference.
     if (typeof finding.recordCitations === 'string') {
-      const selected = JSON.parse(finding.recordCitations)
+      const selected = parseCheckerJson(finding.recordCitations)
       if (!Array.isArray(selected)) throw new Error('recordCitations must encode a JSON array of record locators.')
       finding.recordCitations = selected
     }

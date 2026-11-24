@@ -8,6 +8,16 @@ const premiseWording = (text: string) => normal(text)
   .replace(/\bno (?:such )?accounts (?:were|had been) opened for any investors(?=[.!?;]|$)/g, 'no investor accounts existed')
 const deniedOrConditional = /\b(?:if|whether|unless|not (?:say|state|report|confirm)|never (?:said|stated|reported)|deny|denies|denied|disputes?|disputed|unconfirmed)\b/i
 
+function insideQuotation(text: string, at: number) {
+  let curlyDepth = 0, straightOpen = false
+  for (const mark of text.slice(0, at).match(/["“”]/g) ?? []) {
+    if (mark === '“') curlyDepth++
+    else if (mark === '”') curlyDepth = Math.max(0, curlyDepth - 1)
+    else straightOpen = !straightOpen
+  }
+  return straightOpen || curlyDepth > 0
+}
+
 // A citation attached to a different coordinated clause cannot establish this
 // clause's source contents, even when both locators occur in one finding.
 function premiseCitations(prose: string, start: number, end: number, citations: GroundingCitation[]) {
@@ -15,7 +25,7 @@ function premiseCitations(prose: string, start: number, end: number, citations: 
   const boundaries = [...masked.matchAll(/[;.!?]|,\s*(?:and|but|while|yet)\b/g)]
   const left = boundaries.filter(row => row.index! < start).at(-1)
   const right = boundaries.find(row => row.index! >= end)
-  const before = prose.slice(left ? left.index! + left[0].length : 0, start)
+  const before = masked.slice(left ? left.index! + left[0].length : 0, start)
   const after = prose.slice(end, right?.index ?? prose.length)
   const preceding = [...before.matchAll(/\be-\d+\b/g)].at(-1)?.[0]
   const following = after.match(/\be-\d+\b/g) ?? []
@@ -35,17 +45,14 @@ function supportedCorrectionHistory(prose: string, match: RegExpMatchArray, cita
   const wording = (value: string) => premiseWording(value).replace(/acknowledgement/g, 'acknowledgment')
   const datePattern = /\b(?:january|february|march|april|may|june|july|august|september|october|november|december) \d{1,2}(?:,? \d{4})?\b/g
   return citations.some(citation => {
-    if (!sourceSpeakerMatches(attribution[1], citation, sources)) return false
+    if (!matchingSourceSpeaker(attribution[1], citation, sources)) return false
     const source = wording(citation.quote)
     const corrections = /\bi (?:incorrectly|mistakenly) (?:stated|said|reported|asserted) that ([^.!?;]+)[.!?]\s*(?:in (?:actual )?fact|actually),?\s*([^.!?;]+)/g
     return [...source.matchAll(corrections)].some(correction => {
       const lead = source.slice(0, correction.index).split(/[.!?;]/).at(-1) ?? ''
       // A quotation or another person's reported words do not become the
       // deponent's own correction merely because the affidavit has a heading.
-      const preceding = source.slice(0, correction.index)
-      const insideQuotation = (preceding.match(/"/g)?.length ?? 0) % 2 !== 0 ||
-        preceding.lastIndexOf('“') > preceding.lastIndexOf('”')
-      if (insideQuotation || deniedOrConditional.test(lead) || /[:"“”]|\b(?:says?|said|reports?|stated)\b/.test(lead)) return false
+      if (insideQuotation(source, correction.index!) || deniedOrConditional.test(lead) || /[:"“”]|\b(?:says?|said|reports?|stated)\b/.test(lead)) return false
       const localContext = source.slice(Math.max(0, correction.index! - 250), correction.index)
       const dates = [...wording(accounts[1]).matchAll(datePattern)].map(row => row[0])
       const sourceObject = wording(correction[1]).match(/ did not [a-z]+ the ([\p{L} '-]+)$/u)?.[1]
@@ -68,9 +75,12 @@ function supportedCorrectionHistory(prose: string, match: RegExpMatchArray, cita
         let result = comparable(value)
         if (reported) result = result.replace('in ' + attribution[2] + ' presence', 'in my presence')
         result = result.replace(subject + ' did ' + verb + ' ', subject + ' ' + past + ' ')
-        return result.replace(subject + ' ' + past + ' it ', subject + ' ' + past + ' ' + object + ' ')
+        const pronoun = subject + ' ' + past + ' it'
+        return result === pronoun ? subject + ' ' + past + ' ' + object : result.replace(pronoun + ' ', subject + ' ' + past + ' ' + object + ' ')
       }
       const stated = current(accounts[2], true), actual = current(correction[2], false)
+      const affirmative = subject + ' ' + past + ' ' + object
+      if (actual !== affirmative && !actual.startsWith(affirmative + ' ')) return false
       if (deniedOrConditional.test(actual) || /\b(?:false|untrue|incorrect|unconfirmed|apparently|allegedly)\b/.test(actual)) return false
       return actual === stated || stated.endsWith(' in my presence') &&
         actual === stated + ' and in the presence of various witnesses'
@@ -89,16 +99,29 @@ function supportedNestedAttribution(prose: string, match: RegExpMatchArray, cita
   const literal = (text: string) => normal(text).replace(/["“”]/g, '')
   const escape = (text: string) => text.replace(/[/\\^$*+?.()|[\]{}]/g, '\\$&')
   return citations.some(citation => {
-    if (!sourceSpeakerMatches(speakers[1], citation, sources)) return false
+    if (!matchingSourceSpeaker(speakers[1], citation, sources)) return false
     const selected = citations.filter(other => other.exhibitId === citation.exhibitId)
-    const source = literal(citation.quote)
+    const source = normal(citation.quote)
+    const sentences = source.split(/(?<=[.!?;])\s+/)
     const endsClause = (sentence: string, claim: string) => {
       const at = sentence.indexOf(claim)
       return at >= 0 && /^\s*[.!?;]?$/.test(sentence.slice(at + claim.length))
     }
     const reported = speakers[2] + "'s " + match[0].slice(0, match[0].indexOf(' that ')) + ' that ' + literal(parts[1]) + ' ' + literal(parts[2])
-    if (!source.split(/(?<=[.!?;])\s+/).some(sentence => endsClause(sentence, reported) &&
-      !deniedOrConditional.test(sentence) && !/\b(?:false|untrue|incorrect|hypothetical)\b/.test(sentence))) return false
+    let offset = 0
+    const ownReport = sentences.some(sentence => {
+      const start = source.indexOf(sentence, offset)
+      offset = start + sentence.length
+      const at = sentence.indexOf(speakers[2] + "'s ")
+      if (at < 0 || insideQuotation(source, start + at)) return false
+      const lead = sentence.slice(0, at).trim()
+      // A discourse marker or the deponent's own reporting verb can introduce
+      // the inner speaker. A second reporter cannot speak for the deponent.
+      if (!/^(?:(?:first(?:ly)?|second(?:ly)?|third(?:ly)?|further(?:more)?|also|however|finally),? *)?(?:i (?:assert|state|report|note|say|submit) that *)?$/.test(lead)) return false
+      return endsClause(literal(sentence.slice(at)), reported) && !deniedOrConditional.test(sentence) &&
+        !/\b(?:false|untrue|incorrect|hypothetical)\b/.test(sentence)
+    })
+    if (!ownReport) return false
     const rationale = literal(parts[3])
     const unconditional = (sentence: string) => !deniedOrConditional.test(sentence) &&
       !/[:"“”]|\b(?:false|untrue|incorrect|unconfirmed)\b/.test(sentence)
@@ -106,10 +129,9 @@ function supportedNestedAttribution(prose: string, match: RegExpMatchArray, cita
       const text = normal(quote)
       let offset = 0
       return text.split(/(?<=[.!?;])\s+/).filter(sentence => {
-        const start = text.indexOf(sentence, offset), preceding = text.slice(0, start)
+        const start = text.indexOf(sentence, offset)
         offset = start + sentence.length
-        const quoted = (preceding.match(/"/g)?.length ?? 0) % 2 !== 0 || preceding.lastIndexOf('“') > preceding.lastIndexOf('”')
-        return !quoted && unconditional(sentence)
+        return !insideQuotation(text, start) && unconditional(sentence)
       })
     }
     if (selected.some(other => assertions(other.quote).some(sentence => {
@@ -124,22 +146,31 @@ function supportedNestedAttribution(prose: string, match: RegExpMatchArray, cita
     if (!property || !['he', 'she', speakers[1]].includes(property[3])) return false
     const [, subject, predicate, , jurisdiction] = property
     const causal = new RegExp('\\bsince i do not have any such assets, continuing with the (?:[\\p{L}-]+ )?' + escape(subject) + ' is ' + escape(predicate) + '\\b', 'u')
-    const causalAccount = assertions(citation.quote).some(sentence => causal.test(sentence))
+    const assetLocation = new RegExp('\\b(?:assets?|property)\\b[^.!?;,]{0,140}?\\b(?:in|within) (?:the )?(?:(?:province|territory|state) of )?' + escape(jurisdiction) + '(?=[.;,]|$)', 'u')
+    const ownAssertions = new Set(assertions(citation.quote))
+    const causalAccount = sentences.some((sentence, index) => index > 0 && ownAssertions.has(sentence) &&
+      causal.test(sentence) && ownAssertions.has(sentences[index - 1]) && assetLocation.test(sentences[index - 1]))
     const ownership = new RegExp('\\bi do not own any property in ' + escape(jurisdiction) + '(?=$|[.;]|, and i\\b)')
-    return causalAccount && new RegExp('\\b' + escape(jurisdiction) + '\\b').test(source) &&
+    return causalAccount &&
       selected.some(other => assertions(other.quote).some(sentence => ownership.test(sentence)))
   })
 }
 
-function sourceSpeakerMatches(speaker: string, citation: GroundingCitation, sources: { exhibitId: string; text: string }[]) {
+function matchingSourceSpeaker(speaker: string, citation: GroundingCitation, sources: { exhibitId: string; text: string }[]) {
   const source = sources.find(item => item.exhibitId === citation.exhibitId)
-  if (!source) return false
-  const introduction = normal(source.text.slice(0, Math.min(citation.startOffset, 3000)))
-  const identities = [...introduction.matchAll(/\bi,\s*([\p{L} '-]+),.{0,600}?\bmake oath and say:/gu)].map(row => row[1].trim())
-  const opening = normal(source.text.slice(0, 3000))
+  if (!source) return undefined
+  const opening = normal(source.text.slice(0, Math.min(citation.endOffset, 3000)))
+  const before = normal(source.text.slice(0, Math.min(citation.startOffset, 3000)))
+  const oaths = [...opening.matchAll(/\bi,\s*([\p{L} '-]+),.{0,600}?\bmake oath and say:/gu)]
+    .filter(row => !insideQuotation(opening, row.index!))
+  // An oath included by the first locator must introduce the passage itself.
+  // Ignore an embedded or later oath as a substitute for an unknown author.
+  if (oaths.length > 1 || oaths.some(row => row.index! >= before.length &&
+    !/^(?:affidavit of [\p{L} '-]+)?$/u.test(opening.slice(0, row.index).trim()))) return undefined
+  const identities = oaths.map(row => row[1].trim())
   const named = opening.match(/^(?:fictional )?([\p{L} '-]+) (?:states|says|reports):/u)?.[1]
   if (named) identities.push(named)
-  return identities.length === 1 && [identities[0], identities[0].split(' ').at(-1)].includes(speaker)
+  if (identities.length === 1 && [identities[0], identities[0].split(' ').at(-1)].includes(speaker)) return identities[0]
 }
 
 // A change in one person's account requires that person's own selected history.
@@ -150,38 +181,41 @@ function changedAccountError(prose: string, citations: GroundingCitation[], sour
   const sourceLocation = /\b(?:in|from|according to) (?:(?:the|an?|this|that|these|those|his|her|their) )?(?:(?:first|second|third|fourth|last|earlier|later|original|amended|supplemental|supplementary|cited|selected) )*(?:affidavits?|statements?|declarations?|testimony|transcripts?|reports?|exhibits?|passages?) /
   const reportingPhrase = /^(?:(?:the|this|these|those) )?(?:(?:cited|selected) )?(?:records?|evidence|passages?|sources?|exhibits?) (?:shows?|showed|indicates?|indicated|confirms?|confirmed|demonstrates?|demonstrated) /
   for (const match of prose.matchAll(changes)) {
-    const prefix = prose.slice(0, match.index).split(/[;.!?]/).at(-1) ?? ''
-    if (deniedOrConditional.test(prefix + match[1]) || /\b(?:false|untrue)\b/.test(prefix)) continue
+    const context = (prose.slice(0, match.index).split(/[;.!?]/).at(-1) ?? '') + match[1]
+    const clause = context.split(/\b(?:but|yet|whereas)\b|,\s*(?:and|while)\b/).at(-1)!.trim()
+    const unestablished = /\b(?:does not|do not|did not|doesn't|don't|didn't) (?:show|establish|demonstrate|indicate|confirm|prove) (?:that )?[\p{L} '-]+$/u
+    if (deniedOrConditional.test(clause) || unestablished.test(clause) || /\b(?:false|untrue)\b/.test(clause)) continue
     const subject = match[1].replace(sourceLocation, '')
     const speaker = subject.split(/\b(?:that|because|although|while)\b/).at(-1)!.trim().replace(reportingPhrase, '')
     const topics = normal(match[2] ?? '').replace(/acknowledgement/g, 'acknowledgment').split(' ').filter(word => word && !['the', 'a', 'an'].includes(word))
     if (!topics.length) return `Name what changed in ${speaker}'s account and cite that speaker's selected statements about it.`
     const selected = premiseCitations(prose, match.index!, match.index! + match[0].length, citations)
-    const accounts = selected.filter(citation => sourceSpeakerMatches(speaker, citation, sources)).map(citation => {
+    const accounts = selected.flatMap(citation => {
+      const identity = matchingSourceSpeaker(speaker, citation, sources)
+      if (!identity) return []
       const source = normal(citation.quote).replace(/acknowledgement/g, 'acknowledgment')
       let offset = 0
       const sentences = source.split(/(?<=[.!?;])\s+/).filter(sentence => {
-        const start = source.indexOf(sentence, offset), preceding = source.slice(0, start)
+        const start = source.indexOf(sentence, offset)
         offset = start + sentence.length
-        const quoted = (preceding.match(/"/g)?.length ?? 0) % 2 !== 0 || preceding.lastIndexOf('“') > preceding.lastIndexOf('”')
-        return !quoted && !/["“”]/.test(sentence) && !deniedOrConditional.test(sentence) &&
+        return !insideQuotation(source, start) && !/["“”]/.test(sentence) && !deniedOrConditional.test(sentence) &&
           !/\b(?:false|untrue|hypothetical)\b/.test(sentence)
       })
       const own = sentences.filter(sentence => /\bi [a-z]+ /.test(sentence) && topics.every(topic => sentence.includes(topic)))
       const correctedAt = sentences.findIndex(sentence => own.includes(sentence) && /\bi (?:incorrectly|mistakenly) (?:stated|said|reported|asserted) that\b/.test(sentence))
       const correction = correctedAt >= 0 && sentences.slice(correctedAt + 1).some(sentence => /^(?:in (?:actual )?fact|actually),?\s+/.test(sentence) && topics.every(topic => sentence.includes(topic)))
-      return { exhibitId: citation.exhibitId, own, correction }
+      return [{ identity, exhibitId: citation.exhibitId, own, correction }]
     })
     const claims = accounts.flatMap(account => account.own.flatMap(sentence => {
       const assertion = sentence.match(/\bi (?:(did not|didn't|did|do not|don't|never) )?([a-z]+) ([^.!?;]+)[.!?;]?$/)
       if (!assertion) return []
       const [, auxiliary, verb, object] = assertion
       const verbs = new Set([verb, ...(verb.endsWith('ed') ? [verb.slice(0, -2), verb.slice(0, -1)] : [])])
-      return [{ exhibitId: account.exhibitId, negative: /not|n't|never/.test(auxiliary ?? ''), verbs, object: object.trim() }]
+      return [{ identity: account.identity, exhibitId: account.exhibitId, negative: /not|n't|never/.test(auxiliary ?? ''), verbs, object: object.trim() }]
     }))
-    const opposed = claims.some(earlier => claims.some(later => earlier.exhibitId !== later.exhibitId &&
+    const opposed = claims.some(earlier => claims.some(later => earlier.identity === later.identity && earlier.exhibitId !== later.exhibitId &&
       earlier.negative !== later.negative && earlier.object === later.object && [...earlier.verbs].some(verb => later.verbs.has(verb))))
-    if (!accounts.some(account => account.correction) && !opposed) {
+    if (new Set(accounts.map(account => account.identity)).size !== 1 || !accounts.some(account => account.correction) && !opposed) {
       return `The reported change in ${speaker}'s own account needs that speaker's selected earlier and later statements or an explicit correction by that speaker. A conflicting account or correction by another speaker does not establish this history.`
     }
   }

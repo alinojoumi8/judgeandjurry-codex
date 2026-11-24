@@ -339,6 +339,7 @@ export class MiniMaxClient implements ModelClient {
     for (let attempt = 0; ; attempt++) {
       let content = ''
       let receivedResponse = false
+      let mergedCorrection = false
       let review: GroundingReview
       try {
       content = await this.requestStage({
@@ -354,7 +355,10 @@ export class MiniMaxClient implements ModelClient {
       // Preserve strict metadata diagnostics after a schema correction, including
       // historical text responses, without tightening unrelated legacy rechecks.
       if (strictCorrection) content = groundingCorrectionContent(cleanModelJsonText(content))
-      if (correctionBase) content = mergeGroundingCorrection(correctionBase, cleanModelJsonText(content), units, verificationUnits)
+      if (correctionBase) {
+        content = mergeGroundingCorrection(correctionBase, cleanModelJsonText(content), units, verificationUnits)
+        mergedCorrection = true
+      }
       review = parseGroundingReview(cleanModelJsonText(content), units, request.evidence, request.groundingContext ?? '', request.courtroomActor && request.courtroomAssessments ? { actorId: request.courtroomActor.id, assessments: request.courtroomAssessments, profile: request.jurorProfiles?.find(p => p.juror === request.courtroomActor?.id) } : undefined, request.courtroomEvents || request.approvedIssueInstructions?.length ? { packet: request.courtroomProtocol ? request.packet : '', events: request.courtroomEvents ?? [], actorRoles: request.courtroomActor?.roles ?? [], partyRoles: request.approvedPartyRoles ?? [], actor: request.courtroomActor, stage: request.stage, ballotRound: request.ballotRound, currentJuror: currentDraft, approvedIssueInstructions: request.approvedIssueInstructions, courtroomState: request.courtroomState } : undefined)
       } catch (error) {
         const formatFailure = error instanceof ModelProviderError && /^Model output (?:was not valid JSON|violated checker schema|did not contain a JSON object)/.test(error.message)
@@ -518,8 +522,12 @@ export class MiniMaxClient implements ModelClient {
       strictCorrection ||= this.config.provider === 'minimax' && checkerCorrectionNeeded
       // Repair the checker record without asking the advocate to change an
       // otherwise supported draft merely because its auditor misquoted a PDF.
-      verificationUnits = this.config.provider === 'minimax' ? groundingCorrectionUnits(units, review, content) : units
-      correctionBase = verificationUnits.length < units.length ? content : undefined
+      // A malformed scoped reply cannot replace previously assessed rows or
+      // reopen them on the next attempt. Recompute only from a complete merge.
+      if (!correctionBase || mergedCorrection) {
+        verificationUnits = this.config.provider === 'minimax' ? groundingCorrectionUnits(units, review, content) : units
+        correctionBase = verificationUnits.length < units.length ? content : undefined
+      }
       if (correctionBase) this.logger.info('model.checker.correction_scope', {
         requestedUnitIds: verificationUnits.map(unit => unit.id),
         retainedUnitIds: units.filter(unit => !verificationUnits.some(target => target.id === unit.id)).map(unit => unit.id),
