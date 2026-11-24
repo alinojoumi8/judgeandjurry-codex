@@ -53,6 +53,10 @@ describe('source speaker identity for reported history changes', () => {
     ['The selected passages indicate Cedar Vale', 'passed'],
     ['The record shows that Cedar Vale', 'passed'],
     ['The record shows River Vale', 'failed'],
+    ['in the second affidavit vale', 'passed'],
+    ['According to the earlier statement Cedar Vale', 'passed'],
+    ['In that affidavit the record shows Cedar Vale', 'passed'],
+    ['In the second affidavit River Vale', 'failed'],
   ])('binds the speaker after an evidentiary reporting phrase in "%s"', (subject, expected) => {
     const correction = 'I incorrectly stated that I did not receive the payment. In fact, I received the payment.'
     const evidence = [source('E-002', 'Cedar Vale', correction)]
@@ -98,7 +102,9 @@ describe('source speaker identity for reported history changes', () => {
   })
   it('requires the draft to name what changed even when the selected exhibits oppose each other', () => {
     const evidence = [opposing[0], source('E-002', 'Rowan Alder', admission)]
-    expect(check('Alder’s account changed (E-001, paragraph 2; E-002, paragraph 2).', evidence, selectors).status).toBe('failed')
+    const result = check('Alder’s account changed (E-001, paragraph 2; E-002, paragraph 2).', evidence, selectors)
+    expect(result.status).toBe('failed')
+    expect(result.errors.join(' ')).toMatch(/name what changed/i)
   })
   it.each(['I did sign the acknowledgement.', 'I signed the acknowledgement later.'])('does not equate changed wording with a changed position: %s', later => {
     expect(check('Alder’s account of the acknowledgement changed (E-001, paragraph 2; E-002, paragraph 2).', [source('E-001', 'Rowan Alder', admission), source('E-002', 'Rowan Alder', later)], selectors).status).toBe('failed')
